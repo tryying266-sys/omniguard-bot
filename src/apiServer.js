@@ -146,6 +146,13 @@ app.listen(PORT, () => {
     console.log('==================================================');
 });
 
+// [NEW] تشغيل البوت (client.login) بنفس عملية Node هذي - عشان نستخدم
+// Web Service مجاني وحد بدل Background Worker (مدفوع) + Web Service.
+// index.js يفتح اتصال Discord Gateway بشكل مستقل، لا يتعارض مع Express
+// فوق - الاثنين يشتغلون بالتوازي بنفس العملية (Node قادر يدير أكثر من
+// اتصال I/O غير متزامن بنفس الوقت بدون مشكلة).
+require('./index');
+
 // Global Error Handler
 process.on('uncaughtException', (err) => {
     console.error('[Fatal System Error]:', err);
