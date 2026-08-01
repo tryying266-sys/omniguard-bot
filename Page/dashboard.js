@@ -123,7 +123,7 @@ function getGuildId() {
 }
 
 function getApiKey() {
-    const meta = document.querySelector('meta[name="dashboard-api-key"]');
+    const meta = document.querySelector('meta[name="dK8#mP2$vxL9!zQ5@wR3*tY7^bN1&cX4_uJ6+eA0-fG8~hM2?sK9<pL1>qW5%zX8"]');
     const key = meta?.content?.trim();
     return (key && key !== 'REPLACE_WITH_YOUR_DASHBOARD_API_KEY') ? key : FALLBACK_API_KEY;
 }
