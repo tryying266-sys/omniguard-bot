@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="dashboard-api-key" content="REPLACE_WITH_YOUR_DASHBOARD_API_KEY">
+    <meta name="dashboard-guild-id" content="REPLACE_WITH_YOUR_GUILD_ID">
+    <title>OmniGuard - General Settings</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* Base Colors & Reset */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #111115;
+            --bg-tertiary: #18181c;
+            --accent-red: #ff3344;
+            --accent-red-hover: #ff5566;
+            --accent-green: #3ba55d;
+            --accent-green-hover: #43b869;
+            --text-primary: #ffffff;
+            --text-secondary: #8e9297;
+            --border-color: #2a2b30;
+        }
+
+        body { background-color: var(--bg-primary); color: var(--text-primary); display: flex; height: 100vh; overflow: hidden; }
+
+        /* Sidebar Styles */
+        .sidebar { width: 280px; background-color: var(--bg-secondary); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 24px 16px; overflow-y: auto; }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        .logo-section { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-left: 8px; flex-shrink: 0; }
+        .logo-icon { color: var(--accent-red); font-size: 24px; }
+        .logo-text { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+        .category-container { display: flex; align-items: center; gap: 10px; margin-top: 18px; margin-bottom: 10px; width: 100%; }
+        .category-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-secondary); white-space: nowrap; }
+        .category-line { flex-grow: 1; height: 1px; background-color: var(--border-color); }
+        .menu-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+        .menu-item a { display: flex; align-items: center; gap: 12px; padding: 10px 14px; color: var(--text-secondary); text-decoration: none; border-radius: 8px; font-weight: 500; font-size: 14px; transition: all 0.2s ease; }
+        .menu-item a:hover { color: var(--text-primary); background-color: var(--bg-tertiary); }
+        .menu-item.active a { color: var(--text-primary); background-color: rgba(255, 51, 68, 0.1); border-left: 3px solid var(--accent-red); padding-left: 11px; }
+
+        /* Main Content Area */
+        .main-content { flex-grow: 1; background-color: var(--bg-primary); display: flex; flex-direction: column; overflow-y: auto; }
+        header { height: 70px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background-color: var(--bg-secondary); flex-shrink: 0; }
+        .header-title { font-size: 18px; font-weight: 600; }
+        .user-profile { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; background-color: var(--accent-red); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
+
+        .content-body { padding: 40px; max-width: 1200px; width: 100%; margin: 0 auto; }
+
+        /* Settings Grid */
+        .settings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 32px; }
+        @media (max-width: 992px) { .settings-grid { grid-template-columns: 1fr; } }
+
+        .settings-card { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 28px; display: flex; flex-direction: column; gap: 20px; position: relative; }
+        .full-width { grid-column: span 2; }
+
+        .card-header-group { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px; }
+        .card-header-icon { color: var(--accent-red); font-size: 20px; }
+        .card-header-title { font-size: 16px; font-weight: 600; }
+
+        .form-row { display: flex; gap: 16px; }
+        .form-group { flex: 1; display: flex; flex-direction: column; gap: 8px; position: relative; }
+        .form-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
+
+        .form-input { width: 100%; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 12px 16px; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; }
+        .form-input:focus { border-color: var(--accent-red); }
+
+        /* Custom Multi-Select Dropdown Selector Box */
+        .selector-box {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px;
+            min-height: 45px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .selector-box:hover { border-color: var(--accent-red); }
+
+        .selector-placeholder { color: var(--text-secondary); font-size: 13px; margin-left: 5px; }
+
+        /* تاق موحّد لكل الصفحات (رتب/قنوات/نص حر) - أحمر شفاف حسب طلبك */
+        .tag-item {
+            background-color: rgba(255, 51, 68, 0.15);
+            color: var(--accent-red);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid rgba(255, 51, 68, 0.3);
+        }
+        .tag-item .remove-btn { cursor: pointer; font-size: 12px; line-height: 1; transition: color 0.2s; }
+        .tag-item .remove-btn:hover { color: white; }
+
+        .dropdown-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-top: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .dropdown-list.show { display: block; }
+        .dropdown-item {
+            padding: 10px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .dropdown-item:hover { background-color: var(--accent-red); color: white; }
+
+        /* عنوان القسم جوه قائمة القنوات (Category header) - غير قابل للضغط،
+           بس تجميع بصري حسب ترتيب الأقسام بالسيرفر */
+        .dropdown-category-header {
+            padding: 8px 16px 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            cursor: default;
+        }
+        .dropdown-empty {
+            padding: 14px 16px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-align: center;
+        }
+
+        /* تنبيه الحد الأقصى (MAX_TAGS_PER_BOX) - يبان تحت الصندوق مباشرة
+           ويختفي لوحده بعد ثانيتين */
+        .limit-warning {
+            color: var(--accent-red);
+            font-size: 12px;
+            margin-top: 4px;
+            display: inline-block;
+        }
+
+        /* Save Bar */
+        .save-changes-bar { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; bottom: 20px; z-index: 10; }
+        .save-info-text { font-size: 14px; color: var(--text-secondary); }
+
+        /* حالات زر الحفظ - المنطق يتحكم فيها dashboard.js عبر
+           setSaveButtonState()، هذا الملف يوفر بس المظهر البصري لكل حالة. */
+        .save-btn { border: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 0.2s, color 0.2s; }
+
+        .save-btn.state-default { background-color: var(--bg-tertiary); color: var(--text-secondary); cursor: not-allowed; }
+
+        .save-btn.state-dirty { background-color: var(--accent-red); color: var(--text-primary); }
+        .save-btn.state-dirty:hover { background-color: var(--accent-red-hover); }
+
+        .save-btn.state-saved { background-color: var(--accent-green); color: var(--text-primary); cursor: default; }
+
+        .save-btn.state-error { background-color: var(--accent-red); color: var(--text-primary); }
+        .save-btn.state-error:hover { background-color: var(--accent-red-hover); }
+    </style>
+</head>
+<body>
+
+    <!-- Left Sidebar Navigation - Perfectly matched with index.html -->
+    <aside class="sidebar">
+        <div class="logo-section">
+            <i class="fa-solid fa-shield-halved logo-icon"></i>
+            <span class="logo-text">OmniGuard</span>
+        </div>
+
+        <!-- HOME CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Home</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="index.html">
+                    <i class="fa-solid fa-house"></i>
+                    Home
+                </a>
+            </li>
+        </ul>
+
+        <!-- CORE SETTINGS CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Core Settings</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item active">
+                <a href="general-settings.html">
+                    <i class="fa-solid fa-sliders"></i>
+                    General Settings
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="welcome-leave.html">
+                    <i class="fa-solid fa-door-open"></i>
+                    Welcome & Leave
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="role-management.html">
+                    <i class="fa-solid fa-user-gear"></i>
+                    Role Management
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODERATION & SECURITY CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Moderation & Security</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="auto-mod.html">
+                    <i class="fa-solid fa-robot"></i>
+                    Auto-Mod
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="anti-alt.html">
+                    <i class="fa-solid fa-user-shield"></i>
+                    Anti-Alt
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="logging.html">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    Logging
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODULES & FEATURES CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Modules & Features</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="custom-messages.html">
+                    <i class="fa-solid fa-comment-dots"></i>
+                    Custom Messages
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="leveling-system.html">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    Leveling System
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <header>
+            <div class="header-title">General Settings</div>
+            <div class="user-profile">
+                <span>Administrator</span>
+                <div class="avatar">OG</div>
+            </div>
+        </header>
+
+        <div class="content-body">
+            <div class="settings-grid">
+
+                <!-- Bot Identity -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-robot card-header-icon"></i>
+                        <h2 class="card-header-title">Bot Identity</h2>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Bot Prefix</label>
+                            <!-- id = عمود setting_guild.prefix_bot حرفياً. maxlength="1"
+                                 يفرض حرف واحد بس أو فاضي (طبقة حماية HTML أولى) - الفلتر
+                                 الفعلي (يمنع أيضاً اللصق الطويل والمسافات) بالسكربت آخر
+                                 الصفحة، بدون أي تعديل على dashboard.js. -->
+                            <input id="prefix_bot" type="text" class="form-input" placeholder="!" maxlength="1">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Server Nickname</label>
+                            <!-- id = عمود setting_guild.nickname_server. maxlength="32" مو رقم
+                                 عشوائي - هذا نفس الحد اللي ديسكورد نفسه يفرضه على النيكنيم،
+                                 فلو تجاوزناه بوت.setNickname() كان بيفشل برمي خطأ. -->
+                            <input id="nickname_server" type="text" class="form-input" placeholder="OmniGuard" maxlength="32">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dashboard Access -->
+                <!-- [CHANGED v5.0] رجعت تاقات رتب متعددة زي باقي الصناديق (مو select
+                     مفرد). العمود الصحيح لهالحقل (dashboard_access_roles) موجود بجدول
+                     ثاني (setting_management_role) مو setting_guild - عشان كذا مضاف
+                     data-target-table="setting_management_role" عليها، عشان
+                     dashboard.js يحفظها/يحمّلها من جدولها الصحيح تلقائياً بدون ما
+                     يخلط بيانات هالكارت مع باقي حقول الصفحة. -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-user-lock card-header-icon"></i>
+                        <h2 class="card-header-title">Dashboard Access</h2>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Roles allowed to access the dashboard</label>
+                        <div class="selector-box"
+                             id="dashboard_access_roles"
+                             data-source="roles"
+                             data-target-table="setting_management_role"
+                             data-dropdown="dashboardAccessDropdown"
+                             onclick="toggleDropdown('dashboardAccessDropdown')">
+                            <span class="selector-placeholder">+ Select Roles</span>
+                        </div>
+                        <!-- تتعبّى تلقائياً من dashboard.js - بدون أي بيانات وهمية -->
+                        <div id="dashboardAccessDropdown" class="dropdown-list"></div>
+                    </div>
+                </div>
+
+                <!-- Global Excluded Roles (Spans full width right below Bot Identity & Dashboard Access) -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-user-slash card-header-icon"></i>
+                        <h2 class="card-header-title">Global Excluded Roles</h2>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Roles exempt from all bot commands and restrictions</label>
+                        <!-- id = عمود setting_guild.roles_exempt_commands.
+                             data-source="roles" -> تتعبّى تلقائياً من guild_structure_cache،
+                             مرتبة حسب التسلسل الهرمي بالسيرفر (الأعلى أولاً). -->
+                        <div class="selector-box" id="roles_exempt_commands" data-source="roles" data-dropdown="excludedRolesDropdown" onclick="toggleDropdown('excludedRolesDropdown')">
+                            <span class="selector-placeholder">+ Select Roles</span>
+                        </div>
+                        <div id="excludedRolesDropdown" class="dropdown-list"></div>
+                    </div>
+                </div>
+
+                <!-- Command Channel Filters -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-terminal card-header-icon"></i>
+                        <h2 class="card-header-title">Command Channel Filters</h2>
+                    </div>
+                    <div class="form-row" style="flex-wrap: wrap;">
+                        <div class="form-group" style="min-width: 280px;">
+                            <label class="form-label">Whitelisted Channels</label>
+                            <!-- id = عمود setting_guild.whitelisted_channels.
+                                 data-source="channels" -> مجمّعة حسب الأقسام ومرتبة. -->
+                            <div class="selector-box" id="whitelisted_channels" data-source="channels" data-dropdown="whitelistDropdown" onclick="toggleDropdown('whitelistDropdown')">
+                                <span class="selector-placeholder">+ Add Channel</span>
+                            </div>
+                            <div id="whitelistDropdown" class="dropdown-list"></div>
+                        </div>
+                        <div class="form-group" style="min-width: 280px;">
+                            <label class="form-label">Blacklisted Channels</label>
+                            <!-- id = عمود setting_guild.blacklisted_channels. -->
+                            <div class="selector-box" id="blacklisted_channels" data-source="channels" data-dropdown="blacklistDropdown" onclick="toggleDropdown('blacklistDropdown')">
+                                <span class="selector-placeholder">+ Add Channel</span>
+                            </div>
+                            <div id="blacklistDropdown" class="dropdown-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Sticky Save Bar -->
+            <div class="save-changes-bar">
+                <span class="save-info-text">Careful — any unsaved modifications will be lost!</span>
+                <!-- الكلاس الابتدائي state-default (رمادي + معطّل) - dashboard.js
+                     يتحكم فيه بعدين حسب حالة الفورم. -->
+                <button class="save-btn state-default" disabled>Save Changes</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- كل المنطق مركزي بـ dashboard.js (Smart Binding + Discord Selectors +
+         Save Button States + دعم أكثر من جدول بنفس الصفحة) عشان أي صفحة
+         ثانية تستخدم نفس الأنماط تستفيد منه تلقائياً. -->
+    <script src="dashboard.js"></script>
+
+    <!-- ================================================================
+         فلاتر خاصة بهذي الصفحة فقط (general-settings.html) - بدون أي
+         تعديل على dashboard.js (حسب الطلب، خصوصاً إنه مربوط بالبوت
+         الشغّال على Render وأي خطأ فيه يأثر على كل الصفحات). لازم تُحمَّل
+         بعد dashboard.js مباشرة عشان تقدر تلف (wrap) دالة addDiscordTag
+         العامة بأمان دون كسرها.
+         ================================================================ -->
+    <script>
+        (function () {
+            // ------------------------------------------------------------
+            // [1] Bot Prefix: حرف واحد بس أو فاضي - بدون مسافات/تاب/سطر جديد.
+            // maxlength="1" بالـ HTML يغطي أغلب الحالات، لكن بعض المتصفحات
+            // تسمح باللصق (paste) بطول أكبر قبل ما تقصّه، فنضيف فلتر JS
+            // احتياطي على حدث input يشيل أي مسافة ويقص لحرف واحد فقط.
+            // ------------------------------------------------------------
+            const prefixInput = document.getElementById('prefix_bot');
+            if (prefixInput) {
+                prefixInput.addEventListener('input', () => {
+                    const cleaned = prefixInput.value.replace(/\s/g, '').slice(0, 1);
+                    if (cleaned !== prefixInput.value) prefixInput.value = cleaned;
+                });
+            }
+
+            // ------------------------------------------------------------
+            // [2] Server Nickname: يمنع محارف غريبة قد تكسر النيكنيم بديسكورد
+            // أو تُستخدم بشكل مو مقصود (منشن @ / # روم-منشن / باك-تيك تكسر
+            // التنسيق / محارف تحكم وخفية Zero-width) + حد 32 حرف (نفس حد
+            // ديسكورد الحقيقي، موجود أصلاً بـ maxlength بالـ HTML - هذا
+            // الفلتر يضمنه أيضاً حتى لو انلصق نص أطول).
+            // ------------------------------------------------------------
+            const nicknameInput = document.getElementById('nickname_server');
+            if (nicknameInput) {
+                const sanitizeNickname = (value) => value
+                    // محارف تحكم (ASCII 0-31 و 127) + محارف خفية/Zero-width
+                    .replace(/[\u0000-\u001F\u007F\u200B-\u200F\uFEFF]/g, '')
+                    // منع @ و # (منشن/إشارة قنوات) والباك-تيك (يكسر الكود/التنسيق)
+                    .replace(/[@#`]/g, '')
+                    // منع تكرار المسافات المتتالية
+                    .replace(/\s{2,}/g, ' ')
+                    .slice(0, 32);
+
+                nicknameInput.addEventListener('input', () => {
+                    const cleaned = sanitizeNickname(nicknameInput.value);
+                    if (cleaned !== nicknameInput.value) nicknameInput.value = cleaned;
+                });
+            }
+
+            // ------------------------------------------------------------
+            // [3] حد أقصى 50 تاق لكل صندوق اختيار (رتب/قنوات) بهذي الصفحة
+            // بس. نلف دالة addDiscordTag العامة (المعرّفة أصلاً بـ
+            // dashboard.js) بدل ما نعدّل الملف نفسه - لو صار فيها استدعاء
+            // من قائمة منسدلة وعدد التاقات الحالي وصل الحد، نوقف الإضافة
+            // ونعرض تنبيه بصري (نفس كلاس .limit-warning الموجود بالـ CSS)
+            // يختفي لحاله بعد ثانيتين.
+            // ------------------------------------------------------------
+            const MAX_TAGS_PER_BOX_PAGE = 50;
+            const originalAddDiscordTag = window.addDiscordTag;
+
+            if (typeof originalAddDiscordTag === 'function') {
+                window.addDiscordTag = function (boxId, id, displayName) {
+                    const box = document.getElementById(boxId);
+                    if (box && box.querySelectorAll('.tag-item').length >= MAX_TAGS_PER_BOX_PAGE) {
+                        showLimitWarning(box);
+                        return;
+                    }
+                    originalAddDiscordTag(boxId, id, displayName);
+                };
+            }
+
+            function showLimitWarning(box) {
+                // يمنع تكديس أكثر من تنبيه وحدة بنفس اللحظة لنفس الصندوق
+                if (box.parentElement.querySelector('.limit-warning')) return;
+
+                const warning = document.createElement('div');
+                warning.className = 'limit-warning';
+                warning.textContent = `Maximum ${MAX_TAGS_PER_BOX_PAGE} items reached`;
+                box.insertAdjacentElement('afterend', warning);
+
+                setTimeout(() => warning.remove(), 2000);
+            }
+        })();
+    </script>
+</body>
+</html>

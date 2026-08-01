@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="dashboard-api-key" content="REPLACE_WITH_YOUR_DASHBOARD_API_KEY">
+    <meta name="dashboard-guild-id" content="REPLACE_WITH_YOUR_GUILD_ID">
+    <title>OmniGuard - Auto-Mod Configuration</title>
+    <!-- Google Fonts & FontAwesome Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Base Colors & Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #111115;
+            --bg-tertiary: #18181c;
+            --accent-red: #ff3344;
+            --accent-red-hover: #ff5566;
+            --text-primary: #ffffff;
+            --text-secondary: #8e9297;
+            --border-color: #2a2b30;
+            --warning-amber: #ffaa00;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 16px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding-left: 8px;
+            flex-shrink: 0;
+        }
+
+        .logo-icon {
+            color: var(--accent-red);
+            font-size: 24px;
+        }
+
+        .logo-text {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .category-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 18px;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+
+        .category-header {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .category-line {
+            flex-grow: 1;
+            height: 1px;
+            background-color: var(--border-color);
+        }
+
+        .menu-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .menu-item a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .menu-item a:hover {
+            color: var(--text-primary);
+            background-color: var(--bg-tertiary);
+        }
+
+        /* Highlight Active Item */
+        .menu-item.active a {
+            color: var(--text-primary);
+            background-color: rgba(255, 51, 68, 0.1);
+            border-left: 3px solid var(--accent-red);
+            padding-left: 11px;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex-grow: 1;
+            background-color: var(--bg-primary);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        header {
+            height: 70px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            background-color: var(--bg-secondary);
+            flex-shrink: 0;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--accent-red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .content-body {
+            padding: 40px;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* Settings Grid Layout */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        @media (max-width: 992px) {
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .settings-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .full-width {
+            grid-column: span 2;
+        }
+
+        @media (max-width: 992px) {
+            .full-width {
+                grid-column: span 1;
+            }
+        }
+
+        .card-header-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 14px;
+        }
+
+        .card-header-icon {
+            color: var(--accent-red);
+            font-size: 20px;
+        }
+
+        .card-header-title {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        /* Form Controls */
+        .form-row {
+            display: flex;
+            gap: 16px;
+        }
+
+        @media (max-width: 600px) {
+            .form-row {
+                flex-direction: column;
+            }
+        }
+
+        .form-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            border-color: var(--accent-red);
+            box-shadow: 0 0 0 3px rgba(255, 51, 68, 0.15);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 90px;
+        }
+
+        /* Action Row Builder */
+        .action-row-builder {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: var(--bg-tertiary);
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            flex-wrap: wrap;
+        }
+
+        .action-row-builder span {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .action-row-builder .inline-input {
+            width: 70px;
+            text-align: center;
+            padding: 8px;
+        }
+
+        .action-row-builder .inline-select {
+            width: auto;
+            min-width: 180px;
+            padding: 8px 12px;
+        }
+
+        .action-row-builder .inline-time-input {
+            width: 110px;
+            padding: 8px 12px;
+        }
+
+        /* Custom Switch Styling */
+        .switch-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            padding: 14px 18px;
+            border-radius: 8px;
+            transition: background-color 0.2s;
+        }
+
+        .switch-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .switch-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .switch-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            transition: .25s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 3px;
+            background-color: var(--text-secondary);
+            transition: .25s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: rgba(255, 51, 68, 0.2);
+            border-color: var(--accent-red);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+            background-color: var(--accent-red);
+        }
+
+        /* Custom Word Filter and Tags Styles */
+        .filter-tags-box {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            min-height: 52px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .empty-tag-placeholder {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        /* Word Chip Style to fit design without alteration */
+        .word-badge-tag {
+            background-color: rgba(255, 51, 68, 0.1);
+            border: 1px solid rgba(255, 51, 68, 0.25);
+            color: var(--text-primary);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: tagFadeIn 0.15s ease-in-out;
+        }
+
+        @keyframes tagFadeIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .word-badge-tag i {
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 11px;
+            transition: color 0.2s;
+        }
+
+        .word-badge-tag i:hover {
+            color: var(--accent-red);
+        }
+
+        /* [تصحيح] العناصر اللي dashboard.js فعلياً ينشئها لأي صندوق تاقات
+           (.tag-item / .remove-btn) - نفس شكل .word-badge-tag تماماً بدون
+           أي تغيير بصري، بس بأسماء الكلاسات اللي الكود الفعلي يستهدفها. */
+        .tag-item {
+            background-color: rgba(255, 51, 68, 0.1);
+            border: 1px solid rgba(255, 51, 68, 0.25);
+            color: var(--text-primary);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: tagFadeIn 0.15s ease-in-out;
+        }
+
+        .tag-item .remove-btn {
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 13px;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .tag-item .remove-btn:hover {
+            color: var(--accent-red);
+        }
+
+        .tag-input-ghost {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            flex: 1;
+            min-width: 140px;
+            padding: 4px;
+        }
+
+        .tag-input-ghost::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .tag-adder-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .tag-btn {
+            background-color: var(--accent-red);
+            color: var(--text-primary);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .tag-btn:hover {
+            background-color: var(--accent-red-hover);
+        }
+
+        .note-banner {
+            background-color: rgba(255, 170, 0, 0.07);
+            border: 1px dashed var(--warning-amber);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .note-banner i {
+            color: var(--warning-amber);
+            font-size: 16px;
+            margin-top: 2px;
+        }
+
+        .note-banner p {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Bottom Fixed Save Bar */
+        .save-changes-bar {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 8px;
+        }
+
+        .save-info-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .save-btn {
+            background-color: var(--accent-red);
+            color: var(--text-primary);
+            border: none;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .save-btn:hover {
+            background-color: var(--accent-red-hover);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Left Sidebar Navigation -->
+    <aside class="sidebar">
+        <!-- Bot Logo and Name -->
+        <div class="logo-section">
+            <i class="fa-solid fa-shield-halved logo-icon"></i>
+            <span class="logo-text">OmniGuard</span>
+        </div>
+
+        <!-- HOME CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Home</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="index.html">
+                    <i class="fa-solid fa-house"></i>
+                    Home
+                </a>
+            </li>
+        </ul>
+
+        <!-- CORE SETTINGS CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Core Settings</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="general-settings.html">
+                    <i class="fa-solid fa-sliders"></i>
+                    General Settings
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="welcome-leave.html">
+                    <i class="fa-solid fa-door-open"></i>
+                    Welcome & Leave
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="role-management.html">
+                    <i class="fa-solid fa-user-gear"></i>
+                    Role Management
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODERATION & SECURITY CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Moderation & Security</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item active">
+                <a href="auto-mod.html">
+                    <i class="fa-solid fa-robot"></i>
+                    Auto-Mod
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="anti-alt.html">
+                    <i class="fa-solid fa-user-shield"></i>
+                    Anti-Alt
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="logging.html">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    Logging
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODULES & FEATURES CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Modules & Features</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="custom-messages.html">
+                    <i class="fa-solid fa-comment-dots"></i>
+                    Custom Messages
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="leveling-system.html">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    Leveling System
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <header>
+            <div class="header-title">Auto-Mod Settings</div>
+            <div class="user-profile">
+                <span>Administrator</span>
+                <div class="avatar">OG</div>
+            </div>
+        </header>
+
+        <div class="content-body">
+            <div class="settings-grid">
+                
+                <!-- SECTION 1: Command Spam Protection -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-bolt card-header-icon"></i>
+                        <h2 class="card-header-title">Command Spam Protection</h2>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Max Commands Allowed</label>
+                            <input id="spam_max_commands" type="number" class="form-input" placeholder="e.g., 5" min="1" max="50">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Cooldown / Time Window</label>
+                            <input id="cooldown_spam" type="text" class="form-input duration-input" placeholder="e.g., 10s" maxlength="6">
+                            <small style="color: var(--text-secondary); font-size: 11px;">Format: number + s/m/h/d/w (e.g. 10s, 5m, 1h)</small>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Default Action on Spam</label>
+                            <select id="spam_default_action" class="form-select">
+                                <option value="" disabled selected>Select an action...</option>
+                                <option value="mute">Mute Member</option>
+                                <option value="kick">Kick Member</option>
+                                <option value="ban">Ban Member</option>
+                                <option value="demote">Demote (Strip Roles)</option>
+                                <option value="none">None (Delete Message Only)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Action Duration</label>
+                            <input id="spam_action_duration" type="text" class="form-input duration-input" placeholder="e.g., 30m" maxlength="6">
+                            <small style="color: var(--text-secondary); font-size: 11px;">Format: number + s/m/h/d/w (e.g. 30m, 12h, 1w)</small>
+                        </div>
+                    </div>
+
+                    <div class="note-banner">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <p>Code Note: If the action duration is left blank, the bot will immediately apply the default permanent fallback action to protect the server.</p>
+                    </div>
+                </div>
+
+                <!-- SECTION 2: Advanced Server Security -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-user-shield card-header-icon"></i>
+                        <h2 class="card-header-title">Advanced Security</h2>
+                    </div>
+
+                    <div class="form-group" style="gap: 14px;">
+                        <!-- Role Restore Toggle -->
+                        <div class="switch-container">
+                            <div class="switch-info">
+                                <span class="switch-title">Role Restore on Rejoin</span>
+                                <span class="switch-desc">Reassign previous roles automatically when members rejoin to prevent Mute Evading.</span>
+                            </div>
+                            <label class="switch">
+                                <input id="autorole_enabled" data-target-table="setting_guild" type="checkbox">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 3: Automated Infraction System -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-triangle-exclamation card-header-icon"></i>
+                        <h2 class="card-header-title">Automated Infraction System</h2>
+                    </div>
+
+                    <!-- Warn Accumulation Milestone Configurator -->
+                    <div class="form-group" style="gap: 16px;">
+                        <label class="form-label" style="border-left: 3px solid var(--accent-red); padding-left: 8px;">Warn Accumulation Rules</label>
+                        <div class="action-row-builder">
+                            <span>After</span>
+                            <input id="limit_trigger_warn" type="number" class="form-input inline-input" placeholder="3" min="1" max="50">
+                            <span>Warnings ➡️ Apply Action</span>
+                            <select id="warn_trigger_action" class="form-select inline-select">
+                                <option value="" disabled selected>Select action...</option>
+                                <option value="mute">Mute</option>
+                                <option value="kick">Kick</option>
+                                <option value="ban">Ban</option>
+                            </select>
+                            <span>for</span>
+                            <input id="warn_trigger_duration" type="text" class="form-input inline-time-input duration-input" placeholder="e.g., 12h" maxlength="6">
+                        </div>
+
+                        <!-- Warn Precision Configuration Sub-Options -->
+                        <div class="form-row" style="margin-top: 4px;">
+                            <div class="form-group">
+                                <label class="form-label">Warning Expiration (Decay Time)</label>
+                                <input id="expiration_warn" type="text" class="form-input duration-input" placeholder="e.g., 30d (leave blank for permanent warnings)" maxlength="6">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Infraction Limit Reset Behavior</label>
+                                <select id="warn_reset_behavior" class="form-select">
+                                    <option value="reset">Reset Warnings to 0 upon Action Trigger</option>
+                                    <option value="keep">Keep Warnings Accumulating Post-Action</option>
+                                </select>
+                            </div>
+                        </div>
+
+                       <!-- Severe Infraction Escalation (Tier 2) -->
+                        <label class="form-label" style="border-left: 3px solid var(--accent-red); padding-left: 8px; margin-top: 10px;">Severe Infraction Rules (Tier 2)</label>
+                        <div class="action-row-builder">
+                            <span>After</span>
+                            <input id="limit_trigger_severe" type="number" class="form-input inline-input" placeholder="3" min="1" max="50">
+                            <span>Mutes ➡️ Apply Action</span>
+                            <select id="severe_trigger_action" class="form-select inline-select">
+                                <option value="" disabled selected>Select action...</option>
+                                <option value="none">None (No Action)</option>
+                                <option value="demote">Demote (Strip Roles)</option>
+                                <option value="kick">Kick</option>
+                                <option value="ban">Ban</option>
+                            </select>
+                            <span>for</span>
+                            <input id="severe_trigger_duration" type="text" class="form-input inline-time-input duration-input" placeholder="e.g., 12h" maxlength="6">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 4: Content Filter & Custom Alerts -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-filter card-header-icon"></i>
+                        <h2 class="card-header-title">Content Filter</h2>
+                    </div>
+
+                    <div class="form-row" style="flex-wrap: wrap;">
+                        <!-- Filter Toggles -->
+                        <div class="form-group" style="min-width: 280px; gap: 12px;">
+                            <label class="form-label">Automatic Text Filtering</label>
+                            
+                            <div class="switch-container">
+                                <div class="switch-info">
+                                    <span class="switch-title">Block Links</span>
+                                </div>
+                                <label class="switch">
+                                    <input id="links_block" type="checkbox">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="switch-container">
+                                <div class="switch-info">
+                                    <span class="switch-title">Block Server Invites</span>
+                                </div>
+                                <label class="switch">
+                                    <input id="invites_block" type="checkbox">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="switch-container">
+                                <div class="switch-info">
+                                    <span class="switch-title">Block Mass Mentions</span>
+                                </div>
+                                <label class="switch">
+                                    <input id="block_mentions" type="checkbox">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Custom Word Filter -->
+                        <div class="form-group" style="min-width: 280px;">
+                            <label class="form-label">Custom Bad Words Filter</label>
+
+                            <div class="filter-tags-box" id="words_bad_custom">
+                                <input type="text" class="tag-input-ghost" maxlength="50" placeholder="Type a word and press Enter...">
+                            </div>
+                            <small style="color: var(--text-secondary); font-size: 11px;">Up to 100 words, 50 characters each — press Enter to add.</small>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Bottom Save Bar -->
+            <div class="save-changes-bar">
+                <span class="save-info-text">Careful — make sure to save changes to apply them to your server!</span>
+                <button class="save-btn">Save Changes</button>
+            </div>
+        </div>
+    </main>
+
+    <script src="dashboard.js"></script>
+
+    <!-- ======================================================================
+         سكربت خاص بصفحة auto-mod.html فقط - مستقل تماماً عن dashboard.js
+         (ما يعدّل عليه ولا يتعارض مع منطقه العام، بس يضيف طبقة تحقق محلية
+         فوقه لحقلين نوعين حساسين موجودين بهالصفحة تحديداً):
+
+         [1] حقول المدة الزمنية (.duration-input): تصفية حية للكتابة تسمح
+             بس بـ "رقم (حتى 4 خانات) + حرف وحدة واحد" مطابقة لصيغة
+             parseDurationToMs() الفعلية بـ AutoMod.js حالياً (s/m/h/d/w
+             حرف واحد بس - بدون min/mo، لأن الباك-إند الحالي ما يفهمها).
+             لو الباك-إند تحدّث مستقبلاً ليدعم صيغ أطول، هذا الـ regex لازم
+             يتحدث معه بنفس الوقت.
+
+         [2] صندوق الكلمات الممنوعة (#words_bad_custom): حد أقصى 100 كلمة
+             (كافي وواسع عملياً، بس يمنع تضخم غير محدود يأثر على أداء فحص
+             كل رسالة بـ checkBadWords()). المستمع مرتبط مباشرة بعنصر
+             الإدخال نفسه (مو document) عشان يشتغل قبل مستمع dashboard.js
+             العام - stopPropagation() يمنع إضافة تاق زايد عن الحد فقط،
+             وباقي الحالات تكمل طبيعي لمنطق dashboard.js القياسي.
+
+         [3] حقول الأرقام العادية اللي فيها max: تثبيت القيمة عند الحد لو
+             المستخدم كتب رقم أكبر يدوياً (attribute max وحده ما يمنع الكتابة
+             الفعلية بكل المتصفحات).
+    ====================================================================== -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- [1] تنقية حقول المدة الزمنية ---
+            const DURATION_PATTERN = /^(\d{1,4})([smhdw]?)/i;
+
+            function sanitizeDurationField(el) {
+                const cleanedChars = el.value.toLowerCase().replace(/[^0-9smhdw]/g, '');
+                const match = cleanedChars.match(DURATION_PATTERN);
+                el.value = match ? (match[1] + match[2]) : '';
+            }
+
+            document.querySelectorAll('.duration-input').forEach(el => {
+                el.addEventListener('input', () => sanitizeDurationField(el));
+            });
+
+            // --- [2] حد أقصى لعدد الكلمات الممنوعة ---
+            const MAX_BAD_WORDS = 100;
+            const wordsBox = document.getElementById('words_bad_custom');
+            const wordsInput = wordsBox ? wordsBox.querySelector('.tag-input-ghost') : null;
+
+            if (wordsBox && wordsInput) {
+                wordsInput.addEventListener('keypress', (e) => {
+                    if (e.key !== 'Enter') return;
+                    const currentCount = wordsBox.querySelectorAll('.tag-item').length;
+                    if (currentCount >= MAX_BAD_WORDS) {
+                        e.preventDefault();
+                        e.stopPropagation(); // يمنع مستمع dashboard.js العام من إضافة تاق زايد عن الحد
+                        const originalPlaceholder = wordsInput.placeholder;
+                        wordsInput.placeholder = `Limit reached (${MAX_BAD_WORDS} words max)`;
+                        setTimeout(() => { wordsInput.placeholder = originalPlaceholder; }, 2000);
+                    }
+                });
+            }
+
+            // --- [3] تثبيت الحقول الرقمية عند حدها الأقصى ---
+            document.querySelectorAll('input[type="number"][max]').forEach(el => {
+                el.addEventListener('input', () => {
+                    const maxVal = parseInt(el.max, 10);
+                    if (el.value !== '' && parseInt(el.value, 10) > maxVal) {
+                        el.value = maxVal;
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

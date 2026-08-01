@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="dashboard-api-key" content="REPLACE_WITH_YOUR_DASHBOARD_API_KEY">
+    <meta name="dashboard-guild-id" content="REPLACE_WITH_YOUR_GUILD_ID">
+    <title>OmniGuard - Custom Messages</title>
+    <!-- Google Fonts & FontAwesome Icons for a modern look -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Base Colors & Reset matching index theme */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #111115;
+            --bg-tertiary: #18181c;
+            --accent-red: #ff3344;
+            --accent-red-hover: #ff5566;
+            --text-primary: #ffffff;
+            --text-secondary: #8e9297;
+            --border-color: #2a2b30;
+            --success-color: #4cd137;
+            --danger-color: #ff3344;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styles (Perfect Match with index.html) */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 16px;
+            overflow-y: auto;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding-left: 8px;
+            flex-shrink: 0;
+        }
+
+        .logo-icon {
+            color: var(--accent-red);
+            font-size: 24px;
+        }
+
+        .logo-text {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .category-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 18px;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+
+        .category-header {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .category-line {
+            flex-grow: 1;
+            height: 1px;
+            background-color: var(--border-color);
+        }
+
+        .menu-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .menu-item a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .menu-item a:hover {
+            color: var(--text-primary);
+            background-color: var(--bg-tertiary);
+        }
+
+        .menu-item.active a {
+            color: var(--text-primary);
+            background-color: rgba(255, 51, 68, 0.1);
+            border-left: 3px solid var(--accent-red);
+            padding-left: 11px;
+        }
+
+        /* Main Content Area - Scroll enabled naturally for infinite lines */
+        .main-content {
+            flex-grow: 1;
+            background-color: var(--bg-primary);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        header {
+            height: 70px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            background-color: var(--bg-secondary);
+            flex-shrink: 0;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--accent-red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        /* Content container */
+        .content-body {
+            padding: 40px;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* Modular Cards styling matching index style */
+        .dashboard-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 28px;
+            margin-bottom: 28px;
+        }
+
+        .card-header-block {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 14px;
+        }
+
+        .card-header-icon {
+            font-size: 18px;
+            color: var(--accent-red);
+        }
+
+        .card-header-title {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        /* Form Components */
+        .form-element {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .form-element:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-label-text {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }
+
+        .input-field-text {
+            width: 100%;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .input-field-text:focus {
+            border-color: var(--accent-red);
+            box-shadow: 0 0 0 3px rgba(255, 51, 68, 0.15);
+        }
+
+        textarea.input-field-text {
+            min-height: 120px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        /* Dual Column Layout Grid for Embed Title and Color Picker Accent Inline */
+        .embed-title-inline-grid {
+            display: grid;
+            grid-template-columns: 1fr 240px;
+            gap: 20px;
+            align-items: flex-end;
+            margin-bottom: 20px;
+        }
+
+        .color-picker-container-inline {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            padding: 10px 14px;
+            border-radius: 8px;
+            height: 47px;
+            justify-content: space-between;
+            transition: border-color 0.2s;
+        }
+
+        .color-picker-container-inline:hover {
+            border-color: var(--text-secondary);
+        }
+
+        /* Custom appearance override for native browser color input square grid box */
+        .color-picker-input {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            width: 44px;
+            height: 32px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .color-picker-input::-webkit-color-swatch {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+        }
+
+        .color-picker-input::-moz-color-swatch {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+        }
+
+        .color-hex-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Subfields Configuration Layout */
+        .subfields-container {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .subfield-row {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background-color: var(--bg-tertiary);
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            animation: fadeIn 0.2s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .subfield-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            flex-grow: 1;
+        }
+
+        .btn-remove-field {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 16px;
+            cursor: pointer;
+            padding: 8px;
+            transition: color 0.2s;
+        }
+
+        .btn-remove-field:hover {
+            color: var(--accent-red);
+        }
+
+        .btn-add-field {
+            background-color: var(--bg-tertiary);
+            border: 1px dashed var(--border-color);
+            color: var(--text-primary);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .btn-add-field:hover {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+            background-color: rgba(255, 51, 68, 0.02);
+        }
+
+        /* Clean Unified Publisher Block Card Setup with Left Info Text & Right Action Button */
+        .publisher-action-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .publisher-card-description {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.5;
+            max-width: 70%;
+        }
+
+        .btn-publish-action {
+            background-color: var(--accent-red);
+            color: var(--text-primary);
+            border: none;
+            padding: 14px 32px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
+            box-shadow: 0 4px 12px rgba(255, 51, 68, 0.2);
+        }
+
+        .btn-publish-action:hover {
+            background-color: var(--accent-red-hover);
+            box-shadow: 0 6px 16px rgba(255, 51, 68, 0.3);
+        }
+
+        .btn-publish-action:active {
+            transform: scale(0.98);
+        }
+
+        /* Modal Structure for Dynamic Channel Selection Popup Area */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-box {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            width: 100%;
+            max-width: 500px;
+            padding: 28px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transform: scale(0.9);
+            transition: transform 0.25s ease;
+        }
+
+        .modal-overlay.active .modal-box {
+            transform: scale(1);
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-description {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 16px;
+        }
+
+        /* Resizable/Scrollable Dynamic Tag Container Window Area */
+        .modal-tags-input-box {
+            width: 100%;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            min-height: 48px;
+            max-height: 120px;
+            overflow-y: auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 12px;
+            transition: border-color 0.2s;
+        }
+
+        .modal-tags-input-box:focus-within {
+            border-color: var(--accent-red);
+        }
+
+        /* Tag Chip UI component decoration */
+        .room-tag-chip {
+            background-color: rgba(255, 51, 68, 0.12);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 51, 68, 0.25);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: tagScaleIn 0.15s ease-in-out;
+        }
+
+        @keyframes tagScaleIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .room-tag-chip i {
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 11px;
+            transition: color 0.2s;
+        }
+
+        .room-tag-chip i:hover {
+            color: var(--accent-red);
+        }
+
+        /* Vertically Scrollable/Moveable Option Dropdown Area with No Hardcoded Text Fake Data */
+        .dropdown-rooms-scroll-wrapper {
+            width: 100%;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            max-height: 180px;
+            overflow-y: auto;
+            margin-bottom: 24px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dropdown-rooms-scroll-wrapper::-webkit-scrollbar {
+            width: 4px;
+        }
+        .dropdown-rooms-scroll-wrapper::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .room-selection-node {
+            padding: 12px 16px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255,255,255,0.02);
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .room-selection-node:last-child {
+            border-bottom: none;
+        }
+
+        .room-selection-node:hover {
+            background-color: rgba(255, 255, 255, 0.02);
+            color: var(--text-primary);
+        }
+
+        .room-selection-node.active-checked {
+            background-color: rgba(255, 51, 68, 0.05);
+            color: var(--text-primary);
+        }
+
+        .modal-actions-wrapper {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .btn-modal-cancel {
+            background-color: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .btn-modal-cancel:hover {
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .btn-modal-submit {
+            background-color: var(--accent-red);
+            border: none;
+            color: var(--text-primary);
+            padding: 10px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+
+        .btn-modal-submit:hover {
+            background-color: var(--accent-red-hover);
+        }
+
+        /* [إضافة] شريط الحفظ السفلي - نفس نمط باقي صفحات الداشبورد تماماً
+           (كان غير موجود إطلاقاً بهذي الصفحة - ما فيه أي طريقة حفظ حقيقية) */
+        .save-changes-bar {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 8px;
+        }
+
+        .save-info-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .save-btn {
+            background-color: var(--accent-red);
+            color: var(--text-primary);
+            border: none;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .save-btn:hover {
+            background-color: var(--accent-red-hover);
+        }
+
+        .save-btn.state-default {
+            background-color: var(--bg-tertiary);
+            color: var(--text-secondary);
+            cursor: not-allowed;
+        }
+
+        .save-btn.state-default:hover {
+            background-color: var(--bg-tertiary);
+        }
+
+        .save-btn.state-dirty {
+            background-color: var(--accent-red);
+            color: var(--text-primary);
+        }
+
+        .save-btn.state-dirty:hover {
+            background-color: var(--accent-red-hover);
+        }
+
+        .save-btn.state-saved {
+            background-color: var(--success-color);
+            color: var(--text-primary);
+            cursor: not-allowed;
+        }
+
+        .save-btn.state-error {
+            background-color: var(--danger-color);
+            color: var(--text-primary);
+        }
+
+        .save-btn.state-error:hover {
+            background-color: var(--accent-red-hover);
+        }
+
+        /* [إضافة] عداد أحرف صغير تحت أي حقل فيه حد أقصى من Discord */
+        .char-counter {
+            font-size: 11px;
+            color: var(--text-secondary);
+            text-align: right;
+        }
+
+        .char-counter.limit-near {
+            color: var(--warning-amber, #ffaa00);
+        }
+
+        /* [إضافة] بانر خطأ التحقق (يبان بس لو فشل الحفظ فعلياً برد السيرفر) */
+        .draft-error-banner {
+            display: none;
+            background-color: rgba(255, 51, 68, 0.08);
+            border: 1px dashed var(--danger-color);
+            border-radius: 8px;
+            padding: 12px 16px;
+            font-size: 13px;
+            color: var(--text-primary);
+            margin-bottom: 20px;
+        }
+
+        .draft-error-banner.visible {
+            display: block;
+        }
+
+        .field-value-textarea {
+            min-height: 70px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Left Sidebar Navigation Layout -->
+    <aside class="sidebar">
+        <div class="logo-section">
+            <i class="fa-solid fa-shield-halved logo-icon"></i>
+            <span class="logo-text">OmniGuard</span>
+        </div>
+
+        <!-- HOME CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Home</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="index.html">
+                    <i class="fa-solid fa-house"></i>
+                    Home
+                </a>
+            </li>
+        </ul>
+
+        <!-- CORE SETTINGS CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Core Settings</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="general-settings.html">
+                    <i class="fa-solid fa-sliders"></i>
+                    General Settings
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="welcome-leave.html">
+                    <i class="fa-solid fa-door-open"></i>
+                    Welcome & Leave
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="role-management.html">
+                    <i class="fa-solid fa-user-gear"></i>
+                    Role Management
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODERATION & SECURITY CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Moderation & Security</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="auto-mod.html">
+                    <i class="fa-solid fa-robot"></i>
+                    Auto-Mod
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="anti-alt.html">
+                    <i class="fa-solid fa-user-shield"></i>
+                    Anti-Alt
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="logging.html">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    Logging
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODULES & FEATURES CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Modules & Features</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item active">
+                <a href="custom-messages.html">
+                    <i class="fa-solid fa-comment-dots"></i>
+                    Custom Messages
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="leveling-system.html">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    Leveling System
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Main Content Window -->
+    <main class="main-content">
+        <header>
+            <div class="header-title">Custom Message Builder</div>
+            <div class="user-profile">
+                <span>Administrator</span>
+                <div class="avatar">OG</div>
+            </div>
+        </header>
+
+        <div class="content-body">
+            
+            <!-- CARD 1: External Message Content -->
+            <section class="dashboard-card">
+                <div class="card-header-block">
+                    <i class="fa-solid fa-paragraph card-header-icon"></i>
+                    <h2 class="card-header-title">Message Content (Outside Embed)</h2>
+                </div>
+                <div class="form-element">
+                    <label class="form-label-text">Plain Text Content</label>
+                    <textarea id="outerContentInput" class="input-field-text" maxlength="2000" placeholder="Type text here that will appear above the embed block box (e.g., @everyone tags or general callouts)..."></textarea>
+                    <small class="char-counter" id="outerContentCounter">0 / 2000</small>
+                </div>
+            </section>
+
+            <!-- CARD 2: Main Embed Container Configurator -->
+            <section class="dashboard-card">
+                <div class="card-header-block">
+                    <i class="fa-solid fa-rectangle-list card-header-icon"></i>
+                    <h2 class="card-header-title">Main Embed Configurator</h2>
+                </div>
+
+                <!-- بانر يبان بس لو رفض السيرفر الحفظ فعلياً (حماية إضافية فوق حدود الفرونت-إند) -->
+                <div class="draft-error-banner" id="draftErrorBanner"></div>
+                
+                <!-- Aligned Embed Title Row Placing the Color Picker Component Perfectly Aligned to the Right Side -->
+                <div class="embed-title-inline-grid">
+                    <div class="form-element">
+                        <label class="form-label-text">Embed Title</label>
+                        <input type="text" id="embedTitleInput" class="input-field-text" maxlength="256" placeholder="Enter a short embed header title...">
+                        <small class="char-counter" id="embedTitleCounter">0 / 256</small>
+                    </div>
+
+                    <div class="form-element">
+                        <label class="form-label-text">Embed Color Selection Accent</label>
+                        <div class="color-picker-container-inline">
+                            <span id="colorHexText" class="color-hex-label">#FF3344</span>
+                            <input type="color" id="embedColorPicker" class="color-picker-input" value="#ff3344">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-element">
+                    <label class="form-label-text">Embed Description</label>
+                    <textarea id="embedDescInput" class="input-field-text" maxlength="4096" placeholder="Enter main description body message. Supports standard markdown decoration parameters (**bold**, *italics*, etc.)..."></textarea>
+                    <small class="char-counter" id="embedDescCounter">0 / 4096</small>
+                </div>
+            </section>
+
+            <!-- CARD 3: Subfields Dynamic Injection Block -->
+            <section class="dashboard-card">
+                <div class="card-header-block">
+                    <i class="fa-solid fa-circle-nodes card-header-icon"></i>
+                    <h2 class="card-header-title">Embed Subfields (Information Blocks)</h2>
+                </div>
+                
+                <!-- Dyn Container targeting subfield elements generation -->
+                <div class="subfields-container" id="subfieldsDynamicContainer">
+                    <!-- Dynamic field rows will inject here smoothly via Javascript -->
+                </div>
+
+                <button class="btn-add-field" type="button" id="btnAddSubfieldRow">
+                    <i class="fa-solid fa-plus"></i> Add New Field
+                </button>
+                <small class="char-counter" id="fieldsCounter" style="text-align: left; margin-top: 8px;">0 / 25 fields used</small>
+            </section>
+
+            <!-- CARD 4: Action Execution Publisher Box Block with Left-side Prose Text & Right-side Red Button -->
+            <section class="dashboard-card publisher-action-card">
+                <div class="publisher-card-description">
+                    Review your structural payload layout specifications. Pressing publish compiled values will open target module deployment routing for active synchronization onto application room channels.
+                </div>
+                <button class="btn-publish-action" type="button" id="btnTriggerPublishFlow">
+                    Publish Message Configs
+                </button>
+            </section>
+
+            <!-- [إضافة] شريط الحفظ - كان غير موجود بهذي الصفحة إطلاقاً، يعني
+                 ولا حرف كان يتحفظ فعلياً قبل كذا -->
+            <div class="save-changes-bar">
+                <span class="save-info-text">Be careful — any unsaved modifications will be discarded!</span>
+                <button class="save-btn" id="btnSaveDraft">Save Changes</button>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Modal Target Overlay for Channel Destination Routing Setup (Tailored with No Mock Hardcoded Data) -->
+    <div class="modal-overlay" id="channelSelectorModal">
+        <div class="modal-box">
+            <h3 class="modal-title">Select Target Channels</h3>
+            <p class="modal-description">Choose the target destination server rooms where your customized message layout configurations will be instantly deployed.</p>
+            
+            <!-- Resizable Tags Box Element (Selected rooms feed in here dynamically as chips) -->
+            <div class="modal-tags-input-box" id="modalTagsContainer">
+                <!-- Tags populate here dynamically via script -->
+            </div>
+
+            <!-- Vertically Moveable/Scrollable Dropdown List Element Shell (Ready for backend array mapping without mock data text values) -->
+            <div class="dropdown-rooms-scroll-wrapper" id="roomsDropdownWrapper">
+                <!-- Data layout structures inject here dynamically with zero hardcoded placeholder strings -->
+            </div>
+
+            <div class="modal-actions-wrapper">
+                <button class="btn-modal-cancel" id="btnDismissModal">Cancel</button>
+                <button class="btn-modal-submit" id="btnConfirmFinalDispatch">Confirm & Publish</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="dashboard.js"></script>
+
+    <!-- ======================================================================
+         سكربت خاص بصفحة custom-messages.html - مستقل عن دوال dashboard.js
+         العامة (loadPageSettings/savePageSettings) لأن شكل بيانات هذا الجدول
+         مختلف (embed_fields مصفوفة JSONB متداخلة + expired/isNew) وفيه فعل
+         إضافي (Publish) غير موجود بأي صفحة ثانية - لكنه يعيد استخدام أدوات
+         dashboard.js المشتركة (API_BASE, getGuildId, getHeaders, markDirty/
+         markSaved/markError/markClean, fetchGuildStructure, guildStructure,
+         TEXT_CHANNEL_TYPES, showNotification) لأنها متاحة Global بمجرد ما
+         يتحمّل <script src="dashboard.js"> قبل هذا السكربت.
+
+         [تصحيح جذري] كانت هذي الصفحة معزولة 100% عن البقية: ما فيها ولا
+         meta tags (api-key/guild-id)، ولا <script src="dashboard.js">، ولا
+         شريط حفظ حقيقي - وزر "Publish" كان يسوي console.log() بس (محاكاة،
+         بدون أي حفظ أو نشر فعلي)، وقائمة القنوات كانت 6 قنوات وهمية ثابتة
+         بالكود (room_channel_1 إلى 6). كل هذا انحذف واستُبدل بربط حقيقي.
+    ====================================================================== -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // الحد الحقيقي بديسكورد (يطابق DISCORD_LIMITS بـ custom.js تماماً)
+            const MAX_FIELDS = 25;
+            const FIELD_NAME_MAX = 256;
+            const FIELD_VALUE_MAX = 1024;
+
+            // --- DOM Hooks ---
+            const outerContentInput = document.getElementById('outerContentInput');
+            const embedTitleInput = document.getElementById('embedTitleInput');
+            const embedDescInput = document.getElementById('embedDescInput');
+            const embedColorPicker = document.getElementById('embedColorPicker');
+            const colorHexText = document.getElementById('colorHexText');
+            const subfieldsContainer = document.getElementById('subfieldsDynamicContainer');
+            const btnAddSubfield = document.getElementById('btnAddSubfieldRow');
+            const fieldsCounter = document.getElementById('fieldsCounter');
+            const draftErrorBanner = document.getElementById('draftErrorBanner');
+            const btnSaveDraft = document.getElementById('btnSaveDraft');
+            const publishTriggerBtn = document.getElementById('btnTriggerPublishFlow');
+            const channelModalOverlay = document.getElementById('channelSelectorModal');
+            const modalDismissBtn = document.getElementById('btnDismissModal');
+            const modalConfirmBtn = document.getElementById('btnConfirmFinalDispatch');
+            const roomsDropdownWrapper = document.getElementById('roomsDropdownWrapper');
+            const modalTagsContainer = document.getElementById('modalTagsContainer');
+
+            // publishDraft() بالبوت يقبل قناة وحدة فقط (channelId مفرد، مو
+            // مصفوفة) - راجع تعليق custom.js: "القناة لا تُحفظ بالمسودة
+            // أبداً - تصل فقط كـ channelId". فاختيار قناة جديدة يستبدل القديمة.
+            let selectedChannel = null; // { id, name } | null
+
+            // --- عدادات الأحرف (بدون أي إرسال أحداث input للـ document - عشان
+            //     ما تعتبر تحميل المسودة "تعديل" وتحمّر الزر بالغلط) ---
+            function bindCounter(input, counterEl, max) {
+                const update = () => {
+                    counterEl.textContent = `${input.value.length} / ${max}`;
+                    counterEl.classList.toggle('limit-near', input.value.length > max * 0.9);
+                };
+                input.addEventListener('input', update);
+                update();
+                return update;
+            }
+            const updateOuterCounter = bindCounter(outerContentInput, document.getElementById('outerContentCounter'), 2000);
+            const updateTitleCounter = bindCounter(embedTitleInput, document.getElementById('embedTitleCounter'), 256);
+            const updateDescCounter = bindCounter(embedDescInput, document.getElementById('embedDescCounter'), 4096);
+
+            // --- Color Picker Sync ---
+            embedColorPicker.addEventListener('input', (e) => {
+                colorHexText.textContent = e.target.value.toUpperCase();
+            });
+
+            // --- عدّاد الحقول + تعطيل الزر عند الوصول للحد الحقيقي (25) ---
+            function updateFieldsCounter() {
+                const count = subfieldsContainer.querySelectorAll('.subfield-row').length;
+                fieldsCounter.textContent = `${count} / ${MAX_FIELDS} fields used`;
+                const atLimit = count >= MAX_FIELDS;
+                btnAddSubfield.style.opacity = atLimit ? '0.5' : '1';
+                btnAddSubfield.style.pointerEvents = atLimit ? 'none' : 'auto';
+            }
+
+            // --- بناء صف حقل واحد عبر DOM مباشرة (بدون innerHTML) - يُستخدم
+            //     لكل من زر "Add New Field" ولتحميل حقول مسودة محفوظة سابقاً،
+            //     وهذا يحمي تلقائياً من أي محتوى غريب بالاسم/القيمة (لا حاجة
+            //     لأي escaping يدوي لأن .value ما يفسّر HTML إطلاقاً) ---
+            function createFieldRow(name = '', value = '') {
+                const rowElement = document.createElement('div');
+                rowElement.className = 'subfield-row';
+
+                const inputsWrap = document.createElement('div');
+                inputsWrap.className = 'subfield-inputs';
+
+                const nameInput = document.createElement('input');
+                nameInput.type = 'text';
+                nameInput.className = 'input-field-text field-name-input';
+                nameInput.maxLength = FIELD_NAME_MAX;
+                nameInput.placeholder = 'Field Title Name';
+                nameInput.value = name;
+
+                // [تعديل مطلوب] Value ينزل تحت Title Name (مو جنبه) وبمساحة
+                // أكبر (textarea بدل input سطر وحد)
+                const valueInput = document.createElement('textarea');
+                valueInput.className = 'input-field-text field-value-textarea field-value-input';
+                valueInput.maxLength = FIELD_VALUE_MAX;
+                valueInput.placeholder = 'Field Content Value';
+                valueInput.value = value;
+
+                inputsWrap.appendChild(nameInput);
+                inputsWrap.appendChild(valueInput);
+
+                const removeBtn = document.createElement('button');
+                removeBtn.type = 'button';
+                removeBtn.className = 'btn-remove-field';
+                removeBtn.title = 'Remove Field Block Row';
+                removeBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+                removeBtn.addEventListener('click', () => {
+                    rowElement.remove();
+                    updateFieldsCounter();
+                    markDirty();
+                });
+
+                rowElement.appendChild(inputsWrap);
+                rowElement.appendChild(removeBtn);
+                return rowElement;
+            }
+
+            btnAddSubfield.addEventListener('click', () => {
+                const currentRowsCount = subfieldsContainer.querySelectorAll('.subfield-row').length;
+                if (currentRowsCount >= MAX_FIELDS) return;
+                subfieldsContainer.appendChild(createFieldRow());
+                updateFieldsCounter();
+            });
+
+            // --- رسائل الأخطاء/الملاحظات فوق كارد الإمبد ---
+            function showDraftNotice(msg) {
+                draftErrorBanner.textContent = msg;
+                draftErrorBanner.style.borderColor = 'var(--warning-amber, #ffaa00)';
+                draftErrorBanner.classList.add('visible');
+            }
+
+            function showDraftError(errors) {
+                const messages = {
+                    OUTSIDE_TEXT_TOO_LONG: 'Message content is too long (max 2000 characters).',
+                    EMBED_TITLE_TOO_LONG: 'Embed title is too long (max 256 characters).',
+                    EMBED_DESCRIPTION_TOO_LONG: 'Embed description is too long (max 4096 characters).',
+                    INVALID_COLOR: 'Embed color is invalid.',
+                    TOO_MANY_FIELDS: `Too many fields (max ${MAX_FIELDS}).`,
+                    FIELD_NAME_TOO_LONG: 'A field title is too long (max 256 characters).',
+                    FIELD_VALUE_TOO_LONG: 'A field value is too long (max 1024 characters).',
+                    EMBED_TOTAL_TOO_LONG: 'Combined embed content is too long overall (Discord limit: 6000 characters total).',
+                    DATABASE_ERROR: 'Server-side database error. Please try again.'
+                };
+                draftErrorBanner.innerHTML = (errors || []).map(e => messages[e] || e).join('<br>');
+                draftErrorBanner.style.borderColor = 'var(--danger-color)';
+                draftErrorBanner.classList.add('visible');
+            }
+
+            // --- تحميل المسودة الحالية عند فتح الصفحة (حقيقي - من custom_embed_draft) ---
+            async function loadDraft() {
+                const guildId = getGuildId();
+                if (!guildId) { markClean(); return; }
+
+                try {
+                    const response = await fetch(`${API_BASE}/guild/${guildId}/custom-embed-draft`, { headers: getHeaders() });
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        outerContentInput.value = data.outside_text || '';
+                        embedTitleInput.value = data.embed_title || '';
+                        embedDescInput.value = data.embed_description || '';
+
+                        const color = data.embed_color || '#5865F2';
+                        embedColorPicker.value = color;
+                        colorHexText.textContent = color.toUpperCase();
+
+                        subfieldsContainer.innerHTML = '';
+                        (Array.isArray(data.embed_fields) ? data.embed_fields : []).forEach((f) => {
+                            subfieldsContainer.appendChild(createFieldRow(f.name, f.value));
+                        });
+
+                        updateOuterCounter();
+                        updateTitleCounter();
+                        updateDescCounter();
+                        updateFieldsCounter();
+
+                        if (data.expired) {
+                            showDraftNotice('Your previous draft expired after 24 hours and was cleared automatically.');
+                        }
+                    }
+                } catch (e) {
+                    console.error('[custom-messages] Load error:', e);
+                } finally {
+                    // نفس مبدأ dashboard.js: تحميل أولي = ما فيه تعديل بعد، بغض
+                    // النظر عن نجاح أو فشل الجلب.
+                    markClean();
+                }
+            }
+
+            function collectDraftPayload() {
+                const fields = [];
+                subfieldsContainer.querySelectorAll('.subfield-row').forEach((row) => {
+                    const name = row.querySelector('.field-name-input').value;
+                    const value = row.querySelector('.field-value-input').value;
+                    if (name || value) fields.push({ name, value });
+                });
+                return {
+                    outsideText: outerContentInput.value,
+                    embedTitle: embedTitleInput.value,
+                    embedDescription: embedDescInput.value,
+                    embedColor: embedColorPicker.value,
+                    embedFields: fields
+                };
+            }
+
+            // --- الحفظ الفعلي (PUT /custom_embed_draft) ---
+            async function saveDraftNow() {
+                const guildId = getGuildId();
+                if (!guildId) return false;
+
+                draftErrorBanner.classList.remove('visible');
+
+                try {
+                   const response = await fetch(`${API_BASE}/guild/${guildId}/custom-embed-draft`, {
+    method: 'PUT',
+    headers: getHeaders(),
+    body: JSON.stringify({ updates: collectDraftPayload() })
+});
+                    const data = await response.json().catch(() => ({}));
+
+                    if (response.ok) {
+                        markSaved();
+                        return true;
+                    }
+                    markError();
+                    if (data.errors) showDraftError(data.errors);
+                    return false;
+                } catch (e) {
+                    markError();
+                    console.error('[custom-messages] Save error:', e);
+                    return false;
+                }
+            }
+
+            btnSaveDraft.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (btnSaveDraft.disabled) return;
+                saveDraftNow();
+            });
+
+            // --- Modal: اختيار قناة النشر - بيانات حقيقية من guild_structure_cache
+            //     (نفس المصدر اللي dashboard.js يستخدمه لكل صناديق .selector-box) ---
+            function generateDropdownOptionsElements() {
+                roomsDropdownWrapper.innerHTML = '';
+
+                const groups = (guildStructure.channels || [])
+                    .map((group) => ({
+                        ...group,
+                        channels: (group.channels || []).filter((c) => TEXT_CHANNEL_TYPES.includes(c.type))
+                    }))
+                    .filter((group) => group.channels.length > 0);
+
+                if (groups.length === 0) {
+                    roomsDropdownWrapper.innerHTML = '<div class="room-selection-node" style="cursor:default;">No text channels synced yet — try again shortly</div>';
+                    return;
+                }
+
+                groups.forEach((group) => {
+                    const header = document.createElement('div');
+                    header.textContent = group.categoryName;
+                    header.style.cssText = 'padding:8px 16px; font-size:11px; font-weight:700; text-transform:uppercase; color:var(--text-secondary); letter-spacing:0.5px;';
+                    roomsDropdownWrapper.appendChild(header);
+
+                    group.channels.forEach((channel) => {
+                        const optionNode = document.createElement('div');
+                        optionNode.className = 'room-selection-node';
+                        const isSelected = selectedChannel?.id === channel.id;
+                        if (isSelected) optionNode.classList.add('active-checked');
+                        optionNode.innerHTML = `
+                            <span># ${channel.name}</span>
+                            ${isSelected ? '<i class="fa-solid fa-check" style="color:var(--accent-red); font-size:12px;"></i>' : ''}
+                        `;
+                        optionNode.addEventListener('click', () => selectChannel(channel.id, channel.name));
+                        roomsDropdownWrapper.appendChild(optionNode);
+                    });
+                });
+            }
+
+            function selectChannel(id, name) {
+                selectedChannel = { id, name };
+                updateModalTagsShelfView();
+                generateDropdownOptionsElements();
+            }
+
+            function updateModalTagsShelfView() {
+                modalTagsContainer.innerHTML = '';
+                if (!selectedChannel) return;
+
+                const tagChip = document.createElement('div');
+                tagChip.className = 'room-tag-chip';
+                tagChip.innerHTML = `<span># ${selectedChannel.name}</span><i class="fa-solid fa-xmark"></i>`;
+                tagChip.querySelector('i').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectedChannel = null;
+                    updateModalTagsShelfView();
+                    generateDropdownOptionsElements();
+                });
+                modalTagsContainer.appendChild(tagChip);
+            }
+
+            publishTriggerBtn.addEventListener('click', async () => {
+                await fetchGuildStructure(); // بيانات حقيقية حديثة كل مرة يفتح فيها المودال
+                generateDropdownOptionsElements();
+                updateModalTagsShelfView();
+                channelModalOverlay.classList.add('active');
+            });
+
+            modalDismissBtn.addEventListener('click', () => {
+                channelModalOverlay.classList.remove('active');
+            });
+
+            channelModalOverlay.addEventListener('click', (e) => {
+                if (e.target === channelModalOverlay) channelModalOverlay.classList.remove('active');
+            });
+
+            // --- النشر الفعلي: يحفظ آخر تعديل بالفورم أول (عشان ما ينشر نسخة
+            //     قديمة من قاعدة البيانات - publishDraft بالبوت يقرأ آخر شي
+            //     محفوظ فقط، مو الفورم مباشرة)، ثم ينشر بالقناة المختارة ---
+            modalConfirmBtn.addEventListener('click', async () => {
+                if (!selectedChannel) {
+                    showNotification('Please select a destination channel first.', 'error');
+                    return;
+                }
+
+                modalConfirmBtn.disabled = true;
+                modalConfirmBtn.textContent = 'Publishing...';
+
+                const guildId = getGuildId();
+                const saved = await saveDraftNow();
+                if (!saved) {
+                    modalConfirmBtn.disabled = false;
+                    modalConfirmBtn.textContent = 'Confirm & Publish';
+                    return; // saveDraftNow already surfaced the error banner
+                }
+
+                try {
+                    const response = await fetch(`${API_BASE}/guild/${guildId}/custom-embed-draft/publish`, {
+                        method: 'POST',
+                        headers: getHeaders(),
+                        body: JSON.stringify({ channelId: selectedChannel.id })
+                    });
+                    const data = await response.json().catch(() => ({}));
+
+                    if (response.ok) {
+                        showNotification('✅ Message published successfully!', 'success');
+                        channelModalOverlay.classList.remove('active');
+
+                        // custom.js يحذف المسودة من قاعدة البيانات بعد النشر
+                        // (سلوك مقصود موثّق بالملف) - نفضّي الفورم هنا عشان
+                        // يطابق الواقع الفعلي بقاعدة البيانات
+                        outerContentInput.value = '';
+                        embedTitleInput.value = '';
+                        embedDescInput.value = '';
+                        embedColorPicker.value = '#5865f2';
+                        colorHexText.textContent = '#5865F2';
+                        subfieldsContainer.innerHTML = '';
+                        selectedChannel = null;
+                        updateOuterCounter();
+                        updateTitleCounter();
+                        updateDescCounter();
+                        updateFieldsCounter();
+                        markClean();
+                    } else {
+                        showNotification(`❌ Failed to publish: ${data.error || 'Unknown error'}`, 'error');
+                    }
+                } catch (e) {
+                    console.error('[custom-messages] Publish error:', e);
+                    showNotification('❌ Network error while publishing.', 'error');
+                } finally {
+                    modalConfirmBtn.disabled = false;
+                    modalConfirmBtn.textContent = 'Confirm & Publish';
+                }
+            });
+
+            loadDraft();
+        });
+    </script>
+</body>
+</html>

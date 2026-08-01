@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Meta tags for JS integration -->
+    <meta name="dashboard-api-key" content="REPLACE_WITH_YOUR_DASHBOARD_API_KEY">
+    <meta name="dashboard-guild-id" content="REPLACE_WITH_YOUR_GUILD_ID">
+    <title>OmniGuard - Role Management</title>
+    
+    <!-- Google Fonts & FontAwesome Icons - Matching index.html perfectly -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Base Colors & Reset - Matching index.html exactly */
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #111115;
+            --bg-tertiary: #18181c;
+            --accent-red: #ff3344;
+            --accent-red-hover: #ff5566;
+            --accent-green: #3ba55d;
+            --accent-green-hover: #43b869;
+            --text-primary: #ffffff;
+            --text-secondary: #8e9297;
+            --border-color: #2a2b30;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styles - Matching index.html exactly */
+        .sidebar {
+            width: 280px; background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column;
+            padding: 24px 16px; overflow-y: auto;
+        }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+
+        .logo-section {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 24px; padding-left: 8px; flex-shrink: 0;
+        }
+
+        .logo-icon { color: var(--accent-red); font-size: 24px; }
+        .logo-text { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+
+        .category-container {
+            display: flex; align-items: center; gap: 10px;
+            margin-top: 18px; margin-bottom: 10px; width: 100%;
+        }
+
+        .category-header {
+            font-size: 10px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1.2px; color: var(--text-secondary); white-space: nowrap;
+        }
+
+        .category-line { flex-grow: 1; height: 1px; background-color: var(--border-color); }
+
+        .menu-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+
+        .menu-item a {
+            display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+            color: var(--text-secondary); text-decoration: none; border-radius: 8px;
+            font-weight: 500; font-size: 14px; transition: all 0.2s ease;
+        }
+
+        .menu-item a:hover { color: var(--text-primary); background-color: var(--bg-tertiary); }
+
+        .menu-item.active a {
+            color: var(--text-primary);
+            background-color: rgba(255, 51, 68, 0.1);
+            border-left: 3px solid var(--accent-red);
+            padding-left: 11px;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex-grow: 1; background-color: var(--bg-primary);
+            display: flex; flex-direction: column; overflow-y: auto;
+        }
+
+        header {
+            height: 70px; border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 40px; background-color: var(--bg-secondary); flex-shrink: 0;
+        }
+
+        .header-title { font-size: 18px; font-weight: 600; }
+        .user-profile { display: flex; align-items: center; gap: 10px; }
+        .avatar {
+            width: 32px; height: 32px; border-radius: 50%;
+            background-color: var(--accent-red); display: flex;
+            align-items: center; justify-content: center; font-weight: bold; font-size: 14px;
+        }
+
+        .content-body {
+            padding: 40px; max-width: 1200px; width: 100%; margin: 0 auto;
+        }
+
+        /* Settings Grid Layout */
+        .settings-grid {
+            display: grid; grid-template-columns: 1fr; gap: 24px; margin-bottom: 32px;
+        }
+
+        .settings-card {
+            background-color: var(--bg-secondary); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 28px; display: flex; flex-direction: column; gap: 20px;
+        }
+
+        .card-header-group {
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--border-color); padding-bottom: 14px;
+        }
+
+        .card-title-container { display: flex; align-items: center; gap: 12px; }
+        .card-header-icon { color: var(--accent-red); font-size: 20px; }
+        .card-header-title { font-size: 16px; font-weight: 600; }
+
+        /* Form Layouts */
+        .form-row { display: flex; gap: 20px; flex-wrap: wrap; }
+        .form-group { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 250px; }
+        .form-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .form-input, .form-select {
+            width: 100%; background-color: var(--bg-tertiary); border: 1px solid var(--border-color);
+            color: var(--text-primary); padding: 12px 16px; border-radius: 8px; font-size: 14px; outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-input:focus, .form-select:focus { border-color: var(--accent-red); }
+
+        /* Custom Multi-Select Dropdown Selector Box - نفس نظام general-settings.html
+           تماماً (بدل .role-selector-box الساكن القديم اللي ما كان له أي منطق JS
+           مربوط فعلياً - الصندوق نفسه كان مجرد div بدون data-source ولا id يطابق
+           عمود، فـ dashboard.js ما كان يقدر يعبّيه أو يحفظه إطلاقاً). */
+        .selector-box {
+            background-color: var(--bg-tertiary); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 8px; min-height: 45px; display: flex;
+            flex-wrap: wrap; gap: 6px; align-items: center; cursor: pointer;
+            transition: border-color 0.2s; position: relative;
+        }
+        .selector-box:hover { border-color: var(--accent-red); }
+        .selector-placeholder { color: var(--text-secondary); font-size: 13px; margin-left: 5px; }
+
+        /* تاق أحمر شفاف (نفس باقي الصفحات) - بس زر الإزالة "×" هنا رمادي
+           بدل الأحمر الافتراضي، حسب طلبك تحديداً لهذي الصفحة. */
+        .tag-item {
+            background-color: rgba(255, 51, 68, 0.15); color: var(--accent-red);
+            padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
+            display: flex; align-items: center; gap: 8px; border: 1px solid rgba(255, 51, 68, 0.3);
+        }
+        .tag-item .remove-btn { cursor: pointer; font-size: 12px; line-height: 1; color: var(--text-secondary); transition: color 0.2s; }
+        .tag-item .remove-btn:hover { color: var(--text-primary); }
+
+        .dropdown-list {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background-color: var(--bg-tertiary); border: 1px solid var(--border-color);
+            border-radius: 8px; margin-top: 5px; max-height: 200px; overflow-y: auto;
+            z-index: 100; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .dropdown-list.show { display: block; }
+        .dropdown-item { padding: 10px 16px; font-size: 14px; cursor: pointer; transition: background 0.2s; }
+        .dropdown-item:hover { background-color: var(--accent-red); color: white; }
+        .dropdown-empty { padding: 14px 16px; font-size: 13px; color: var(--text-secondary); text-align: center; }
+
+        /* فلتر مدة الإزالة (Removal Delay Duration) - حدّ أحمر + رسالة صغيرة
+           لما القيمة ما تطابق الصيغة المسموحة (1s / 1min / 1h / 1d / 1w / 1mo / 1y) */
+        .form-input.input-invalid { border-color: var(--accent-red); }
+        .field-error { color: var(--accent-red); font-size: 12px; display: none; }
+        .field-error.show { display: block; }
+
+        /* Info Banner */
+        .info-banner {
+            background-color: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 14px; display: flex; gap: 12px; align-items: flex-start;
+        }
+        .info-banner i { color: var(--accent-red); font-size: 16px; margin-top: 2px; }
+        .info-banner p { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+
+        /* Save Bar */
+        .save-changes-bar {
+            background-color: var(--bg-secondary); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 20px 32px; display: flex;
+            align-items: center; justify-content: space-between;
+            position: sticky; bottom: 20px; z-index: 10;
+        }
+        /* حالات زر الحفظ - نفس نظام general-settings.html/welcome-leave.html
+           بالضبط (المنطق بـ dashboard.js عام، هذا الملف بس يوفر المظهر). */
+        .save-btn { border: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 0.2s, color 0.2s; }
+
+        .save-btn.state-default { background-color: var(--bg-tertiary); color: var(--text-secondary); cursor: not-allowed; }
+
+        .save-btn.state-dirty { background-color: var(--accent-red); color: var(--text-primary); }
+        .save-btn.state-dirty:hover { background-color: var(--accent-red-hover); }
+
+        .save-btn.state-saved { background-color: var(--accent-green); color: var(--text-primary); cursor: default; }
+
+        .save-btn.state-error { background-color: var(--accent-red); color: var(--text-primary); }
+        .save-btn.state-error:hover { background-color: var(--accent-red-hover); }
+    </style>
+</head>
+<body>
+
+    <!-- Left Sidebar Navigation - Synchronized with index.html -->
+    <aside class="sidebar">
+        <!-- Bot Logo and Name -->
+        <div class="logo-section">
+            <i class="fa-solid fa-shield-halved logo-icon"></i>
+            <span class="logo-text">OmniGuard</span>
+        </div>
+
+        <!-- HOME CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Home</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="index.html">
+                    <i class="fa-solid fa-house"></i>
+                    Home
+                </a>
+            </li>
+        </ul>
+
+        <!-- CORE SETTINGS CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Core Settings</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="general-settings.html">
+                    <i class="fa-solid fa-sliders"></i>
+                    General Settings
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="welcome-leave.html">
+                    <i class="fa-solid fa-door-open"></i>
+                    Welcome & Leave
+                </a>
+            </li>
+            <li class="menu-item active">
+                <a href="role-management.html">
+                    <i class="fa-solid fa-user-gear"></i>
+                    Role Management
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODERATION & SECURITY CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Moderation & Security</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="auto-mod.html">
+                    <i class="fa-solid fa-robot"></i>
+                    Auto-Mod
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="anti-alt.html">
+                    <i class="fa-solid fa-user-shield"></i>
+                    Anti-Alt
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="logging.html">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    Logging
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODULES & FEATURES CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Modules & Features</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="custom-messages.html">
+                    <i class="fa-solid fa-comment-dots"></i>
+                    Custom Messages
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="leveling-system.html">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    Leveling System
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <header>
+            <div class="header-title">Role Management</div>
+            <div class="user-profile">
+                <span>Administrator</span>
+                <div class="avatar">OG</div>
+            </div>
+        </header>
+
+        <div class="content-body">
+            <div class="settings-grid">
+                
+                <!-- ملاحظة: كارت "Dashboard Access Roles" اتحذف من هنا عمداً - نفس
+                     الحقل (dashboard_access_roles) موجود أصلاً وموصول صح بـ
+                     general-settings.html عبر data-target-table="setting_management_role"،
+                     فكان مكرر هنا بدون أي ربط فعلي أصلاً (الصندوق القديم ما كان
+                     حتى عنده data-source ولا id يطابق أي عمود). -->
+
+                <!-- Auto-Roles Settings Card -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <div class="card-title-container">
+                            <i class="fa-solid fa-user-plus card-header-icon"></i>
+                            <h2 class="card-header-title">Auto-Role System Configurations</h2>
+                        </div>
+                    </div>
+
+                    <!-- Instant Join Role -->
+                    <div class="form-group">
+                        <label class="form-label">New User Auto-Roles (Instant On Join)</label>
+                        <!-- id = عمود setting_management_role.new_user_auto_roles (text[] -
+                             يقبل أكثر من رتبة، عشان كذا صندوق تاقات مو select عادي).
+                             data-source="roles" -> يتعبّى تلقائياً بكامل رتب السيرفر
+                             مرتبة حسب التسلسل الهرمي (نفس آلية general-settings.html،
+                             المصدر getroles.js -> guild_structure_cache). -->
+                        <div class="selector-box" id="new_user_auto_roles" data-source="roles" data-dropdown="newUserAutoRolesDropdown" onclick="toggleDropdown('newUserAutoRolesDropdown')">
+                            <span class="selector-placeholder">+ Select Roles</span>
+                        </div>
+                        <div id="newUserAutoRolesDropdown" class="dropdown-list"></div>
+                    </div>
+
+                    <!-- Delayed Removal System Feature -->
+                    <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 16px;">
+                        <div style="border-top: 1px solid var(--border-color); padding-top: 16px;">
+                            <label class="form-label" style="color: var(--accent-red); font-weight:700;">Auto-Remove Roles After Delay</label>
+                        </div>
+                        
+                        <div class="form-row">
+                            <!-- Dynamic Role Picker Container -->
+                            <div class="form-group" style="flex: 2;">
+                                <label class="form-label">Target Roles to Strip</label>
+                                <!-- ⚠️ id="autoRemoveRolesBox" عمداً مو مطابق لاسم عمود حقيقي:
+                                     البيانات هذي تروح لجدول role_delay_config (صف مستقل لكل
+                                     رتبة: id_guild + id_role + delay_duration)، مو عمود بجدول
+                                     setting_management_role زي باقي الصفحة. آلية الحفظ العامة
+                                     (buildPayload) تفترض دايماً "صف واحد لكل سيرفر" بجدول واحد
+                                     فما تقدر تتعامل مع هالشكل من البيانات بدون منطق حفظ مخصص.
+                                     السكربت آخر الصفحة يعزل هالحقل (وremovalDelayTime) عن
+                                     buildPayload() قبل الإرسال، عشان أول ضغطة Save ما تفشل
+                                     بخطأ "عمود غير موجود" وتكسر معها حفظ new_user_auto_roles
+                                     المشروع جنبها. لسه تفاعلي بالكامل بالمتصفح (تاقات + فلتر)،
+                                     بس محتاج آلية حفظ مخصصة (endpoint يقبل صفوف متعددة) وقت
+                                     نراجع dashboard.js/apiRouter.js الأخيرة. -->
+                                <div class="selector-box" id="autoRemoveRolesBox" data-source="roles" data-dropdown="stripRolesDropdown" onclick="toggleDropdown('stripRolesDropdown')">
+                                    <span class="selector-placeholder">+ Select Roles</span>
+                                </div>
+                                <div id="stripRolesDropdown" class="dropdown-list"></div>
+                            </div>
+                            
+                            <!-- Pure Text/Number Manual Input Field (Stays a standard input, never a dropdown) -->
+                            <div class="form-group" style="flex: 1;">
+                                <label class="form-label">Removal Delay Duration</label>
+                                <!-- ⚠️ نفس ملاحظة autoRemoveRolesBox فوق - id مو مطابق لعمود
+                                     حقيقي، معزول عن buildPayload() بالسكربت آخر الصفحة لنفس
+                                     السبب بالضبط. الفلتر يسمح فقط بصيغة: رقم + وحدة من
+                                     (s/min/h/d/w/mo/y) - راجع ملاحظة التوافق مع Rolemanagement.js
+                                     بأول تعليق بالسكربت. -->
+                                <input id="removalDelayTime" type="text" class="form-input" placeholder="e.g. 30s, 10min, 2h, 7d, 1w, 1mo, 1y" autocomplete="off">
+                                <span id="removalDelayError" class="field-error">Format must be: number + unit (s / min / h / d / w / mo / y) — e.g. 30s, 10min, 2h, 7d, 1w, 1mo, 1y</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="info-banner">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <p>Roles configured above will be systematically pulled from the user record automatically once the defined duration parameter safely expires.</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Bottom Save Changes Bar -->
+            <div class="save-changes-bar">
+                <span style="color:var(--text-secondary); font-size:14px;">Careful — any unsaved modifications will be discarded!</span>
+                <button class="save-btn state-default" disabled>Save Changes</button>
+            </div>
+        </div>
+    </main>
+
+    <script src="dashboard.js"></script>
+
+    <!-- ================================================================
+         سكربت خاص بهذي الصفحة فقط (role-management.html) - بدون أي تعديل
+         على dashboard.js.
+
+         [أ] عزل autoRemoveRolesBox و removalDelayTime عن buildPayload():
+             هالحقلين ما يخصون جدول setting_management_role (الجدول اللي
+             هالصفحة مربوطة فيه عبر endpointMap) - بياناتهم الفعلية تروح
+             لجدول role_delay_config (صفوف متعددة، صف مستقل لكل رتبة).
+             نلف buildPayload() العامة (بدون تعديل الملف الأصلي) ونشيل
+             هالحقلين من الـ payload قبل الإرسال، عشان أول ضغطة Save ما
+             تفشل بخطأ "عمود غير موجود" وتكسر معها حفظ new_user_auto_roles
+             المشروع بنفس الصفحة. لما تنضاف آلية حفظ مخصصة لـ
+             role_delay_config (endpoint يقبل صفوف متعددة)، احذف هالجزء
+             وحوّل الحقلين لمنطق الحفظ الخاص فيهم.
+
+         [ب] فلتر Removal Delay Duration:
+             يسمح بس بصيغة "رقم + وحدة" من (s, min, h, d, w, mo, y) - فلترة
+             خفيفة أثناء الكتابة (تمنع رموز/مسافات بس، ما تكسر الكتابة
+             التدريجية للوحدة زي "min")، وفحص صارم عند مغادرة الحقل (blur)
+             يبيّن رسالة خطأ حمراء لو الصيغة غلط، بدون ما يمسح اللي كتبه
+             المستخدم بالغلط.
+
+             ⚠️ ملاحظة توافق مهمة: Rolemanagement.js (parseDurationToMs)
+             حالياً يقبل بس وحدة حرف وحد (s/m/h/d/w) - m تعني دقائق، وما
+             فيه mo (شهر) ولا y (سنة) إطلاقاً بالكود. لو حُفظت قيمة زي
+             "1min"/"1mo"/"1y"، الكود الحالي يرفضها بصمت ("Invalid duration
+             format... skipping") والرتبة ما تنجدول إزالتها. لازم تحديث
+             Rolemanagement.js ليدعم نفس الصيغ المسموحة هنا بالواجهة قبل
+             ما تعتمد على هالميزة فعلياً.
+         ================================================================ -->
+    <script>
+        (function () {
+            // ------------------------------------------------------------
+            // [أ] عزل الحقلين المؤقتين عن buildPayload()
+            // ------------------------------------------------------------
+            const PENDING_FIELD_IDS = ['autoRemoveRolesBox', 'removalDelayTime'];
+            const originalBuildPayload = window.buildPayload;
+
+            if (typeof originalBuildPayload === 'function') {
+                window.buildPayload = function () {
+                    const payload = originalBuildPayload();
+                    PENDING_FIELD_IDS.forEach((id) => delete payload.updates[id]);
+                    return payload;
+                };
+            }
+
+            // ------------------------------------------------------------
+            // [ب] فلتر Removal Delay Duration
+            // ------------------------------------------------------------
+            const DURATION_PATTERN = /^\d+(s|min|h|d|w|mo|y)$/;
+            const delayInput = document.getElementById('removalDelayTime');
+            const delayError = document.getElementById('removalDelayError');
+
+            if (delayInput) {
+                delayInput.addEventListener('input', () => {
+                    // فلترة خفيفة بس: نمنع أي رمز/مسافة، نسمح بأي حرف/رقم
+                    // عشان الكتابة التدريجية لوحدة زي "min"/"mo" ما تنكسر.
+                    const cleaned = delayInput.value.replace(/[^0-9a-zA-Z]/g, '');
+                    if (cleaned !== delayInput.value) delayInput.value = cleaned;
+
+                    // لو كانت الحالة قبل كذا "غلط"، وصار شكل صحيح أثناء الكتابة، نشيل التنبيه فوراً
+                    if (delayInput.classList.contains('input-invalid') && DURATION_PATTERN.test(delayInput.value.trim())) {
+                        delayInput.classList.remove('input-invalid');
+                        if (delayError) delayError.classList.remove('show');
+                    }
+                });
+
+                delayInput.addEventListener('blur', () => {
+                    const value = delayInput.value.trim();
+                    const isValid = value === '' || DURATION_PATTERN.test(value);
+                    delayInput.classList.toggle('input-invalid', !isValid);
+                    if (delayError) delayError.classList.toggle('show', !isValid);
+                });
+            }
+        })();
+    </script>
+</body>
+</html>

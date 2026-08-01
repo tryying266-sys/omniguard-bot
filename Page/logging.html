@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="dashboard-api-key" content="REPLACE_WITH_YOUR_DASHBOARD_API_KEY">
+  <meta name="dashboard-guild-id" content="REPLACE_WITH_YOUR_GUILD_ID">
+  <title>OmniGuard - Logging</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <style>
+    :root{--bg:#0a0a0c;--bg2:#111115;--bg3:#18181c;--text:#fff;--muted:#8e9297;--red:#ff3344;--border:#2a2b30}
+    *{box-sizing:border-box;margin:0;padding:0;font-family:'Inter',sans-serif}
+    body{display:flex;min-height:100vh;background:var(--bg);color:var(--text)}
+    .sidebar{width:280px;background:var(--bg2);border-right:1px solid var(--border);padding:24px 16px;display:flex;flex-direction:column;gap:10px}
+    .logo{display:flex;align-items:center;gap:12px;font-size:20px;font-weight:700;margin-bottom:18px}
+    .logo i{color:var(--red);font-size:24px}
+    .nav{display:flex;flex-direction:column;gap:6px}
+    .nav a{color:var(--muted);text-decoration:none;padding:10px 14px;border-radius:8px;display:flex;align-items:center;gap:10px}
+    .nav a:hover,.nav a.active{background:var(--bg3);color:var(--text)}
+    .main{flex:1;padding:36px;overflow:auto}
+    .card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px}
+    .card h1{margin-bottom:10px;font-size:24px}
+    .card p{color:var(--muted);line-height:1.7}
+  </style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="logo"><i class="fa-solid fa-shield-halved"></i><span>OmniGuard</span></div>
+    <div class="nav">
+      <a href="./index.html"><i class="fa-solid fa-house"></i> Home</a>
+      <a href="./general-settings.html"><i class="fa-solid fa-sliders"></i> General Settings</a>
+      <a href="./welcome-leave.html"><i class="fa-solid fa-door-open"></i> Welcome & Leave</a>
+      <a href="./role-management.html"><i class="fa-solid fa-user-gear"></i> Role Management</a>
+      <a href="./auto-mod.html"><i class="fa-solid fa-robot"></i> Auto-Mod</a>
+      <a href="./anti-alt.html"><i class="fa-solid fa-user-shield"></i> Anti-Alt</a>
+      <a href="./moderation-commands.html"><i class="fa-solid fa-gavel"></i> Moderation Commands</a>
+      <a href="./staff-roles.html"><i class="fa-solid fa-users-cog"></i> Staff Roles</a>
+      <a href="./logging.html" class="active"><i class="fa-solid fa-clipboard-list"></i> Logging</a>
+      <a href="./custom-messages.html"><i class="fa-solid fa-comment-dots"></i> Custom Messages</a>
+      <a href="./leveling-system.html"><i class="fa-solid fa-chart-simple"></i> Leveling System</a>
+    </div>
+  </aside>
+  <main class="main">
+    <div class="card">
+      <h1>Logging</h1>
+      <p>Review security events, moderation actions, and audit logs from the dashboard.</p>
+    </div>
+  </main>
+</body>
+</html>

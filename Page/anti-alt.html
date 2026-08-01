@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="dashboard-api-key" content="REPLACE_WITH_YOUR_DASHBOARD_API_KEY">
+    <meta name="dashboard-guild-id" content="REPLACE_WITH_YOUR_GUILD_ID">
+    <title>OmniGuard - Anti-Alt Settings</title>
+    <!-- Google Fonts & FontAwesome Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Base Colors & Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #111115;
+            --bg-tertiary: #18181c;
+            --accent-red: #ff3344;
+            --accent-red-hover: #ff5566;
+            --text-primary: #ffffff;
+            --text-secondary: #8e9297;
+            --border-color: #2a2b30;
+            --warning-amber: #ffaa00;
+            --danger-color: #ff3344;
+            --success-color: #4cd137;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styles - Identical to index.html */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 16px;
+            overflow-y: auto;
+        }
+
+        /* Hide sidebar scrollbar for clean look */
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding-left: 8px;
+            flex-shrink: 0;
+        }
+
+        .logo-icon {
+            color: var(--accent-red);
+            font-size: 24px;
+        }
+
+        .logo-text {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        /* Category Header with Center Text between Two Gray Lines */
+        .category-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 18px;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+
+        .category-header {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .category-line {
+            flex-grow: 1;
+            height: 1px;
+            background-color: var(--border-color);
+        }
+
+        .menu-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .menu-item a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .menu-item a:hover {
+            color: var(--text-primary);
+            background-color: var(--bg-tertiary);
+        }
+
+        /* Highlight Active Item */
+        .menu-item.active a {
+            color: var(--text-primary);
+            background-color: rgba(255, 51, 68, 0.1);
+            border-left: 3px solid var(--accent-red);
+            padding-left: 11px;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex-grow: 1;
+            background-color: var(--bg-primary);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        header {
+            height: 70px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            background-color: var(--bg-secondary);
+            flex-shrink: 0;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--accent-red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .content-body {
+            padding: 40px;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* Settings Grid Layout */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        @media (max-width: 992px) {
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .settings-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card-header-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 14px;
+        }
+
+        .card-header-icon {
+            color: var(--accent-red);
+            font-size: 20px;
+        }
+
+        .card-header-title {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        /* Form Controls */
+        .form-row {
+            display: flex;
+            gap: 16px;
+        }
+
+        .form-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-input:focus, .form-select:focus {
+            border-color: var(--accent-red);
+            box-shadow: 0 0 0 3px rgba(255, 51, 68, 0.15);
+        }
+
+        /* Custom Switch Styling */
+        .switch-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            padding: 14px 18px;
+            border-radius: 8px;
+            transition: background-color 0.2s;
+        }
+
+        .switch-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .switch-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .switch-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            transition: .25s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 3px;
+            background-color: var(--text-secondary);
+            transition: .25s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: rgba(255, 51, 68, 0.2);
+            border-color: var(--accent-red);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+            background-color: var(--accent-red);
+        }
+
+        /* System Info Banners */
+        .info-banner {
+            background-color: rgba(255, 170, 0, 0.05);
+            border: 1px dashed var(--warning-amber);
+            border-radius: 8px;
+            padding: 14px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .info-banner i {
+            color: var(--warning-amber);
+            font-size: 16px;
+            margin-top: 2px;
+        }
+
+        .info-banner p {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Bottom Fixed Save Bar */
+        .save-changes-bar {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .save-info-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .save-btn {
+            background-color: var(--accent-red);
+            color: var(--text-primary);
+            border: none;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .save-btn:hover {
+            background-color: var(--accent-red-hover);
+        }
+
+        /* [تصحيح] حالات زر الحفظ - dashboard.js ينادي هالكلاسات تلقائياً
+           (setSaveButtonState) لكن ما يفرض ألوانها؛ كل صفحة تعرّفها بنفسها. */
+        .save-btn.state-default {
+            background-color: var(--bg-tertiary);
+            color: var(--text-secondary);
+            cursor: not-allowed;
+        }
+
+        .save-btn.state-default:hover {
+            background-color: var(--bg-tertiary);
+        }
+
+        .save-btn.state-dirty {
+            background-color: var(--accent-red);
+            color: var(--text-primary);
+        }
+
+        .save-btn.state-dirty:hover {
+            background-color: var(--accent-red-hover);
+        }
+
+        .save-btn.state-saved {
+            background-color: var(--success-color);
+            color: var(--text-primary);
+            cursor: not-allowed;
+        }
+
+        .save-btn.state-error {
+            background-color: var(--danger-color);
+            color: var(--text-primary);
+        }
+
+        .save-btn.state-error:hover {
+            background-color: var(--accent-red-hover);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Left Sidebar Navigation (Synced with index.html) -->
+    <aside class="sidebar">
+        <!-- Bot Logo and Name -->
+        <div class="logo-section">
+            <i class="fa-solid fa-shield-halved logo-icon"></i>
+            <span class="logo-text">OmniGuard</span>
+        </div>
+
+        <!-- HOME CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Home</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="index.html">
+                    <i class="fa-solid fa-house"></i>
+                    Home
+                </a>
+            </li>
+        </ul>
+
+        <!-- CORE SETTINGS CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Core Settings</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="general-settings.html">
+                    <i class="fa-solid fa-sliders"></i>
+                    General Settings
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="welcome-leave.html">
+                    <i class="fa-solid fa-door-open"></i>
+                    Welcome & Leave
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="role-management.html">
+                    <i class="fa-solid fa-user-gear"></i>
+                    Role Management
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODERATION & SECURITY CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Moderation & Security</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="auto-mod.html">
+                    <i class="fa-solid fa-robot"></i>
+                    Auto-Mod
+                </a>
+            </li>
+            <li class="menu-item active">
+                <a href="anti-alt.html">
+                    <i class="fa-solid fa-user-shield"></i>
+                    Anti-Alt
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="logging.html">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    Logging
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODULES & FEATURES CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Modules & Features</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="custom-messages.html">
+                    <i class="fa-solid fa-comment-dots"></i>
+                    Custom Messages
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="leveling-system.html">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    Leveling System
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <header>
+            <div class="header-title">Anti-Alt System</div>
+            <div class="user-profile">
+                <span>Administrator</span>
+                <div class="avatar">OG</div>
+            </div>
+        </header>
+
+        <div class="content-body">
+            <div class="settings-grid">
+                
+                <!-- 1. Basic Configuration -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-toggle-on card-header-icon"></i>
+                        <h2 class="card-header-title">Basic Configuration</h2>
+                    </div>
+
+                    <!-- System Toggle -->
+                    <div class="switch-container">
+                        <div class="switch-info">
+                            <span class="switch-title">Enable Anti-Alt System</span>
+                            <span class="switch-desc">Instantly scan and flag new members with suspicious account ages upon arrival.</span>
+                        </div>
+                        <label class="switch">
+                            <input id="enabled" type="checkbox" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-row">
+                        <!-- Age Limit Selection -->
+                        <div class="form-group">
+                            <label class="form-label">Alt Account Age Limit</label>
+                            <select id="limit_age" class="form-select">
+                                <option value="3d">Less than 3 days</option>
+                                <option value="7d">Less than a week</option>
+                                <option value="30d">Less than a month</option>
+                                <option value="custom">Custom Limit (Specify Days)</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Custom Limit Input -->
+                        <div class="form-group">
+                            <label class="form-label">Custom Days Limit</label>
+                            <input id="limit_days_custom" type="number" class="form-input" placeholder="Enter days (e.g. 14)" min="1" max="3650" inputmode="numeric">
+                            <small style="color: var(--text-secondary); font-size: 11px;">Whole numbers only, 1–3650 days (about 10 years max).</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Action on Detection -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-gavel card-header-icon"></i>
+                        <h2 class="card-header-title">Action on Detection</h2>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Action to Take</label>
+                            <select id="action_to_take" class="form-select">
+                                <option value="kick">Kick (Allows re-joining when account matures)</option>
+                                <option value="ban">Ban (Permanently excludes account from guild)</option>
+                                <option value="mute">Mute (Timeout the member for a set duration)</option>
+                                <option value="none">None (Log and flag for staff inspection only)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Mute Duration</label>
+                            <input id="action_mute_duration" type="text" class="form-input duration-input" placeholder="e.g., 24h" maxlength="6">
+                            <small style="color: var(--text-secondary); font-size: 11px;">Only used if Action to Take = Mute. Format: number + s/m/h/d/w (e.g. 24h, 3d). Defaults to 24h if left blank.</small>
+                        </div>
+                    </div>
+
+                    <div class="info-banner">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <p>Selecting "None" will only dispatch notification updates to your designated staff logs channels without performing automatic actions.</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Bottom Save Bar -->
+            <div class="save-changes-bar">
+                <span class="save-info-text">Be careful — any unsaved modifications will be discarded!</span>
+                <button class="save-btn">Save Changes</button>
+            </div>
+        </div>
+    </main>
+    
+    <script src="dashboard.js"></script>
+
+    <!-- ======================================================================
+         سكربت خاص بصفحة anti-alt.html فقط - مستقل تماماً عن dashboard.js.
+         [1] Custom Days Limit: يمنع أي شي غير أرقام إنجليزية (0-9) - يشمل هذا
+             الأرقام العربية (١٢٣) والحروف والرموز - ويثبّت القيمة عند 3650
+             يوم كحد أقصى حتى لو المستخدم كتبها يدوياً (attribute max وحده ما
+             يمنع الكتابة الفعلية بكل المتصفحات).
+         [2] Mute Duration: نفس نمط حقول المدة بصفحة auto-mod.html (رقم حتى 4
+             خانات + حرف وحدة واحد s/m/h/d/w) - مطابق لصيغة parseDurationToMs()
+             الفعلية بـ AntiAlt.js.
+    ====================================================================== -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // --- [1] Custom Days Limit: أرقام إنجليزية فقط + حد أقصى 3650 ---
+            const daysInput = document.getElementById('limit_days_custom');
+            if (daysInput) {
+                daysInput.addEventListener('input', () => {
+                    // يشيل أي حرف غير رقم إنجليزي (يمنع الأرقام العربية ١٢٣ وأي رمز غريب)
+                    let digitsOnly = daysInput.value.replace(/[^0-9]/g, '');
+                    if (digitsOnly.length > 4) digitsOnly = digitsOnly.slice(0, 4); // يمنع أرقام ضخمة (99999999+)
+                    if (digitsOnly !== '' && parseInt(digitsOnly, 10) > 3650) digitsOnly = '3650';
+                    daysInput.value = digitsOnly;
+                });
+            }
+
+            // --- [2] Mute Duration: نفس فلتر صيغة المدة ---
+            const DURATION_PATTERN = /^(\d{1,4})([smhdw]?)/i;
+            document.querySelectorAll('.duration-input').forEach(el => {
+                el.addEventListener('input', () => {
+                    const cleanedChars = el.value.toLowerCase().replace(/[^0-9smhdw]/g, '');
+                    const match = cleanedChars.match(DURATION_PATTERN);
+                    el.value = match ? (match[1] + match[2]) : '';
+                });
+            });
+        });
+    </script>
+</body>
+</html>
