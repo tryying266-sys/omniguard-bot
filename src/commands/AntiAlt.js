@@ -117,6 +117,32 @@ function parseDurationToMs(input) {
     return ms > MAX_TIMEOUT_MS ? MAX_TIMEOUT_MS : ms;
 }
 
+// ============================================================================
+// [NEW] صيغة مدة موسّعة خاصة بـ "الحد الأدنى لعمر الحساب" (limit_age) فقط -
+// وحدات مختلفة عمداً عن parseDurationToMs العادية (s/m/h/d/w) المستخدمة
+// بالكتم/التأخير: min (دقيقة) بدل m، بالإضافة لـ mo (شهر) و y (سنة) - بدون
+// أي تعارض حروف لأن ما فيه رمز وحدة وحيد الحرف يتشابه مع بداية "min"/"mo".
+// ============================================================================
+const AGE_LIMIT_UNITS_MS = {
+    s: 1000,
+    min: 60000,
+    h: 3600000,
+    d: 86400000,
+    w: 604800000,
+    mo: 30 * 86400000,   // شهر تقريبي = 30 يوم
+    y: 365 * 86400000    // سنة تقريبية = 365 يوم
+};
+
+function parseAgeLimitToMs(input) {
+    if (!input) return null;
+    const match = String(input).trim().match(/^(\d{1,5})\s*(min|mo|s|h|d|w|y)$/i);
+    if (!match) return null;
+    const amount = parseInt(match[1], 10);
+    const unit = match[2].toLowerCase();
+    if (!amount || amount <= 0) return null;
+    return amount * AGE_LIMIT_UNITS_MS[unit];
+}
+
 const NOTABLE_BADGES = [
     'Staff', 'Partner', 'Hypesquad', 'HypeSquadOnlineHouse1', 'HypeSquadOnlineHouse2',
     'HypeSquadOnlineHouse3', 'BugHunterLevel1', 'BugHunterLevel2', 'PremiumEarlySupporter',
@@ -156,22 +182,28 @@ function usernamePatternKey(username) {
 // 1) البيانات الوصفية عند الدخول (Metadata)
 // ============================================================================
 
-function checkMetadata(member, ageMs) {
+function checkMetadata(member, ageMs, settings) {
     let points = 0;
-    const days = ageMs / DURATION_UNITS_MS.d;
 
-    if (days < (1 / 24)) points += 30;
-    else if (days < 1) points += 20;
-    else if (days < 3) points += 12;
-    else if (days < 7) points += 6;
-    else if (days < 30) points += 2;
+    // [FIX] الحد الأدنى لعمر الحساب الحين يجي من settings.limit_age (صيغة
+    // مدة حرة: s/min/h/d/w/mo/y) بدل أقواس عمر ثابتة بالكود. لو الإعداد
+    // غير موجود أو غير صالح (سيرفر لسه ما ضبطه)، نرجع لنفس الافتراضي القديم
+    // (3 أيام) عشان ما ينكسر أي سيرفر بدون تهيئة.
+    const requiredAgeMs = parseAgeLimitToMs(settings?.limit_age) ?? AGE_LIMIT_UNITS_MS.d * 3;
+
+    if (ageMs < requiredAgeMs) {
+        // تدرّج خطي: 30 نقطة كحد أقصى لحساب عمره صفر، تنخفض تدريجياً كل ما
+        // اقترب عمر الحساب من الحد المطلوب، وتوصل صفر بالضبط عند تجاوزه.
+        const ratio = ageMs / requiredAgeMs; // بين 0 و1
+        points += Math.round(30 * (1 - ratio));
+    }
 
     if (!member.user.avatar) points += 8;
 
     if (isRandomLookingUsername(member.user.username)) points += 15;
 
     return { points, dimension: points > 0 ? 'metadata' : null };
-}
+}   
 
 async function checkAccountDepth(member) {
     let points = 0;
@@ -749,7 +781,7 @@ async function handleMemberJoin(member) {
     };
     activeSessions.set(key, session);
 
-    const meta = checkMetadata(member, ageMs);
+    const meta = checkMetadata(member, ageMs, settings);
     addScore(session, meta.points, meta.dimension);
 
     const depth = await checkAccountDepth(member);

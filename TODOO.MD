@@ -242,3 +242,83 @@ add constraint setting_moderation_security_severe_trigger_action_check check (
 
 <!-- بعد -->
 <label class="toggle-switch"><input id="leave_mention" type="checkbox"><span class="slider"></span></label>
+
+
+
+
+-- =====================================================================
+-- v4.4 Additive Update — AntiAlt.js support
+-- =====================================================================
+
+-- 1) أعمدة جديدة على setting_alt_anti
+ALTER TABLE setting_alt_anti ADD COLUMN IF NOT EXISTS honeypot_channel_ids TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE setting_alt_anti ADD COLUMN IF NOT EXISTS log_channel_id TEXT;
+ALTER TABLE setting_alt_anti ADD COLUMN IF NOT EXISTS mutual_server_min_guild_count INTEGER NOT NULL DEFAULT 15;
+ALTER TABLE setting_alt_anti ADD COLUMN IF NOT EXISTS lookback_days INTEGER NOT NULL DEFAULT 90;
+ALTER TABLE setting_alt_anti ADD COLUMN IF NOT EXISTS monitoring_window_hours INTEGER NOT NULL DEFAULT 72;
+ALTER TABLE setting_alt_anti ADD COLUMN IF NOT EXISTS threshold_action NUMERIC NOT NULL DEFAULT 65;
+ALTER TABLE setting_alt_anti ADD COLUMN IF NOT EXISTS action_mute_duration TEXT;
+ALTER TABLE setting_alt_anti ADD COLUMN IF NOT EXISTS raid_cluster_window_seconds INTEGER NOT NULL DEFAULT 30;
+ALTER TABLE setting_alt_anti ADD COLUMN IF NOT EXISTS raid_cluster_min_members INTEGER NOT NULL DEFAULT 3;
+ALTER TABLE setting_alt_anti ADD COLUMN IF NOT EXISTS new_joiner_spam_msg_limit INTEGER NOT NULL DEFAULT 4;
+ALTER TABLE setting_alt_anti ADD COLUMN IF NOT EXISTS new_joiner_spam_window_seconds INTEGER NOT NULL DEFAULT 15;
+
+-- توسيع CHECK ليقبل 'mute' (الكود يدعمها فعلياً بـ resolveAndExecuteAction)
+ALTER TABLE setting_alt_anti DROP CONSTRAINT IF EXISTS setting_alt_anti_action_to_take_check;
+ALTER TABLE setting_alt_anti ADD CONSTRAINT setting_alt_anti_action_to_take_check
+    CHECK (action_to_take IN ('kick', 'ban', 'mute', 'none'));
+
+-- 2) توسيع CHECK على alt_suspected.action_taken لإضافة 'Muted'
+ALTER TABLE alt_suspected DROP CONSTRAINT IF EXISTS alt_suspected_action_taken_check;
+ALTER TABLE alt_suspected ADD CONSTRAINT alt_suspected_action_taken_check
+    CHECK (action_taken IN ('Banned', 'Kicked', 'Muted', 'Flagged'));
+
+-- 3) جدول جديد: invite_relations (شجرة الداعي-المدعو)
+CREATE TABLE IF NOT EXISTS invite_relations (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id_guild     TEXT NOT NULL REFERENCES setting_guild(id_guild) ON DELETE CASCADE,
+    inviter_id   TEXT NOT NULL,
+    invitee_id   TEXT NOT NULL,
+    invite_code  TEXT,
+    joined_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_invite_relations_inviter ON invite_relations (id_guild, inviter_id);
+
+-- 4) جدول جديد: user_writing_fingerprint (البصمة الكتابية)
+CREATE TABLE IF NOT EXISTS user_writing_fingerprint (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id_guild     TEXT NOT NULL REFERENCES setting_guild(id_guild) ON DELETE CASCADE,
+    id_user      TEXT NOT NULL,
+    fingerprint  JSONB NOT NULL,
+    sample_size  INTEGER NOT NULL DEFAULT 0,
+    flagged_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_writing_fingerprint_lookback ON user_writing_fingerprint (id_guild, flagged_at DESC);
+
+-- 5) جدول جديد: user_activity_heatmap (النمط الزمني - 24 ساعة UTC)
+CREATE TABLE IF NOT EXISTS user_activity_heatmap (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id_guild     TEXT NOT NULL REFERENCES setting_guild(id_guild) ON DELETE CASCADE,
+    id_user      TEXT NOT NULL,
+    hours        JSONB NOT NULL,
+    sample_size  INTEGER NOT NULL DEFAULT 0,
+    flagged_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_activity_heatmap_lookback ON user_activity_heatmap (id_guild, flagged_at DESC);
+
+-- 6) RLS (نفس نمط بقية جداول اللوق بالسكيما)
+ALTER TABLE invite_relations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_writing_fingerprint ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_activity_heatmap ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS staff_read_invite_relations ON invite_relations;
+CREATE POLICY staff_read_invite_relations ON invite_relations FOR SELECT
+USING (is_dashboard_staff(id_guild));
+
+DROP POLICY IF EXISTS staff_read_writing_fingerprint ON user_writing_fingerprint;
+CREATE POLICY staff_read_writing_fingerprint ON user_writing_fingerprint FOR SELECT
+USING (is_dashboard_staff(id_guild));
+
+DROP POLICY IF EXISTS staff_read_activity_heatmap ON user_activity_heatmap;
+CREATE POLICY staff_read_activity_heatmap ON user_activity_heatmap FOR SELECT
+USING (is_dashboard_staff(id_guild));

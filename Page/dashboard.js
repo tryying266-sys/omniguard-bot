@@ -295,6 +295,11 @@ function buildPayload() {
             updates[el.id] = el.checked;
         } else if (el.type === 'number') {
             updates[el.id] = parseInt(el.value) || 0;
+        } else if (el.tagName === 'SELECT' && el.value === '') {
+            // [FIX] قائمة منسدلة اختيارية بدون اختيار فعلي - نرسل null بدل
+            // نص فاضي "" عشان ما يخالف CHECK constraint على أعمدة زي
+            // severe_trigger_action اللي تسمح فقط بقيم محددة أو null.
+            updates[el.id] = null;
         } else {
             updates[el.id] = el.value;
         }

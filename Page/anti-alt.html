@@ -573,22 +573,11 @@
                     </div>
 
                     <div class="form-row">
-                        <!-- Age Limit Selection -->
+                        <!-- Minimum Account Age Required -->
                         <div class="form-group">
-                            <label class="form-label">Alt Account Age Limit</label>
-                            <select id="limit_age" class="form-select">
-                                <option value="3d">Less than 3 days</option>
-                                <option value="7d">Less than a week</option>
-                                <option value="30d">Less than a month</option>
-                                <option value="custom">Custom Limit (Specify Days)</option>
-                            </select>
-                        </div>
-                        
-                        <!-- Custom Limit Input -->
-                        <div class="form-group">
-                            <label class="form-label">Custom Days Limit</label>
-                            <input id="limit_days_custom" type="number" class="form-input" placeholder="Enter days (e.g. 14)" min="1" max="3650" inputmode="numeric">
-                            <small style="color: var(--text-secondary); font-size: 11px;">Whole numbers only, 1–3650 days (about 10 years max).</small>
+                            <label class="form-label">Minimum Account Age Required</label>
+                            <input id="limit_age" type="text" class="form-input duration-input-ext" placeholder="e.g. 3d, 6mo, 1y" maxlength="8">
+                            <small style="color: var(--text-secondary); font-size: 11px;">Accounts younger than this are scored as risky. Format: number + unit (s, min, h, d, w, mo, y). Example: 500d, 6mo, 1y.</small>
                         </div>
                     </div>
                 </div>
@@ -648,17 +637,18 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
 
-            // --- [1] Custom Days Limit: أرقام إنجليزية فقط + حد أقصى 3650 ---
-            const daysInput = document.getElementById('limit_days_custom');
-            if (daysInput) {
-                daysInput.addEventListener('input', () => {
-                    // يشيل أي حرف غير رقم إنجليزي (يمنع الأرقام العربية ١٢٣ وأي رمز غريب)
-                    let digitsOnly = daysInput.value.replace(/[^0-9]/g, '');
-                    if (digitsOnly.length > 4) digitsOnly = digitsOnly.slice(0, 4); // يمنع أرقام ضخمة (99999999+)
-                    if (digitsOnly !== '' && parseInt(digitsOnly, 10) > 3650) digitsOnly = '3650';
-                    daysInput.value = digitsOnly;
+            // --- [1] Minimum Account Age Required: صيغة مدة موسّعة (s/min/h/d/w/mo/y) ---
+            // منفصل تماماً عن فلتر .duration-input بالأسفل [2] عمداً - وحداته
+            // متعددة الأحرف (min/mo) وتتعارض لو استخدم نفس الـ Regex اللي يقبل
+            // حرف وحدة واحد بس (s/m/h/d/w) المستخدم لـ Mute Duration.
+            const AGE_LIMIT_PATTERN = /^(\d{1,5})(min|mo|s|h|d|w|y)?/i;
+            document.querySelectorAll('.duration-input-ext').forEach(el => {
+                el.addEventListener('input', () => {
+                    const cleaned = el.value.toLowerCase().replace(/[^0-9a-z]/g, '');
+                    const match = cleaned.match(AGE_LIMIT_PATTERN);
+                    el.value = match ? (match[1] + (match[2] || '')) : '';
                 });
-            }
+            });
 
             // --- [2] Mute Duration: نفس فلتر صيغة المدة ---
             const DURATION_PATTERN = /^(\d{1,4})([smhdw]?)/i;
