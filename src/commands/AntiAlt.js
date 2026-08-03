@@ -197,7 +197,18 @@ async function isolateMember(member, settings, supabase) {
         const currentRoleIds = member.roles.cache
             .filter(r => r.id !== member.guild.id)
             .map(r => r.id);
+
+        // [NEW] نخزّن الرتب الأصلية بجدول backup_role_member (نفس جدول
+        // استعادة الرتب الموجود أصلاً بـ server.js) - عشان نقدر نرجّعها لو
+        // المشرف ضغط زر "Undo" لاحقاً بكرت Anti-Alt Log.
         if (currentRoleIds.length > 0) {
+            await supabase.from('backup_role_member').upsert({
+                id_guild: member.guild.id,
+                id_user: member.id,
+                roles: currentRoleIds,
+                at_updated: new Date().toISOString()
+            }, { onConflict: 'id_guild,id_user' });
+
             await member.roles.remove(currentRoleIds, 'AntiAlt: Isolating suspected alt account').catch(() => {});
         }
         await member.roles.add(role.id, 'AntiAlt: Isolating suspected alt account');
@@ -722,7 +733,11 @@ async function handleAgeGate(guild, member, ageMs, settings, supabase) {
     if (!requiredAgeMs) return false; // الإعداد فاضي/غير صالح - البوابة معطّلة لهذا السيرفر
     if (ageMs >= requiredAgeMs) return false; // الحساب يتجاوز الحد المطلوب - يمر عادي لبقية النظام
 
-    const fakeSession = { score: 999, dimensions: new Set(['age_gate']) };
+    // [FIX] نحسب النقاط الحقيقية (بُعد metadata - عمر الحساب/الصورة/الاسم)
+    // بدل رقم وهمي ثابت - هذا الرقم يُخزَّن فعلياً ويُعرض بكرت Anti-Alt Log
+    // بالداشبورد، فلازم يعكس الكشف الحقيقي مو placeholder داخلي.
+    const meta = checkMetadata(member, ageMs);
+    const fakeSession = { score: meta.points, dimensions: new Set(['age_gate', meta.dimension].filter(Boolean)) };
     const reason = `AntiAlt: Account age (${(ageMs / 86400000).toFixed(1)}d) is below the minimum required (${settings.limit_age}).`;
     // [FIX] كانت تستخدم settings.action_to_take بالغلط (نفس عمود نظام
     // النقاط العام) - age_gate_action عمود مستقل تماماً، خاص بس بقرار

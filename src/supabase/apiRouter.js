@@ -114,9 +114,8 @@ router.get('/guild/:guildId/alt-anti/logs', requireGuildId, async (req, res) => 
             .eq('id_guild', req.params.guildId)
             .order('at_detected', { ascending: false });
 
-        // [NEW] فلترة اختيارية بالنقاط - يستخدمها كرت Anti-Alt Log بالداشبورد
-        // (?minScore= مربوط بـ setting_alt_anti.log_min_score_display، حد
-        // أدنى 20 مفروض بالواجهة وبالـ CHECK constraint معاً).
+        // فلترة اختيارية بالنقاط - يستخدمها كرت Anti-Alt Log بالداشبورد
+        // (?minScore= مربوط بـ setting_alt_anti.log_min_score_display).
         const minScore = Number(req.query.minScore);
         if (Number.isFinite(minScore)) {
             query = query.gte('score', minScore);
@@ -124,7 +123,44 @@ router.get('/guild/:guildId/alt-anti/logs', requireGuildId, async (req, res) => 
 
         const { data, error } = await query;
         if (error) throw error;
-        res.json(data || []);
+        const rows = data || [];
+
+        // [NEW] نتأكد حياً هل العقوبة لسا سارية فعلياً بديسكورد (يمكن حد رفعها
+        // يدوياً من برا الداشبورد) - يحدد ظهور زر "Undo" الأخضر بالواجهة.
+        // Kicked/Flagged ما فيهم شي يُرجَّع، فما نفحصهم إطلاقاً.
+        let client = null;
+        try { client = require('../index'); } catch (_) { /* البوت لسه ما اشتغل */ }
+        const guild = client ? await client.guilds.fetch(req.params.guildId).catch(() => null) : null;
+
+        let isolateRoleId = null;
+        if (guild) {
+            const { data: settingsRow } = await supabase
+                .from('setting_alt_anti')
+                .select('isolate_role_id')
+                .eq('id_guild', req.params.guildId)
+                .single();
+            isolateRoleId = settingsRow?.isolate_role_id || null;
+        }
+
+        const enriched = await Promise.all(rows.map(async (row) => {
+            let stillActive = false;
+            if (guild && ['Banned', 'Muted', 'Isolated'].includes(row.action_taken)) {
+                if (row.action_taken === 'Banned') {
+                    const ban = await guild.bans.fetch(row.id_user).catch(() => null);
+                    stillActive = !!ban;
+                } else {
+                    const member = await guild.members.fetch(row.id_user).catch(() => null);
+                    if (row.action_taken === 'Muted') {
+                        stillActive = !!(member?.communicationDisabledUntilTimestamp && member.communicationDisabledUntilTimestamp > Date.now());
+                    } else if (row.action_taken === 'Isolated') {
+                        stillActive = !!(member && isolateRoleId && member.roles.cache.has(isolateRoleId));
+                    }
+                }
+            }
+            return { ...row, stillActive };
+        }));
+
+        res.json(enriched);
     } catch (err) {
         console.error('[API Router Error] GET /logs/alt:', err.message);
         res.status(500).json({ error: 'Failed to fetch logs' });
@@ -198,6 +234,75 @@ router.post('/guild/:guildId/alt-anti/action', requireGuildId, async (req, res) 
     } catch (err) {
         console.error(`[API Router Error] POST /guild/${req.params.guildId}/alt-anti/action:`, err.message);
         res.status(500).json({ error: 'Failed to execute action' });
+    }
+});
+
+/**
+ * POST /api/guild/:guildId/alt-anti/undo
+ * Reverts an active Ban/Mute/Isolate back to normal (unban / remove
+ * timeout / restore original roles). Only meaningful while the punishment
+ * is still active - the dashboard only shows this button when stillActive
+ * is true for that row.
+ * Expected body: { userId, actionTaken: 'Banned' | 'Muted' | 'Isolated' }
+ */
+router.post('/guild/:guildId/alt-anti/undo', requireGuildId, async (req, res) => {
+    try {
+        const { userId, actionTaken } = req.body;
+        if (!userId || !['Banned', 'Muted', 'Isolated'].includes(actionTaken)) {
+            return res.status(400).json({ error: 'Invalid Payload: userId and a revertible actionTaken (Banned/Muted/Isolated) are required' });
+        }
+
+        const client = require('../index');
+        const guild = await client.guilds.fetch(req.guildId).catch(() => null);
+        if (!guild) {
+            return res.status(404).json({ error: 'Bot is not in this guild' });
+        }
+
+        const supabase = require('./db');
+
+        if (actionTaken === 'Banned') {
+            await guild.bans.remove(userId, 'AntiAlt: Manual undo from dashboard log');
+        } else {
+            const member = await guild.members.fetch(userId).catch(() => null);
+            if (!member) {
+                return res.status(404).json({ error: 'Member not found in guild (may have already left)' });
+            }
+
+            if (actionTaken === 'Muted') {
+                await member.timeout(null, 'AntiAlt: Manual undo from dashboard log');
+            } else if (actionTaken === 'Isolated') {
+                const { data: settingsRow } = await supabase
+                    .from('setting_alt_anti')
+                    .select('isolate_role_id')
+                    .eq('id_guild', req.params.guildId)
+                    .single();
+                const isolateRoleId = settingsRow?.isolate_role_id;
+                if (isolateRoleId) {
+                    await member.roles.remove(isolateRoleId, 'AntiAlt: Manual undo from dashboard log').catch(() => {});
+                }
+
+                const { data: backup } = await supabase
+                    .from('backup_role_member')
+                    .select('roles')
+                    .eq('id_guild', req.params.guildId)
+                    .eq('id_user', userId)
+                    .single();
+
+                if (backup?.roles?.length > 0) {
+                    await member.roles.add(backup.roles, 'AntiAlt: Restored roles after isolation undo').catch(() => {});
+                    await supabase
+                        .from('backup_role_member')
+                        .delete()
+                        .eq('id_guild', req.params.guildId)
+                        .eq('id_user', userId);
+                }
+            }
+        }
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error(`[API Router Error] POST /guild/${req.params.guildId}/alt-anti/undo:`, err.message);
+        res.status(500).json({ error: 'Failed to undo action' });
     }
 });
 

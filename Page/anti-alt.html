@@ -347,6 +347,15 @@
             background-color: var(--accent-red-hover);
         }
 
+        .alt-log-btn.undo {
+            background-color: #2ecc71;
+            color: #ffffff;
+        }
+
+        .alt-log-btn.undo:hover {
+            background-color: #27ae60;
+        }
+
         .alt-log-btn.unban {
             background-color: var(--bg-secondary);
             border: 1px solid var(--border-color);
@@ -853,14 +862,23 @@
                     rows.forEach((row) => {
                         const item = document.createElement('div');
                         item.className = 'alt-log-item';
+                        // [NEW] زر "Undo" أخضر يظهر بس لو stillActive=true (العقوبة
+                        // لسا سارية فعلياً بديسكورد الحين - محسوبة حياً من السيرفر،
+                        // مو مجرد نص action_taken المخزّن). Kicked/Flagged ما فيهم
+                        // تراجع (مافي شي يُرجَّع أصلاً).
+                        const undoButtonHtml = row.stillActive
+                            ? `<button class="alt-log-btn undo alt-log-undo-btn">Undo</button>`
+                            : '';
+
                         item.innerHTML = `
                             <img class="alt-log-avatar" src="${row.url_avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}" alt="">
                             <div class="alt-log-info">
                                 <span class="alt-log-username">${row.username || row.id_user}</span>
                                 <span class="alt-log-meta">Account created: ${formatGmtDate(row.at_created_account)}</span>
-                                <span class="alt-log-meta">Detected: ${formatGmtDate(row.at_detected)} — Status: ${row.action_taken}</span>
+                                <span class="alt-log-meta">Detected: ${formatGmtDate(row.at_detected)} — Status: ${row.action_taken}${row.stillActive ? ' (Active)' : ''}</span>
                             </div>
                             <span class="alt-log-score">${row.score ?? '?'}%</span>
+                            ${undoButtonHtml}
                             <select class="form-select alt-log-action-select" style="flex: 0 0 100px;">
                                 <option value="kick">Kick</option>
                                 <option value="ban">Ban</option>
@@ -895,6 +913,34 @@
                                 btn.textContent = 'Apply';
                             }
                         });
+
+                        const undoBtn = item.querySelector('.alt-log-undo-btn');
+                        if (undoBtn) {
+                            undoBtn.addEventListener('click', async () => {
+                                undoBtn.disabled = true;
+                                undoBtn.textContent = '...';
+
+                                try {
+                                    const undoRes = await fetch(`${API_BASE}/guild/${guildId}/alt-anti/undo`, {
+                                        method: 'POST',
+                                        headers: getHeaders(),
+                                        body: JSON.stringify({ userId: row.id_user, actionTaken: row.action_taken })
+                                    });
+                                    const result = await undoRes.json();
+                                    if (!undoRes.ok || !result.success) {
+                                        alert(result.error || 'Failed to undo action.');
+                                        undoBtn.disabled = false;
+                                        undoBtn.textContent = 'Undo';
+                                        return;
+                                    }
+                                    loadAltLog();
+                                } catch (e) {
+                                    alert('Network error while undoing action.');
+                                    undoBtn.disabled = false;
+                                    undoBtn.textContent = 'Undo';
+                                }
+                            });
+                        }
 
                         altLogList.appendChild(item);
                     });
