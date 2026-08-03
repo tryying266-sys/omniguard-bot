@@ -326,13 +326,36 @@ async function sendLeaveMessage(member) {
   }
 
   const rawTemplate = settings.text_msg_leave || '{username} left the server. 👋';
-  // During leave, we never do an actual mention (the member already left)
+  // During leave, we never do an actual mention (the member already left) -
+  // Mention Departing Member feature has been fully removed per request.
   const text = replacePlaceholders(rawTemplate, member, { forceMention: false });
 
   try {
     await channel.send({ content: text });
   } catch (sendErr) {
     console.error(`[welcome] Failed to send leave message in server ${guild.id}:`, sendErr.message);
+  }
+
+  // [NEW] Optional DM message on leave (mirrors sendWelcomeMessage's DM
+  // block below). Sent via member.send() which routes through the cached
+  // User object - still works even though the member has already left the
+  // guild, as long as Discord allows the bot to DM them (independent of
+  // shared-guild status at send time since we already had the member
+  // object cached from the guildMemberRemove event itself).
+  if (settings.send_leave_dm && settings.text_dm_leave) {
+    try {
+      const dmText = replacePlaceholders(settings.text_dm_leave, member, {
+        forceMention: false, // In DMs, mentions are unnecessary
+      });
+      await member.send(dmText);
+    } catch (dmErr) {
+      // Usually caused by: member has DMs closed for server members, or
+      // left too long ago for Discord to still resolve the shared context
+      // (normal and expected in either case).
+      console.warn(
+        `[welcome] Could not send leave direct message to member ${member.id} (server ${guild.id}): ${dmErr.message}`
+      );
+    }
   }
 }
 // =====================================================================

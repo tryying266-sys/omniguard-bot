@@ -393,6 +393,20 @@
                             <span class="var-badge">{membercount}</span>
                         </div>
                     </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Direct Message Content</label>
+                        <!-- id = عمود setting_leave_welcome.text_dm_welcome. العمود نفسه
+                             موجود بالسكيما من الأول وwelcome.js يقرأه أصلاً بـ
+                             sendWelcomeMessage() - كان بس ناقص حقل بالواجهة، هذا هو. -->
+                        <textarea id="text_dm_welcome" class="form-textarea" maxlength="2000" placeholder="Hey {username}, thanks for joining {server}!"></textarea>
+                        <div class="variable-tags">
+                            <span class="var-badge">{username}</span>
+                            <span class="var-badge">{tag}</span>
+                            <span class="var-badge">{server}</span>
+                            <span class="var-badge">{membercount}</span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Leave Module - يطابق بنية Welcome Module بالضبط (تفعيل + قناة). -->
@@ -445,20 +459,13 @@
 
                     <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-tertiary); padding:15px; border-radius:8px;">
                         <div>
-                            <p style="font-size:14px; font-weight:500;">Mention Departing Member <span style="color:var(--accent-red); font-size:10px; font-weight:700; text-transform:uppercase; margin-left:4px;">Coming Soon</span></p>
-                            <p style="font-size:12px; color:var(--text-secondary);">Pings the member inside the goodbye message.</p>
-                        </div>
-                        <!-- مستقبلاً بعد إضافة العمود: id="leave_mention" -->
-                        <label class="toggle-switch"><input type="checkbox" disabled data-future-column="leave_mention"><span class="slider"></span></label>
-                    </div>
-
-                    <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-tertiary); padding:15px; border-radius:8px;">
-                        <div>
-                            <p style="font-size:14px; font-weight:500;">Direct Message (DM) <span style="color:var(--accent-red); font-size:10px; font-weight:700; text-transform:uppercase; margin-left:4px;">Coming Soon</span></p>
+                            <p style="font-size:14px; font-weight:500;">Direct Message (DM)</p>
                             <p style="font-size:12px; color:var(--text-secondary);">Sends a private goodbye message to the member who left.</p>
                         </div>
-                        <!-- مستقبلاً بعد إضافة العمود: id="send_leave_dm" -->
-                        <label class="toggle-switch"><input type="checkbox" disabled data-future-column="send_leave_dm"><span class="slider"></span></label>
+                        <!-- id = عمود setting_leave_welcome.send_leave_dm (مضاف بالدلتا SQL
+                             هذي - راجع أعلى الملف). Mention Departing Member اتلغى نهائياً
+                             بناءً على طلب المستخدم، ما تبقى أي إشارة له هنا. -->
+                        <label class="toggle-switch"><input id="send_leave_dm" type="checkbox"><span class="slider"></span></label>
                     </div>
                 </div>
 
@@ -479,10 +486,25 @@
                              بـ welcome.js). -->
                         <textarea id="text_msg_leave" class="form-textarea" maxlength="2000" placeholder="{username} has left the server."></textarea>
                         <!-- {user} و {mention} مستبعدين عمداً هنا: بالمغادرة forceMention
-                             دايماً false بالكود، فـ {user} بيطلع نفس {username} بالضبط -
-                             عرضهم الاثنين كان بيلخبط بدون أي فرق فعلي بالنتيجة. -->
+                             دايماً false بالكود (ميزة المنشن اتلغت نهائياً)، فـ {user}
+                             بيطلع نفس {username} بالضبط - عرضهم الاثنين كان بيلخبط بدون
+                             أي فرق فعلي بالنتيجة. -->
                         <div class="variable-tags">
                             <span class="var-badge">{username}</span>
+                            <span class="var-badge">{server}</span>
+                            <span class="var-badge">{membercount}</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Direct Message Content</label>
+                        <!-- id = عمود setting_leave_welcome.text_dm_leave (مضاف بالدلتا SQL
+                             هذي). ترسل للعضو بعد ما يطلع من السيرفر - راجع sendLeaveMessage
+                             المعدّلة بـ welcome.js. -->
+                        <textarea id="text_dm_leave" class="form-textarea" maxlength="2000" placeholder="Sorry to see you go, {username}."></textarea>
+                        <div class="variable-tags">
+                            <span class="var-badge">{username}</span>
+                            <span class="var-badge">{tag}</span>
                             <span class="var-badge">{server}</span>
                             <span class="var-badge">{membercount}</span>
                         </div>
@@ -620,7 +642,7 @@
                     .slice(0, maxLen);
             }
 
-            ['custom_welcome_text', 'text_msg_leave'].forEach((id) => {
+            ['custom_welcome_text', 'text_dm_welcome', 'text_msg_leave', 'text_dm_leave'].forEach((id) => {
                 const el = document.getElementById(id);
                 if (!el) return;
                 el.addEventListener('input', () => {

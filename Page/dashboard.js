@@ -291,6 +291,7 @@ function buildPayload() {
 
         if (getElementTargetTable(el, defaultTable) !== defaultTable) return; // يخص جدول ثاني
 
+        
         if (el.type === 'checkbox') {
             updates[el.id] = el.checked;
         } else if (el.type === 'number') {

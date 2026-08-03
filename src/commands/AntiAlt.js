@@ -182,28 +182,22 @@ function usernamePatternKey(username) {
 // 1) البيانات الوصفية عند الدخول (Metadata)
 // ============================================================================
 
-function checkMetadata(member, ageMs, settings) {
+function checkMetadata(member, ageMs) {
     let points = 0;
+    const days = ageMs / DURATION_UNITS_MS.d;
 
-    // [FIX] الحد الأدنى لعمر الحساب الحين يجي من settings.limit_age (صيغة
-    // مدة حرة: s/min/h/d/w/mo/y) بدل أقواس عمر ثابتة بالكود. لو الإعداد
-    // غير موجود أو غير صالح (سيرفر لسه ما ضبطه)، نرجع لنفس الافتراضي القديم
-    // (3 أيام) عشان ما ينكسر أي سيرفر بدون تهيئة.
-    const requiredAgeMs = parseAgeLimitToMs(settings?.limit_age) ?? AGE_LIMIT_UNITS_MS.d * 3;
-
-    if (ageMs < requiredAgeMs) {
-        // تدرّج خطي: 30 نقطة كحد أقصى لحساب عمره صفر، تنخفض تدريجياً كل ما
-        // اقترب عمر الحساب من الحد المطلوب، وتوصل صفر بالضبط عند تجاوزه.
-        const ratio = ageMs / requiredAgeMs; // بين 0 و1
-        points += Math.round(30 * (1 - ratio));
-    }
+    if (days < (1 / 24)) points += 30;
+    else if (days < 1) points += 20;
+    else if (days < 3) points += 12;
+    else if (days < 7) points += 6;
+    else if (days < 30) points += 2;
 
     if (!member.user.avatar) points += 8;
 
     if (isRandomLookingUsername(member.user.username)) points += 15;
 
     return { points, dimension: points > 0 ? 'metadata' : null };
-}   
+}
 
 async function checkAccountDepth(member) {
     let points = 0;
@@ -609,10 +603,20 @@ async function logAltDecision(guild, member, session, settings, supabase, action
         console.error('[AntiAlt] Failed to log alt_suspected:', e.message);
     }
 
-    if (['Banned', 'Kicked', 'Muted'].includes(actionTaken)) {
+    // [FIX] actionTaken جاي بصيغة ماضي (Banned/Kicked/Muted) لأنها نفس القيم
+    // المخزّنة بعمود action_taken بجدول alt_suspected (CHECK يطلبها هيك).
+    // لكن log_moderation.action_type عنده CHECK مختلف يطلب صيغة حاضر بس
+    // (ban/kick/mute) - actionTaken.toLowerCase() الفعلي كان ينتج 'kicked'/
+    // 'banned'/'muted' وهذي مرفوضة بالكامل من القيد، فالإدراج كان يفشل
+    // بصمت تام (catch فاضي بدون حتى console.error). خريطة تحويل صريحة هنا
+    // تحل المشكلة بدل الاعتماد على .toLowerCase() وحدها.
+    const ACTION_TYPE_MAP = { Banned: 'ban', Kicked: 'kick', Muted: 'mute' };
+    if (ACTION_TYPE_MAP[actionTaken]) {
         try {
-            await dbUtils.addInfraction(guild.id, member.id, guild.client.user.id, actionTaken.toLowerCase(), reason, null, member.user.tag);
-        } catch (e) { /* لا نكسر التنفيذ لو فشل هذا التسجيل الثانوي */ }
+            await dbUtils.addInfraction(guild.id, member.id, guild.client.user.id, ACTION_TYPE_MAP[actionTaken], reason, null, member.user.tag);
+        } catch (e) {
+            console.error('[AntiAlt] Failed to log infraction to log_moderation:', e.message);
+        }
     }
 
     if (settings.log_channel_id) {
@@ -639,7 +643,48 @@ async function logAltDecision(guild, member, session, settings, supabase, action
 }
 
 // ============================================================================
-// 10) نقطة القرار المركزية
+// 9.5) بوابة الحد الأدنى لعمر الحساب - زناد فوري يتجاوز نظام النقاط بالكامل
+// (نفس فلسفة Honeypot تماماً: قرار المشرف الصريح بالمدة يكفي وحده، بدون
+// حاجة لتصويت أبعاد ثانية أو عتبة نقاط - المشرف حدد المدة يدوياً فهي دليل
+// قاطع بحد ذاتها)
+// ============================================================================
+
+async function handleAgeGate(guild, member, ageMs, settings, supabase) {
+    const requiredAgeMs = parseAgeLimitToMs(settings.limit_age);
+    if (!requiredAgeMs) return false; // الإعداد فاضي/غير صالح - البوابة معطّلة لهذا السيرفر
+    if (ageMs >= requiredAgeMs) return false; // الحساب يتجاوز الحد المطلوب - يمر عادي لبقية النظام
+
+    const fakeSession = { score: 999, dimensions: new Set(['age_gate']) };
+    const reason = `AntiAlt: Account age (${(ageMs / 86400000).toFixed(1)}d) is below the minimum required (${settings.limit_age}).`;
+    const action = settings.action_to_take;
+
+    try {
+        if (action === 'ban' && member.bannable) {
+            await member.ban({ reason });
+            await logAltDecision(guild, member, fakeSession, settings, supabase, 'Banned', reason);
+        } else if (action === 'kick' && member.kickable) {
+            await member.kick(reason);
+            await logAltDecision(guild, member, fakeSession, settings, supabase, 'Kicked', reason);
+        } else if (action === 'mute' && member.moderatable) {
+            const ms = parseDurationToMs(settings.action_mute_duration) || 24 * DURATION_UNITS_MS.h;
+            await member.timeout(ms, reason);
+            await logAltDecision(guild, member, fakeSession, settings, supabase, 'Muted', reason);
+        } else if (action === 'none') {
+            await logAltDecision(guild, member, fakeSession, settings, supabase, 'Flagged', reason);
+        } else {
+            console.error(`[AntiAlt] Age gate triggered for ${member.user.tag} but action "${action}" is not executable (missing permission or unrecognized action).`);
+            return false;
+        }
+    } catch (e) {
+        console.error(`[AntiAlt] Age gate action "${action}" failed for ${member.user.tag}:`, e.message);
+        return false;
+    }
+
+    return true;
+}
+
+// ============================================================================
+// 10) نقطة القرار المركزي
 // ============================================================================
 
 async function resolveAndExecuteAction(guild, member, session, settings, supabase) {
@@ -760,6 +805,13 @@ async function handleMemberJoin(member) {
     const key = `${guild.id}:${member.id}`;
 
     const ageMs = Date.now() - member.user.createdTimestamp;
+
+    // [NEW] بوابة الحد الأدنى لعمر الحساب - تُفحص وتُنفَّذ فوراً قبل أي شي
+    // ثاني، بنفس أسلوب Honeypot بالضبط. لو نفّذت إجراء، نوقف هنا تماماً
+    // ولا نبني جلسة نقاط للعضو أصلاً.
+    const gateTriggered = await handleAgeGate(guild, member, ageMs, settings, supabase);
+    if (gateTriggered) return;
+
     const multiplier = getCredibilityMultiplier(ageMs);
 
     const session = {
@@ -781,7 +833,7 @@ async function handleMemberJoin(member) {
     };
     activeSessions.set(key, session);
 
-    const meta = checkMetadata(member, ageMs, settings);
+    const meta = checkMetadata(member, ageMs);
     addScore(session, meta.points, meta.dimension);
 
     const depth = await checkAccountDepth(member);
