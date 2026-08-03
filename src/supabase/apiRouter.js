@@ -108,17 +108,96 @@ router.use(requireDashboardApiKey);
 router.get('/guild/:guildId/alt-anti/logs', requireGuildId, async (req, res) => {
     try {
         const supabase = require('./db');
-        const { data, error } = await supabase
+        let query = supabase
             .from('alt_suspected')
             .select('*')
             .eq('id_guild', req.params.guildId)
             .order('at_detected', { ascending: false });
 
+        // [NEW] فلترة اختيارية بالنقاط - يستخدمها كرت Anti-Alt Log بالداشبورد
+        // (?minScore= مربوط بـ setting_alt_anti.log_min_score_display، حد
+        // أدنى 20 مفروض بالواجهة وبالـ CHECK constraint معاً).
+        const minScore = Number(req.query.minScore);
+        if (Number.isFinite(minScore)) {
+            query = query.gte('score', minScore);
+        }
+
+        const { data, error } = await query;
         if (error) throw error;
         res.json(data || []);
     } catch (err) {
         console.error('[API Router Error] GET /logs/alt:', err.message);
         res.status(500).json({ error: 'Failed to fetch logs' });
+    }
+});
+
+/**
+ * POST /api/guild/:guildId/alt-anti/action
+ * Manually applies Kick/Ban/Mute against a previously-flagged suspected alt
+ * account directly from the Anti-Alt Log dashboard card, and updates that
+ * specific log row's action_taken to reflect the staff's decision.
+ * Expected body: { logId, userId, action: 'kick' | 'ban' | 'mute' }
+ */
+router.post('/guild/:guildId/alt-anti/action', requireGuildId, async (req, res) => {
+    try {
+        const { logId, userId, action } = req.body;
+
+        if (!logId || !userId || !['kick', 'ban', 'mute'].includes(action)) {
+            return res.status(400).json({ error: 'Invalid Payload: logId, userId, and a valid action (kick/ban/mute) are required' });
+        }
+
+        // Lazy require: apiServer.js only calls require('./index') AFTER
+        // app.listen() at boot - but that happens once, long before any
+        // HTTP request actually reaches this handler, so by request-time
+        // index.js has already fully executed and exported the live,
+        // connected bot client. Same lazy-require pattern already used
+        // elsewhere in this file (require('./db') above).
+        const client = require('../index');
+        const guild = await client.guilds.fetch(req.guildId).catch(() => null);
+        if (!guild) {
+            return res.status(404).json({ error: 'Bot is not in this guild' });
+        }
+
+        const member = await guild.members.fetch(userId).catch(() => null);
+        if (!member) {
+            return res.status(404).json({ error: 'Member not found in guild (may have already left)' });
+        }
+
+        const reason = 'AntiAlt: Manual action taken from dashboard log';
+        const ACTION_LABELS = { kick: 'Kicked', ban: 'Banned', mute: 'Muted' };
+
+        if (action === 'kick') {
+            if (!member.kickable) return res.status(403).json({ error: 'Bot cannot kick this member (role hierarchy/permissions)' });
+            await member.kick(reason);
+        } else if (action === 'ban') {
+            if (!member.bannable) return res.status(403).json({ error: 'Bot cannot ban this member (role hierarchy/permissions)' });
+            await member.ban({ reason });
+        } else if (action === 'mute') {
+            if (!member.moderatable) return res.status(403).json({ error: 'Bot cannot mute this member (role hierarchy/permissions)' });
+            await member.timeout(24 * 60 * 60 * 1000, reason); // 24h default from the dashboard
+        }
+
+        const supabase = require('./db');
+        await supabase.from('alt_suspected').update({ action_taken: ACTION_LABELS[action] }).eq('id', logId);
+
+        try {
+            await queries.logModerationAction({
+                guildId: req.guildId,
+                targetId: userId,
+                targetUsername: member.user.tag,
+                moderatorId: null,
+                actionType: action,
+                reason,
+                duration: null
+            });
+        } catch (logErr) {
+            console.error('[API Router Error] Failed to log manual AntiAlt action:', logErr.message);
+        }
+
+        res.json({ success: true, action: ACTION_LABELS[action] });
+    } catch (err) {
+        console.error(`[API Router Error] POST /guild/${req.params.guildId}/alt-anti/action:`, err.message);
+        res.status(500).json({ error: 'Failed to execute action' });
     }
 });
 

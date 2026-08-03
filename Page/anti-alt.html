@@ -681,18 +681,17 @@
 
                     <div class="form-row">
                         <!-- Minimum Account Age Required + إجراؤها الخاص المستقل
-                             (age_gate_action) بنفس الصف - وزن متوازن: خانة العمر
-                             مصغّرة (form-group-narrow) والقائمة المنسدلة تاخذ باقي
-                             المساحة (flex:1 افتراضي) - هذا إعداد منفصل 100% عن
-                             Action to Take العام تحت (نظام النقاط)، راجع
-                             handleAgeGate() بـ AntiAlt.js. -->
+                             (age_gate_action) - بوابة صريحة منفصلة تماماً عن نظام
+                             النقاط تحت. راجع handleAgeGate() بـ AntiAlt.js. -->
                         <div class="form-group form-group-narrow">
                             <label class="form-label">Minimum Account Age Required</label>
                             <input id="limit_age" type="text" class="form-input duration-input-ext" placeholder="e.g. 3d, 6mo, 1y" maxlength="8">
                             <small style="color: var(--text-secondary); font-size: 11px;">Format: number + unit (s, min, h, d, w, mo, y).</small>
                         </div>
-                        <div class="form-group form-group-wide">
+                        <div class="form-group">
                             <label class="form-label">Action if Below Minimum Age</label>
+                            <!-- id = عمود setting_alt_anti.age_gate_action (عمود مستقل -
+                                 راجع FIX-15 بالمحادثة). لا تخلطه بـ action_to_take تحت. -->
                             <select id="age_gate_action" class="form-select">
                                 <option value="kick">Kick (Allows re-joining when account matures)</option>
                                 <option value="ban">Ban (Permanently excludes account from guild)</option>
@@ -714,9 +713,9 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Action to Take</label>
-                            <!-- id = عمود setting_alt_anti.action_to_take - هذا خاص
-                                 بنظام النقاط (Score/Threshold) بس، مستقل تماماً عن
-                                 age_gate_action بالأعلى. راجعناها لمكانها الصحيح. -->
+                            <!-- id = عمود setting_alt_anti.action_to_take - خاص بنظام
+                                 النقاط (Score/Threshold) بس، مستقل عن age_gate_action
+                                 بالبطاقة الأولى. -->
                             <select id="action_to_take" class="form-select">
                                 <option value="kick">Kick (Allows re-joining when account matures)</option>
                                 <option value="ban">Ban (Permanently excludes account from guild)</option>
@@ -728,13 +727,50 @@
                         <div class="form-group">
                             <label class="form-label">Mute Duration</label>
                             <input id="action_mute_duration" type="text" class="form-input duration-input" placeholder="e.g., 24h" maxlength="6">
-                            <small style="color: var(--text-secondary); font-size: 11px;">Only used if Action to Take = Mute (applies to both Action to Take and Action if Below Minimum Age). Format: number + s/m/h/d/w (e.g. 24h, 3d). Defaults to 24h if left blank.</small>
+                            <small style="color: var(--text-secondary); font-size: 11px;">Applies to both Action to Take and Action if Below Minimum Age. Format: number + s/m/h/d/w (e.g. 24h, 3d). Defaults to 24h if left blank.</small>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 1 1 100%;">
+                            <label class="form-label">Detection Threshold Score</label>
+                            <!-- id = عمود setting_alt_anti.threshold_action (موجود
+                                 بالسكيما من الأصل - كان بدون حقل واجهة). أي عضو
+                                 تجاوز مجموع نقاطه هذا الرقم (وحقق شرط تنوع بُعدين
+                                 مستقلين على الأقل) يُعتبر alt مشتبه وتُنفَّذ عليه
+                                 Action to Take تلقائياً. -->
+                            <input id="threshold_action" type="number" class="form-input" min="20" step="1" placeholder="e.g. 65">
+                            <small style="color: var(--text-secondary); font-size: 11px;">Minimum combined score (from at least 2 independent detection signals) required before Action to Take executes automatically. Minimum allowed value: 20.</small>
                         </div>
                     </div>
 
                     <div class="info-banner">
                         <i class="fa-solid fa-triangle-exclamation"></i>
                         <p>Selecting "None" will only dispatch notification updates to your designated staff logs channels without performing automatic actions. Selecting "Isolate" auto-creates a locked "OmniGuard Quarantine" role (no access to any channel) the first time it's used.</p>
+                    </div>
+                </div>
+
+                <!-- 3. Anti-Alt Log -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group" style="justify-content: space-between;">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <i class="fa-solid fa-clipboard-list card-header-icon"></i>
+                            <h2 class="card-header-title">Anti-Alt Log</h2>
+                        </div>
+                        <div class="form-group" style="flex: 0 0 180px; margin: 0;">
+                            <label class="form-label" style="font-size: 11px;">Min. Score to Show</label>
+                            <!-- id = عمود setting_alt_anti.log_min_score_display - يُحفظ
+                                 بنفس زر Save Changes العام (Smart Binding عادي)، وكمان
+                                 يُعيد تحميل القائمة تحت فوراً عند التغيير (listener
+                                 محلي - راجع سكربت [3] بآخر الصفحة). -->
+                            <input id="log_min_score_display" type="number" class="form-input" min="20" step="1">
+                        </div>
+                    </div>
+
+                    <!-- القائمة نفسها تسكرول لو طالت (max-height بالـ CSS
+                         .alt-log-list) - مو الصفحة كلها. -->
+                    <div id="altLogList" class="alt-log-list">
+                        <p class="alt-log-empty">Loading...</p>
                     </div>
                 </div>
 
@@ -785,6 +821,92 @@
                     el.value = match ? (match[1] + match[2]) : '';
                 });
             });
+
+            // --- [3] Anti-Alt Log: تحميل القائمة + عرضها + تنفيذ إجراء يدوي ---
+            // يستخدم API_BASE / getGuildId() / getHeaders() المعرّفة عالمياً
+            // بـ dashboard.js (نفس الملف يُحمَّل قبل هذا السكربت مباشرة).
+            const altLogList = document.getElementById('altLogList');
+            const minScoreInput = document.getElementById('log_min_score_display');
+
+            function formatGmtDate(iso) {
+                if (!iso) return 'Unknown';
+                return new Date(iso).toLocaleString('en-GB', { timeZone: 'UTC', dateStyle: 'medium', timeStyle: 'short' }) + ' GMT';
+            }
+
+            async function loadAltLog() {
+                const guildId = getGuildId();
+                if (!guildId || !altLogList) return;
+
+                const minScore = Number(minScoreInput?.value) || 20;
+                altLogList.innerHTML = '<p class="alt-log-empty">Loading...</p>';
+
+                try {
+                    const res = await fetch(`${API_BASE}/guild/${guildId}/alt-anti/logs?minScore=${minScore}`, { headers: getHeaders() });
+                    const rows = await res.json();
+
+                    if (!Array.isArray(rows) || rows.length === 0) {
+                        altLogList.innerHTML = '<p class="alt-log-empty">No suspected alt accounts at or above this score yet.</p>';
+                        return;
+                    }
+
+                    altLogList.innerHTML = '';
+                    rows.forEach((row) => {
+                        const item = document.createElement('div');
+                        item.className = 'alt-log-item';
+                        item.innerHTML = `
+                            <img class="alt-log-avatar" src="${row.url_avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}" alt="">
+                            <div class="alt-log-info">
+                                <span class="alt-log-username">${row.username || row.id_user}</span>
+                                <span class="alt-log-meta">Account created: ${formatGmtDate(row.at_created_account)}</span>
+                                <span class="alt-log-meta">Detected: ${formatGmtDate(row.at_detected)} — Status: ${row.action_taken}</span>
+                            </div>
+                            <span class="alt-log-score">${row.score ?? '?'}%</span>
+                            <select class="form-select alt-log-action-select" style="flex: 0 0 100px;">
+                                <option value="kick">Kick</option>
+                                <option value="ban">Ban</option>
+                                <option value="mute">Mute</option>
+                            </select>
+                            <button class="alt-log-btn ban alt-log-apply-btn">Apply</button>
+                        `;
+
+                        item.querySelector('.alt-log-apply-btn').addEventListener('click', async () => {
+                            const action = item.querySelector('.alt-log-action-select').value;
+                            const btn = item.querySelector('.alt-log-apply-btn');
+                            btn.disabled = true;
+                            btn.textContent = '...';
+
+                            try {
+                                const actionRes = await fetch(`${API_BASE}/guild/${guildId}/alt-anti/action`, {
+                                    method: 'POST',
+                                    headers: getHeaders(),
+                                    body: JSON.stringify({ logId: row.id, userId: row.id_user, action })
+                                });
+                                const result = await actionRes.json();
+                                if (!actionRes.ok || !result.success) {
+                                    alert(result.error || 'Failed to execute action.');
+                                    btn.disabled = false;
+                                    btn.textContent = 'Apply';
+                                    return;
+                                }
+                                loadAltLog();
+                            } catch (e) {
+                                alert('Network error while executing action.');
+                                btn.disabled = false;
+                                btn.textContent = 'Apply';
+                            }
+                        });
+
+                        altLogList.appendChild(item);
+                    });
+                } catch (e) {
+                    altLogList.innerHTML = '<p class="alt-log-empty">Failed to load log.</p>';
+                }
+            }
+
+            if (minScoreInput) {
+                minScoreInput.addEventListener('change', loadAltLog);
+            }
+            loadAltLog();
         });
     </script>
 </body>
