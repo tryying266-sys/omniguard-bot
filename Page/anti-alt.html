@@ -236,6 +236,7 @@
         .form-row {
             display: flex;
             gap: 16px;
+            align-items: flex-start;
         }
 
         .form-group {
@@ -243,6 +244,7 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
+            min-width: 0;
         }
 
         .form-label {
@@ -251,6 +253,111 @@
             color: var(--text-secondary);
             text-transform: uppercase;
             letter-spacing: 0.5px;
+        }
+
+        .form-group-narrow {
+            flex: 0 0 240px;
+            max-width: 240px;
+        }
+
+        .form-group-wide {
+            flex: 1 1 0;
+            min-width: 0;
+        }
+
+        .full-width {
+            grid-column: span 2;
+        }
+
+        /* [NEW] Anti-Alt Log - الكرت نفسه يسكرول لما القائمة تطول، مو الصفحة
+           كلها (طلب صريح) - max-height ثابت + overflow-y auto. */
+        .alt-log-list {
+            max-height: 480px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding-right: 4px;
+        }
+
+        .alt-log-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 16px;
+        }
+
+        .alt-log-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .alt-log-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .alt-log-username {
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .alt-log-meta {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .alt-log-score {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent-red);
+            flex-shrink: 0;
+            min-width: 48px;
+            text-align: center;
+        }
+
+        .alt-log-btn {
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background-color 0.2s;
+        }
+
+        .alt-log-btn.ban {
+            background-color: var(--accent-red);
+            color: var(--text-primary);
+        }
+
+        .alt-log-btn.ban:hover {
+            background-color: var(--accent-red-hover);
+        }
+
+        .alt-log-btn.unban {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .alt-log-empty {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 13px;
+            padding: 30px 0;
         }
 
         .form-input, .form-select {
@@ -573,11 +680,26 @@
                     </div>
 
                     <div class="form-row">
-                        <!-- Minimum Account Age Required -->
-                        <div class="form-group">
+                        <!-- Minimum Account Age Required + إجراؤها الخاص المستقل
+                             (age_gate_action) بنفس الصف - وزن متوازن: خانة العمر
+                             مصغّرة (form-group-narrow) والقائمة المنسدلة تاخذ باقي
+                             المساحة (flex:1 افتراضي) - هذا إعداد منفصل 100% عن
+                             Action to Take العام تحت (نظام النقاط)، راجع
+                             handleAgeGate() بـ AntiAlt.js. -->
+                        <div class="form-group form-group-narrow">
                             <label class="form-label">Minimum Account Age Required</label>
                             <input id="limit_age" type="text" class="form-input duration-input-ext" placeholder="e.g. 3d, 6mo, 1y" maxlength="8">
-                            <small style="color: var(--text-secondary); font-size: 11px;">Accounts younger than this are scored as risky. Format: number + unit (s, min, h, d, w, mo, y). Example: 500d, 6mo, 1y.</small>
+                            <small style="color: var(--text-secondary); font-size: 11px;">Format: number + unit (s, min, h, d, w, mo, y).</small>
+                        </div>
+                        <div class="form-group form-group-wide">
+                            <label class="form-label">Action if Below Minimum Age</label>
+                            <select id="age_gate_action" class="form-select">
+                                <option value="kick">Kick (Allows re-joining when account matures)</option>
+                                <option value="ban">Ban (Permanently excludes account from guild)</option>
+                                <option value="mute">Mute (Timeout the member for a set duration)</option>
+                                <option value="isolate">Isolate (Strip all roles, assign to a locked no-access role)</option>
+                                <option value="none">None (Log and flag for staff inspection only)</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -592,23 +714,27 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label class="form-label">Action to Take</label>
+                            <!-- id = عمود setting_alt_anti.action_to_take - هذا خاص
+                                 بنظام النقاط (Score/Threshold) بس، مستقل تماماً عن
+                                 age_gate_action بالأعلى. راجعناها لمكانها الصحيح. -->
                             <select id="action_to_take" class="form-select">
                                 <option value="kick">Kick (Allows re-joining when account matures)</option>
                                 <option value="ban">Ban (Permanently excludes account from guild)</option>
                                 <option value="mute">Mute (Timeout the member for a set duration)</option>
+                                <option value="isolate">Isolate (Strip all roles, assign to a locked no-access role)</option>
                                 <option value="none">None (Log and flag for staff inspection only)</option>
                             </select>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Mute Duration</label>
                             <input id="action_mute_duration" type="text" class="form-input duration-input" placeholder="e.g., 24h" maxlength="6">
-                            <small style="color: var(--text-secondary); font-size: 11px;">Only used if Action to Take = Mute. Format: number + s/m/h/d/w (e.g. 24h, 3d). Defaults to 24h if left blank.</small>
+                            <small style="color: var(--text-secondary); font-size: 11px;">Only used if Action to Take = Mute (applies to both Action to Take and Action if Below Minimum Age). Format: number + s/m/h/d/w (e.g. 24h, 3d). Defaults to 24h if left blank.</small>
                         </div>
                     </div>
 
                     <div class="info-banner">
                         <i class="fa-solid fa-triangle-exclamation"></i>
-                        <p>Selecting "None" will only dispatch notification updates to your designated staff logs channels without performing automatic actions.</p>
+                        <p>Selecting "None" will only dispatch notification updates to your designated staff logs channels without performing automatic actions. Selecting "Isolate" auto-creates a locked "OmniGuard Quarantine" role (no access to any channel) the first time it's used.</p>
                     </div>
                 </div>
 

@@ -143,6 +143,71 @@ function parseAgeLimitToMs(input) {
     return amount * AGE_LIMIT_UNITS_MS[unit];
 }
 
+// ============================================================================
+// [NEW] عزل العضو برتبة مقفلة تلقائياً (Isolate) - بديل عن الطرد/الحظر/الكتم.
+// البوت ينشئ الرتبة تلقائياً أول مرة تُستخدم فيها ميزة Isolate بهذا السيرفر،
+// ويحفظ معرّفها بـ setting_alt_anti.isolate_role_id عشان ما يُنشئ رتبة جديدة
+// كل مرة - نفس نمط الكاش المستخدم بباقي الملف (inviteCache، إلخ).
+// ============================================================================
+
+async function getOrCreateIsolateRole(guild, settings, supabase) {
+    if (settings.isolate_role_id) {
+        const existing = guild.roles.cache.get(settings.isolate_role_id);
+        if (existing) return existing;
+    }
+
+    let role;
+    try {
+        role = await guild.roles.create({
+            name: 'OmniGuard Quarantine',
+            permissions: [],
+            color: '#2a2b30',
+            mentionable: false,
+            reason: 'AntiAlt: Auto-created isolation role for suspected alt accounts',
+        });
+    } catch (e) {
+        console.error('[AntiAlt] Failed to create isolation role:', e.message);
+        return null;
+    }
+
+    // منع الرؤية بكل روم موجود حالياً (قنوات + فئات)، كل واحد لحاله - يضمن
+    // العزل حتى لو فيه فئة ما تُطبّق Sync صحيح مع قنواتها الفرعية.
+    for (const channel of guild.channels.cache.values()) {
+        try {
+            await channel.permissionOverwrites.create(role, { ViewChannel: false });
+        } catch (e) {
+            console.error(`[AntiAlt] Failed to lock channel ${channel.id} for isolation role:`, e.message);
+        }
+    }
+
+    try {
+        await supabase.from('setting_alt_anti').update({ isolate_role_id: role.id }).eq('id_guild', guild.id);
+    } catch (e) {
+        console.error('[AntiAlt] Failed to persist isolate_role_id:', e.message);
+    }
+
+    return role;
+}
+
+async function isolateMember(member, settings, supabase) {
+    const role = await getOrCreateIsolateRole(member.guild, settings, supabase);
+    if (!role) return false;
+
+    try {
+        const currentRoleIds = member.roles.cache
+            .filter(r => r.id !== member.guild.id)
+            .map(r => r.id);
+        if (currentRoleIds.length > 0) {
+            await member.roles.remove(currentRoleIds, 'AntiAlt: Isolating suspected alt account').catch(() => {});
+        }
+        await member.roles.add(role.id, 'AntiAlt: Isolating suspected alt account');
+        return true;
+    } catch (e) {
+        console.error(`[AntiAlt] Failed to isolate member ${member.user.tag}:`, e.message);
+        return false;
+    }
+}
+
 const NOTABLE_BADGES = [
     'Staff', 'Partner', 'Hypesquad', 'HypeSquadOnlineHouse1', 'HypeSquadOnlineHouse2',
     'HypeSquadOnlineHouse3', 'BugHunterLevel1', 'BugHunterLevel2', 'PremiumEarlySupporter',
@@ -597,6 +662,9 @@ async function logAltDecision(guild, member, session, settings, supabase, action
             url_avatar: member.user.displayAvatarURL(),
             at_created_account: member.user.createdAt.toISOString(),
             action_taken: actionTaken,
+            // [NEW] نخزّن النقاط الفعلية وقت الكشف - تُعرض لاحقاً بكرت Anti-Alt
+            // Log بالداشبورد. Math.round لأن العمود NUMERIC ويكفي رقم صحيح للعرض.
+            score: Math.round(session.score),
             at_detected: new Date().toISOString()
         });
     } catch (e) {
@@ -623,7 +691,7 @@ async function logAltDecision(guild, member, session, settings, supabase, action
         try {
             const channel = await guild.channels.fetch(settings.log_channel_id).catch(() => null);
             if (channel) {
-                const colorMap = { Banned: 0xE74C3C, Kicked: 0xE67E22, Muted: 0xF1C40F, Flagged: 0x95A5A6 };
+                const colorMap = { Banned: 0xE74C3C, Kicked: 0xE67E22, Muted: 0xF1C40F, Isolated: 0x9B59B6, Flagged: 0x95A5A6 };
                 const embed = new EmbedBuilder()
                     .setTitle('🛡️ AntiAlt Detection Report')
                     .setColor(colorMap[actionTaken] || 0x95A5A6)
@@ -656,7 +724,10 @@ async function handleAgeGate(guild, member, ageMs, settings, supabase) {
 
     const fakeSession = { score: 999, dimensions: new Set(['age_gate']) };
     const reason = `AntiAlt: Account age (${(ageMs / 86400000).toFixed(1)}d) is below the minimum required (${settings.limit_age}).`;
-    const action = settings.action_to_take;
+    // [FIX] كانت تستخدم settings.action_to_take بالغلط (نفس عمود نظام
+    // النقاط العام) - age_gate_action عمود مستقل تماماً، خاص بس بقرار
+    // البوابة الصريحة هذي.
+    const action = settings.age_gate_action;
 
     try {
         if (action === 'ban' && member.bannable) {
@@ -669,6 +740,10 @@ async function handleAgeGate(guild, member, ageMs, settings, supabase) {
             const ms = parseDurationToMs(settings.action_mute_duration) || 24 * DURATION_UNITS_MS.h;
             await member.timeout(ms, reason);
             await logAltDecision(guild, member, fakeSession, settings, supabase, 'Muted', reason);
+        } else if (action === 'isolate') {
+            const ok = await isolateMember(member, settings, supabase);
+            if (!ok) return false;
+            await logAltDecision(guild, member, fakeSession, settings, supabase, 'Isolated', reason);
         } else if (action === 'none') {
             await logAltDecision(guild, member, fakeSession, settings, supabase, 'Flagged', reason);
         } else {
@@ -732,6 +807,13 @@ async function resolveAndExecuteAction(guild, member, session, settings, supabas
                 await logAltDecision(guild, member, session, settings, supabase, 'Muted', reason);
             } else {
                 console.error(`[AntiAlt] Cannot mute ${member.user.tag}: not moderatable by the bot.`);
+            }
+        } else if (action === 'isolate') {
+            const ok = await isolateMember(member, settings, supabase);
+            if (ok) {
+                await logAltDecision(guild, member, session, settings, supabase, 'Isolated', reason);
+            } else {
+                console.error(`[AntiAlt] Cannot isolate ${member.user.tag}: role creation/assignment failed.`);
             }
         } else {
             await logAltDecision(guild, member, session, settings, supabase, 'Flagged', reason);
