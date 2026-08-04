@@ -344,12 +344,7 @@
                     <!-- Instant Join Role -->
                     <div class="form-group">
                         <label class="form-label">New User Auto-Roles (Instant On Join)</label>
-                        <!-- id = عمود setting_management_role.new_user_auto_roles (text[] -
-                             يقبل أكثر من رتبة، عشان كذا صندوق تاقات مو select عادي).
-                             data-source="roles" -> يتعبّى تلقائياً بكامل رتب السيرفر
-                             مرتبة حسب التسلسل الهرمي (نفس آلية general-settings.html،
-                             المصدر getroles.js -> guild_structure_cache). -->
-                        <div class="selector-box" id="new_user_auto_roles" data-source="roles" data-dropdown="newUserAutoRolesDropdown" onclick="toggleDropdown('newUserAutoRolesDropdown')">
+                        <div class="selector-box" id="new_user_auto_roles" data-source="roles" data-dropdown="newUserAutoRolesDropdown">
                             <span class="selector-placeholder">+ Select Roles</span>
                         </div>
                         <div id="newUserAutoRolesDropdown" class="dropdown-list"></div>
@@ -365,32 +360,15 @@
                             <!-- Dynamic Role Picker Container -->
                             <div class="form-group" style="flex: 2;">
                                 <label class="form-label">Target Roles to Strip</label>
-                                <!-- ⚠️ id="autoRemoveRolesBox" عمداً مو مطابق لاسم عمود حقيقي:
-                                     البيانات هذي تروح لجدول role_delay_config (صف مستقل لكل
-                                     رتبة: id_guild + id_role + delay_duration)، مو عمود بجدول
-                                     setting_management_role زي باقي الصفحة. آلية الحفظ العامة
-                                     (buildPayload) تفترض دايماً "صف واحد لكل سيرفر" بجدول واحد
-                                     فما تقدر تتعامل مع هالشكل من البيانات بدون منطق حفظ مخصص.
-                                     السكربت آخر الصفحة يعزل هالحقل (وremovalDelayTime) عن
-                                     buildPayload() قبل الإرسال، عشان أول ضغطة Save ما تفشل
-                                     بخطأ "عمود غير موجود" وتكسر معها حفظ new_user_auto_roles
-                                     المشروع جنبها. لسه تفاعلي بالكامل بالمتصفح (تاقات + فلتر)،
-                                     بس محتاج آلية حفظ مخصصة (endpoint يقبل صفوف متعددة) وقت
-                                     نراجع dashboard.js/apiRouter.js الأخيرة. -->
-                                <div class="selector-box" id="autoRemoveRolesBox" data-source="roles" data-dropdown="stripRolesDropdown" onclick="toggleDropdown('stripRolesDropdown')">
+                                <div class="selector-box" id="autoRemoveRolesBox" data-source="roles" data-dropdown="stripRolesDropdown">
                                     <span class="selector-placeholder">+ Select Roles</span>
                                 </div>
                                 <div id="stripRolesDropdown" class="dropdown-list"></div>
                             </div>
                             
-                            <!-- Pure Text/Number Manual Input Field (Stays a standard input, never a dropdown) -->
+                            <!-- Pure Text/Number Manual Input Field -->
                             <div class="form-group" style="flex: 1;">
                                 <label class="form-label">Removal Delay Duration</label>
-                                <!-- ⚠️ نفس ملاحظة autoRemoveRolesBox فوق - id مو مطابق لعمود
-                                     حقيقي، معزول عن buildPayload() بالسكربت آخر الصفحة لنفس
-                                     السبب بالضبط. الفلتر يسمح فقط بصيغة: رقم + وحدة من
-                                     (s/min/h/d/w/mo/y) - راجع ملاحظة التوافق مع Rolemanagement.js
-                                     بأول تعليق بالسكربت. -->
                                 <input id="removalDelayTime" type="text" class="form-input" placeholder="e.g. 30s, 10min, 2h, 7d, 1w, 1mo, 1y" autocomplete="off">
                                 <span id="removalDelayError" class="field-error">Format must be: number + unit (s / min / h / d / w / mo / y) — e.g. 30s, 10min, 2h, 7d, 1w, 1mo, 1y</span>
                             </div>
@@ -415,67 +393,40 @@
 
     <script src="dashboard.js"></script>
 
-    <!-- ================================================================
-         سكربت خاص بهذي الصفحة فقط (role-management.html) - بدون أي تعديل
-         على dashboard.js.
-
-         [أ] عزل autoRemoveRolesBox و removalDelayTime عن buildPayload():
-             هالحقلين ما يخصون جدول setting_management_role (الجدول اللي
-             هالصفحة مربوطة فيه عبر endpointMap) - بياناتهم الفعلية تروح
-             لجدول role_delay_config (صفوف متعددة، صف مستقل لكل رتبة).
-             نلف buildPayload() العامة (بدون تعديل الملف الأصلي) ونشيل
-             هالحقلين من الـ payload قبل الإرسال، عشان أول ضغطة Save ما
-             تفشل بخطأ "عمود غير موجود" وتكسر معها حفظ new_user_auto_roles
-             المشروع بنفس الصفحة. لما تنضاف آلية حفظ مخصصة لـ
-             role_delay_config (endpoint يقبل صفوف متعددة)، احذف هالجزء
-             وحوّل الحقلين لمنطق الحفظ الخاص فيهم.
-
-         [ب] فلتر Removal Delay Duration:
-             يسمح بس بصيغة "رقم + وحدة" من (s, min, h, d, w, mo, y) - فلترة
-             خفيفة أثناء الكتابة (تمنع رموز/مسافات بس، ما تكسر الكتابة
-             التدريجية للوحدة زي "min")، وفحص صارم عند مغادرة الحقل (blur)
-             يبيّن رسالة خطأ حمراء لو الصيغة غلط، بدون ما يمسح اللي كتبه
-             المستخدم بالغلط.
-
-             ⚠️ ملاحظة توافق مهمة: Rolemanagement.js (parseDurationToMs)
-             حالياً يقبل بس وحدة حرف وحد (s/m/h/d/w) - m تعني دقائق، وما
-             فيه mo (شهر) ولا y (سنة) إطلاقاً بالكود. لو حُفظت قيمة زي
-             "1min"/"1mo"/"1y"، الكود الحالي يرفضها بصمت ("Invalid duration
-             format... skipping") والرتبة ما تنجدول إزالتها. لازم تحديث
-             Rolemanagement.js ليدعم نفس الصيغ المسموحة هنا بالواجهة قبل
-             ما تعتمد على هالميزة فعلياً.
-         ================================================================ -->
     <script>
-        (function () {
-            // ------------------------------------------------------------
-            // [أ] عزل الحقلين المؤقتين عن buildPayload()
-            // ------------------------------------------------------------
-            const PENDING_FIELD_IDS = ['autoRemoveRolesBox', 'removalDelayTime'];
-            const originalBuildPayload = window.buildPayload;
+        // تعريف الاحتياط لدالة فتح وإغلاق القوائم لضمان عدم توقف المتصفح
+        window.toggleDropdown = window.toggleDropdown || function(dropdownId) {
+            const dropdown = document.getElementById(dropdownId);
+            if (dropdown) {
+                dropdown.classList.toggle('show');
+            }
+        };
 
-            if (typeof originalBuildPayload === 'function') {
+        document.addEventListener('DOMContentLoaded', function () {
+            // عزل الحقول الخاصة بالتأخير من الحفظ التلقائي لجدول setting_management_role
+            const PENDING_FIELD_IDS = ['autoRemoveRolesBox', 'removalDelayTime'];
+            
+            if (typeof window.buildPayload === 'function') {
+                const originalBuildPayload = window.buildPayload;
                 window.buildPayload = function () {
                     const payload = originalBuildPayload();
-                    PENDING_FIELD_IDS.forEach((id) => delete payload.updates[id]);
+                    if (payload && payload.updates) {
+                        PENDING_FIELD_IDS.forEach((id) => delete payload.updates[id]);
+                    }
                     return payload;
                 };
             }
 
-            // ------------------------------------------------------------
-            // [ب] فلتر Removal Delay Duration
-            // ------------------------------------------------------------
+            // التثبت والتحقق من صحة مدة الإزالة (Removal Delay Duration)
             const DURATION_PATTERN = /^\d+(s|min|h|d|w|mo|y)$/;
             const delayInput = document.getElementById('removalDelayTime');
             const delayError = document.getElementById('removalDelayError');
 
             if (delayInput) {
                 delayInput.addEventListener('input', () => {
-                    // فلترة خفيفة بس: نمنع أي رمز/مسافة، نسمح بأي حرف/رقم
-                    // عشان الكتابة التدريجية لوحدة زي "min"/"mo" ما تنكسر.
                     const cleaned = delayInput.value.replace(/[^0-9a-zA-Z]/g, '');
                     if (cleaned !== delayInput.value) delayInput.value = cleaned;
 
-                    // لو كانت الحالة قبل كذا "غلط"، وصار شكل صحيح أثناء الكتابة، نشيل التنبيه فوراً
                     if (delayInput.classList.contains('input-invalid') && DURATION_PATTERN.test(delayInput.value.trim())) {
                         delayInput.classList.remove('input-invalid');
                         if (delayError) delayError.classList.remove('show');
@@ -489,7 +440,7 @@
                     if (delayError) delayError.classList.toggle('show', !isValid);
                 });
             }
-        })();
+        });
     </script>
 </body>
 </html>
