@@ -702,7 +702,7 @@ async function logAltDecision(guild, member, session, settings, supabase, action
         try {
             const channel = await guild.channels.fetch(settings.log_channel_id).catch(() => null);
             if (channel) {
-                const colorMap = { Banned: 0xE74C3C, Kicked: 0xE67E22, Muted: 0xF1C40F, Isolated: 0x9B59B6, Flagged: 0x95A5A6 };
+                const colorMap = { Banned: 0xE74C3C, Kicked: 0xE67E22, Muted: 0xF1C40F, Isolated: 0x9B59B6, Suspicious: 0x3498DB, Flagged: 0x95A5A6 };
                 const embed = new EmbedBuilder()
                     .setTitle('🛡️ AntiAlt Detection Report')
                     .setColor(colorMap[actionTaken] || 0x95A5A6)
@@ -780,7 +780,23 @@ async function handleAgeGate(guild, member, ageMs, settings, supabase) {
 async function resolveAndExecuteAction(guild, member, session, settings, supabase) {
     if (session.actioned) return;
     const threshold = (settings.threshold_action ?? 65);
-    if (session.score < threshold) return;
+    if (session.score < threshold) {
+        // [NEW] ما وصل لعتبة التنفيذ، بس لو تجاوز حد الاشتباه الأدنى (35)
+        // نسجّله "Suspicious" بدون أي عقوبة - يظهر بكرت Anti-Alt Log
+        // للمراجعة اليدوية. مرة وحدة بس لكل جلسة (ما يتكرر كل رسالة)،
+        // وما نعلّم session.actioned عشان يقدر يتصعّد لعقوبة فعلية لاحقاً
+        // لو نقاطه زادت أكثر.
+        const SUSPICIOUS_LOG_THRESHOLD = 35;
+        if (session.score >= SUSPICIOUS_LOG_THRESHOLD && !session.suspiciousLogged) {
+            session.suspiciousLogged = true;
+            const breakdown = Array.from(session.dimensions).join(', ') || 'none';
+            await logAltDecision(
+                guild, member, session, settings, supabase, 'Suspicious',
+                `Score reached ${session.score.toFixed(1)}/${threshold} (below action threshold) - flagged for staff review only, no action taken.`
+            );
+        }
+        return;
+    }
 
     session.actioned = true;
 
