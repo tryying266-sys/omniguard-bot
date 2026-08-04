@@ -169,8 +169,14 @@ async function fetchGuildStructure() {
         const response = await fetch(`${API_BASE}/guild/${guildId}/guild_structure_cache`, { headers: getHeaders() });
         const data = await response.json();
 
-        guildStructure.roles = (response.ok && Array.isArray(data?.roles)) ? data.roles : [];
-        guildStructure.channels = (response.ok && Array.isArray(data?.channels)) ? data.channels : [];
+        // [FIX] response.ok يرجع false لأي حالة 304 (خارج مدى 200-299) رغم
+        // إن fetch() فعلياً نجح وسلّم البيانات الحقيقية من كاش المتصفح -
+        // كان يفرّغ guildStructure.roles/channels بالغلط كل مرة يرجع فيها
+        // 304 (يصير كثير لأن الرد نفسه ما يتغيّر بين تحميلة وتانية). الاعتماد
+        // على شكل البيانات نفسها (Array.isArray) كافٍ ومضمون هنا؛ أي فشل
+        // شبكة حقيقي أصلاً يوقف عند catch بالأعلى قبل ما يوصل هالسطر.
+        guildStructure.roles = Array.isArray(data?.roles) ? data.roles : [];
+        guildStructure.channels = Array.isArray(data?.channels) ? data.channels : [];
     } catch (error) {
         console.error('[Guild Structure Error]:', error);
         guildStructure.roles = [];
