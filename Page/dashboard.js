@@ -443,7 +443,12 @@ async function loadPageSettings() {
             try {
                 const response = await fetch(`${API_BASE}/guild/${guildId}/${table}`, { headers: getHeaders() });
                 const data = await response.json();
-                return { table, ok: response.ok, data };
+                // [FIX] نفس علة response.ok مع 304 (راجع fetchGuildStructure
+                // بالأعلى) - هنا كانت أخطر لأنها تمنع تعبئة الفورم كامل بس
+                // كل ما رجع 304 من كاش المتصفح. status < 400 يغطي كل حالات
+                // النجاح الحقيقية (200-2xx وكذلك 304) ويستثني فقط الأخطاء
+                // الفعلية (400/401/500...).
+                return { table, ok: response.status < 400, data };
             } catch (err) {
                 return { table, ok: false, data: null, error: err };
             }
