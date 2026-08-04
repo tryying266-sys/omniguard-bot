@@ -91,6 +91,15 @@ function requireGuildId(req, res, next) {
     next();
 }
 
+// [FIX] يمنع Express من إرسال 304 بجسم فاضي تلقائياً (سلوك ETag المدمج
+// افتراضياً بـ res.json()) - كل استدعاء لهالـ API لازم يرجّع أحدث بيانات
+// حقيقية دايماً، مو نسخة مخزّنة من قبل. هذا يحل جذر مشكلة "304 فاضي" لكل
+// نقاط الـ API دفعة وحدة، بدل ما نلاحق كل fetch() بالفرونت واحد واحد.
+router.use((req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    next();
+});
+
 // Apply Security Middleware to all routes
 router.use(requireDashboardApiKey);
 
