@@ -157,6 +157,26 @@ async function handleMessage(message, dbUtils, guildSettings) {
         return false; // Silent ignore - no error message
     }
 
+    // [v5.3 NEW] Command Spam Protection - checked here specifically (not
+    // inside AutoMod.js's handleMessage, which runs on every message
+    // regardless of whether it's a real command) because this is the only
+    // place that already knows "this message IS a matched command" before
+    // any execution happens. Uses the new cmd_* columns (setting_moderation_
+    // security), fully independent from the existing chat-spam settings
+    // (spam_*/cooldown_spam) used by AutoMod.js's own checkSpam().
+    // AutoMod.js is required lazily here (not at the top of the file) to
+    // avoid a circular require, since AutoMod.js/GRS.js don't require this
+    // file back - same lazy-require pattern already used elsewhere in this
+    // codebase (e.g. AutoMod.js <-> warn.js).
+    try {
+        const AutoMod = require('./AutoMod');
+        if (await AutoMod.checkCommandSpam(message, dbUtils)) {
+            return false; // عقوبة اتطبقت (أو الأكشن 'none') - ما نكمل تنفيذ الأمر
+        }
+    } catch (spamErr) {
+        console.error('[CommandHandler] Command spam check failed (command still allowed to run):', spamErr.message);
+    }
+
     try {
         /**
          * Permission Check:

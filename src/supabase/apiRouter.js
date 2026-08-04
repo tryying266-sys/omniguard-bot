@@ -423,6 +423,140 @@ router.post('/guild/:guildId/custom-embed-draft/publish', requireGuildId, async 
 });
 
 // ============================================================================
+// 3.5 AUTO-MOD DYNAMIC INFRACTION RULES (Dashboard Page: auto-mod.html) [v5.3]
+// ============================================================================
+// auto_mod_rule_config stores several rows per guild (multiple thresholds per
+// rule_type: warn/mute/kick) - same reason as custom_embed_draft above, this
+// cannot go through the generic Universal Sync routes in Section 4, which
+// explicitly refuse multi-row tables (see databaseQueries.js's
+// MULTI_ROW_TABLES check inside universalUpdate()).
+//
+// ⚠️ Registered here (ABOVE Section 4) for the exact same route-shadowing
+// reason documented at the top of this file: GET/POST /guild/:guildId/
+// auto-mod-rules are 3-path-segment URLs, same shape as the generic
+// /guild/:guildId/:tableName catch-all, so this section would silently stop
+// working if it were ever moved below Section 4.
+//
+// Each rule row is saved/deleted individually and immediately from the
+// dashboard (no batch "Save Changes" for this section) - PUT/DELETE target
+// a specific :ruleId, POST creates a new row. This avoids re-purposing
+// buildPayload()/collectTags() (built for single-row "settings" tables) for
+// something they were never designed to express.
+
+/**
+ * GET /api/guild/:guildId/auto-mod-rules
+ * Returns ALL rules for the guild (every rule_type together), sorted by
+ * threshold ascending. The dashboard buckets them into the three containers
+ * (warn/mute/kick) client-side by each row's rule_type.
+ */
+router.get('/guild/:guildId/auto-mod-rules', requireGuildId, async (req, res) => {
+    try {
+        const rules = await queries.getAutoModRules(req.guildId);
+        res.json(rules);
+    } catch (err) {
+        console.error(`[API Router Error] GET /guild/${req.params.guildId}/auto-mod-rules:`, err.message);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+/**
+ * POST /api/guild/:guildId/auto-mod-rules
+ * Creates a new rule. Expected body: { ruleType, threshold, action, duration }
+ */
+router.post('/guild/:guildId/auto-mod-rules', requireGuildId, async (req, res) => {
+    try {
+        const { ruleType, threshold, action, duration } = req.body;
+
+        if (!['warn', 'mute', 'kick'].includes(ruleType)) {
+            return res.status(400).json({ error: 'Invalid Payload: ruleType must be warn, mute, or kick' });
+        }
+        const parsedThreshold = parseInt(threshold, 10);
+        if (!Number.isInteger(parsedThreshold) || parsedThreshold < 1 || parsedThreshold > 50) {
+            return res.status(400).json({ error: 'Invalid Payload: threshold must be an integer between 1 and 50' });
+        }
+        if (!action || typeof action !== 'string') {
+            return res.status(400).json({ error: 'Invalid Payload: action is required' });
+        }
+
+        const rule = await queries.addAutoModRule({
+            guildId: req.guildId,
+            ruleType,
+            threshold: parsedThreshold,
+            action,
+            duration: duration || null
+        });
+
+        res.json({ success: true, rule });
+    } catch (err) {
+        // 23505 = UNIQUE(id_guild, rule_type, threshold) violation.
+        // 23514 = CHECK violation (action doesn't match rule_type, or a
+        // duration was sent alongside action='kick').
+        if (err.code === '23505') {
+            return res.status(409).json({ error: 'A rule for this exact threshold already exists for this type.' });
+        }
+        if (err.code === '23514') {
+            return res.status(400).json({ error: 'Invalid action for this rule type, or a duration was set for a Kick action.' });
+        }
+        console.error(`[API Router Error] POST /guild/${req.params.guildId}/auto-mod-rules:`, err.message);
+        res.status(500).json({ error: 'Failed to create rule' });
+    }
+});
+
+/**
+ * PUT /api/guild/:guildId/auto-mod-rules/:ruleId
+ * Updates an existing rule (partial - only send the fields that changed).
+ * Expected body: { threshold?, action?, duration? }
+ */
+router.put('/guild/:guildId/auto-mod-rules/:ruleId', requireGuildId, async (req, res) => {
+    try {
+        const { threshold, action, duration } = req.body;
+        const updates = {};
+
+        if (threshold !== undefined) {
+            const parsedThreshold = parseInt(threshold, 10);
+            if (!Number.isInteger(parsedThreshold) || parsedThreshold < 1 || parsedThreshold > 50) {
+                return res.status(400).json({ error: 'Invalid Payload: threshold must be an integer between 1 and 50' });
+            }
+            updates.threshold = parsedThreshold;
+        }
+        if (action !== undefined) updates.action = action;
+        if (duration !== undefined) updates.duration = duration || null;
+
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ error: 'Invalid Payload: at least one of threshold/action/duration is required' });
+        }
+
+        const rule = await queries.updateAutoModRule(req.params.ruleId, req.guildId, updates);
+        if (!rule) {
+            return res.status(404).json({ error: 'Rule not found for this guild' });
+        }
+        res.json({ success: true, rule });
+    } catch (err) {
+        if (err.code === '23505') {
+            return res.status(409).json({ error: 'A rule for this exact threshold already exists for this type.' });
+        }
+        if (err.code === '23514') {
+            return res.status(400).json({ error: 'Invalid action for this rule type, or a duration was set for a Kick action.' });
+        }
+        console.error(`[API Router Error] PUT /guild/${req.params.guildId}/auto-mod-rules/${req.params.ruleId}:`, err.message);
+        res.status(500).json({ error: 'Failed to update rule' });
+    }
+});
+
+/**
+ * DELETE /api/guild/:guildId/auto-mod-rules/:ruleId
+ */
+router.delete('/guild/:guildId/auto-mod-rules/:ruleId', requireGuildId, async (req, res) => {
+    try {
+        await queries.deleteAutoModRule(req.params.ruleId, req.guildId);
+        res.json({ success: true });
+    } catch (err) {
+        console.error(`[API Router Error] DELETE /guild/${req.params.guildId}/auto-mod-rules/${req.params.ruleId}:`, err.message);
+        res.status(500).json({ error: 'Failed to delete rule' });
+    }
+});
+
+// ============================================================================
 // 4. UNIVERSAL SYNC ROUTES (Smart Binding - generic catch-all, MUST stay LAST)
 // ============================================================================
 // ⚠️ Any new specific/literal-path route must be added ABOVE this block, not

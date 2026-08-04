@@ -29,35 +29,31 @@
 const { PermissionsBitField, EmbedBuilder } = require('discord.js');
 
 /**
- * يحدد أي طبقة تصعيد (لو فيه) يجب أن تُفعَّل عند هذا العدد بالضبط من التحذيرات.
- * يرجع null لو لا شيء يجب أن يُفعَّل الآن.
+ * [v5.3 REWRITE] يستبدل determineEscalationTier() الثابتة القديمة (كانت
+ * تقرأ عمودين ثابتين limit_trigger_warn/limit_trigger_severe بس - طبقتين
+ * كحد أقصى). الآن تقرأ من auto_mod_rule_config (rule_type='warn') - عدد
+ * غير محدود من القواعد، كل وحدة (عتبة → أكشن → مدة) مستقلة.
+ *
+ * [سلوك محفوظ من القديم] مساواة تامة (threshold === count) مو `>=` - كل
+ * قاعدة تتفعّل مرة وحدة بالضبط عند الوصول لعتبتها بالضبط. القيد
+ * UNIQUE(id_guild, rule_type, threshold) بالسكيما يضمن عدم وجود أكثر من
+ * قاعدة مطابقة لنفس العدد أصلاً.
+ *
+ * يرجع null لو ما فيه قاعدة تطابق هذا العدد بالضبط.
+ * @param {string} guildId
+ * @param {number} count - عدد التحذيرات الحالي للعضو
+ * @param {Object} dbUtils
  */
-function determineEscalationTier(count, settings) {
-    if (!settings) return null;
+async function findMatchingWarnRule(guildId, count, dbUtils) {
+    const rules = await dbUtils.getAutoModRules(guildId, 'warn');
+    const matched = rules.find(r => r.threshold === count);
+    if (!matched) return null;
 
-    const tier1Threshold = settings.limit_trigger_warn;
-    const tier2Threshold = settings.limit_trigger_severe;
-
-    // الطبقة الثانية أولوية أعلى - لازم تكون أكبر فعلياً من الطبقة الأولى حتى تُعتبر صالحة
-    const tier2Valid = tier2Threshold && tier1Threshold && tier2Threshold > tier1Threshold;
-
-    if (tier2Valid && count === tier2Threshold && settings.severe_trigger_action) {
-        return {
-            label: 'Severe (Tier 2)',
-            action: settings.severe_trigger_action, // mute | kick | ban
-            duration: settings.severe_trigger_duration || '24h'
-        };
-    }
-
-    if (tier1Threshold && count === tier1Threshold && settings.warn_trigger_action) {
-        return {
-            label: 'Standard (Tier 1)',
-            action: settings.warn_trigger_action, // mute | kick | ban
-            duration: settings.warn_trigger_duration || '12h'
-        };
-    }
-
-    return null;
+    return {
+        label: `Warn Rule (${matched.threshold} warnings)`,
+        action: matched.action, // mute | kick | ban
+        duration: matched.duration || '12h'
+    };
 }
 
 /**
@@ -120,8 +116,10 @@ async function executeWarn(guild, targetId, moderator, reason, dbUtils) {
         let escalationTriggered = false;
         let escalationAction = "";
 
-        // [FIX] تحديد الطبقة المناسبة (لو فيه) - تُفعَّل مرة واحدة بالضبط عند كل عتبة
-        const tier = determineEscalationTier(count, settings);
+        // [v5.3 REWRITE] تحديد الطبقة المناسبة من auto_mod_rule_config (لو
+        // فيه) - تُفعَّل مرة واحدة بالضبط عند كل عتبة. راجع findMatchingWarnRule
+        // بالأعلى لشرح الاستبدال الكامل لنظام Tier1/Tier2 الثابت القديم.
+        const tier = await findMatchingWarnRule(guild.id, count, dbUtils);
 
         if (tier) {
             escalationTriggered = true;
@@ -145,6 +143,22 @@ async function executeWarn(guild, targetId, moderator, reason, dbUtils) {
 
             // تسجيل العقوبة الكبرى في السجلات
             await dbUtils.addInfraction(guild.id, targetId, moderator.id, escalationAction, `Auto-Escalation (${tier.label}): Reached ${count} warnings limit.`, duration, targetTag);
+
+            // [NEW v5.3] تصعيد متسلسل: لو العقوبة الناتجة عن قاعدة التحذير
+            // نفسها 'mute' أو 'kick'، نفحص فوراً لو وصلت لعتبة قاعدة مسجّلة
+            // بنفس ذاك النوع بجدول auto_mod_rule_config (مثال: تحذير رقم 5
+            // يطبّق ميوت، ولو صار هذا هو الميوت السادس للعضو وعندك قاعدة
+            // "بعد 6 ميوتات = طرد"، تتفعّل بنفس اللحظة). lazy-require بنفس
+            // فلسفة استدعاء executeWarn من AutoMod.js بالاتجاه المعاكس -
+            // يتفادى مشاكل ترتيب تحميل الملفات (warn.js <-> AutoMod.js).
+            if (escalationAction === 'mute' || escalationAction === 'kick') {
+                try {
+                    const AutoMod = require('./AutoMod');
+                    await AutoMod.checkRuleEscalation(guild, targetMember, targetMember.user, escalationAction);
+                } catch (chainErr) {
+                    console.error('[Warn Engine] Chained escalation via AutoMod failed:', chainErr.message);
+                }
+            }
         }
 
         // [REMOVED] كان هنا DM "You have been warned" - أُزيل بطلب صريح.

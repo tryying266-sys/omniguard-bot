@@ -572,14 +572,21 @@
             background-color: var(--accent-red-hover);
         }
 
-        /* Dynamic Rules System Styling */
+        /* Dynamic Rules System Styling (v5.3 - Automated Infraction System) */
         .rules-list-container {
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
 
-        .btn-delete-rule {
+        .empty-rules-placeholder {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-style: italic;
+            padding: 4px 2px;
+        }
+
+        .btn-delete-rule, .btn-save-rule {
             background: transparent;
             border: none;
             color: var(--text-secondary);
@@ -588,7 +595,20 @@
             padding: 8px 10px;
             border-radius: 6px;
             transition: color 0.2s, background-color 0.2s;
+        }
+
+        .btn-save-rule {
             margin-left: auto;
+        }
+
+        .btn-save-rule:hover {
+            color: #3ba55d;
+            background-color: rgba(59, 165, 93, 0.12);
+        }
+
+        .btn-save-rule:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .btn-delete-rule:hover {
@@ -634,6 +654,25 @@
             cursor: not-allowed;
             background-color: rgba(0, 0, 0, 0.2);
             border-color: transparent;
+        }
+
+        /* صف بيحمل خطأ حفظ (عتبة مكررة، أكشن غير صالح، ...) */
+        .rule-row-error {
+            color: var(--accent-red);
+            font-size: 11px;
+            font-weight: 500;
+            width: 100%;
+            padding-top: 4px;
+        }
+
+        /* ومضة خضراء قصيرة بعد نجاح الحفظ - تأكيد بصري بدون Alert مزعج */
+        @keyframes ruleSavedFlash {
+            0% { border-color: #3ba55d; box-shadow: 0 0 0 2px rgba(59, 165, 93, 0.25); }
+            100% { border-color: var(--border-color); box-shadow: none; }
+        }
+
+        .rule-saved-flash {
+            animation: ruleSavedFlash 0.8s ease-out;
         }
     </style>
 </head>
@@ -751,16 +790,58 @@
         <div class="content-body">
             <div class="settings-grid">
                 
-                <!-- SECTION 1: Command Spam Protection -->
+                <!-- SECTION 1a: Command Spam Protection (v5.3 - NEW, actually command-specific) -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-terminal card-header-icon"></i>
+                        <h2 class="card-header-title">Command Spam Protection</h2>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Max Commands Allowed</label>
+                            <input id="cmd_spam_max_commands" type="number" class="form-input" placeholder="e.g., 5" min="1" max="50">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Cooldown / Time Window</label>
+                            <input id="cmd_cooldown_spam" type="text" class="form-input duration-input" placeholder="e.g., 10s" maxlength="6">
+                            <small style="color: var(--text-secondary); font-size: 11px;">Format: number + s/m/h/d/w (e.g. 10s, 5m, 1h)</small>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Default Action on Spam</label>
+                            <select id="cmd_spam_default_action" class="form-select">
+                                <option value="" disabled selected>Select an action...</option>
+                                <option value="mute">Mute Member</option>
+                                <option value="kick">Kick Member</option>
+                                <option value="ban">Ban Member</option>
+                                <option value="demote">Demote (Strip Roles)</option>
+                                <option value="none">None (Delete Message Only)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Action Duration</label>
+                            <input id="cmd_spam_action_duration" type="text" class="form-input duration-input" placeholder="e.g., 30m" maxlength="6">
+                            <small style="color: var(--text-secondary); font-size: 11px;">Format: number + s/m/h/d/w (e.g. 30m, 12h, 1w)</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 1b: Regular Chat Spam (renamed from "Command Spam Protection" -
+                     it actually checks EVERY message via AutoMod.js's checkSpam(), not
+                     commands specifically. Same fields/columns as before - v5.3 only
+                     relabeled it and removed the misleading Code Note below. -->
                 <div class="settings-card">
                     <div class="card-header-group">
                         <i class="fa-solid fa-bolt card-header-icon"></i>
-                        <h2 class="card-header-title">Command Spam Protection</h2>
+                        <h2 class="card-header-title">Regular Chat Spam</h2>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">Max Commands Allowed</label>
+                            <label class="form-label">Max Messages Allowed</label>
                             <input id="spam_max_commands" type="number" class="form-input" placeholder="e.g., 5" min="1" max="50">
                         </div>
                         <div class="form-group">
@@ -788,11 +869,6 @@
                             <small style="color: var(--text-secondary); font-size: 11px;">Format: number + s/m/h/d/w (e.g. 30m, 12h, 1w)</small>
                         </div>
                     </div>
-
-                    <div class="note-banner">
-                        <i class="fa-solid fa-circle-info"></i>
-                        <p>Code Note: If the action duration is left blank, the bot will immediately apply the default permanent fallback action to protect the server.</p>
-                    </div>
                 </div>
 
                 <!-- SECTION 2: Advanced Server Security -->
@@ -817,33 +893,61 @@
                     </div>
                 </div>
 
-                <!-- SECTION 3: Automated Infraction System -->
+                <!-- SECTION 3: Automated Infraction System (v5.3 - Dynamic Rules)
+                     يستبدل نظام Tier1/Tier2 الثابت القديم (limit_trigger_warn/
+                     limit_trigger_severe وأعمدتهم - أصبحوا "متروكين" بالسكيما،
+                     راجع v5.3 delta). كل قاعدة (After X <Type> -> Action [for
+                     Duration]) صف مستقل بجدول auto_mod_rule_config، تُحفظ/تُحذف
+                     فوراً عبر مسارات /guild/:guildId/auto-mod-rules المخصصة -
+                     مو جزء من زر "Save Changes" العام بالأسفل. -->
                 <div class="settings-card full-width">
                     <div class="card-header-group">
                         <i class="fa-solid fa-triangle-exclamation card-header-icon"></i>
                         <h2 class="card-header-title">Automated Infraction System</h2>
                     </div>
 
-                    <!-- Automated Infraction Milestone Rules -->
                     <div class="form-group" style="gap: 16px;">
-                        
+
+                        <!-- Warning Precision Sub-Options - إعداد عام مستقل عن
+                             "القاعدة" نفسها (انتهاء صلاحية + سلوك التصفير)،
+                             ما زال مرتبط بـ setting_moderation_security عادي -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Warning Expiration (Decay Time)</label>
+                                <input id="expiration_warn" type="text" class="form-input duration-input" placeholder="e.g., 30d (leave blank for permanent warnings)" maxlength="6">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Infraction Limit Reset Behavior</label>
+                                <select id="warn_reset_behavior" class="form-select">
+                                    <option value="reset">Reset Warnings to 0 upon Action Trigger</option>
+                                    <option value="keep">Keep Warnings Accumulating Post-Action</option>
+                                </select>
+                            </div>
+                        </div>
+
                         <!-- 1. Warn Accumulation Rules -->
-                        <label class="form-label" style="border-left: 3px solid var(--accent-red); padding-left: 8px;">Warn Accumulation Rules</label>
-                        <div id="warn_rules_container" class="rules-list-container"></div>
+                        <label class="form-label" style="border-left: 3px solid var(--accent-red); padding-left: 8px; margin-top: 6px;">Warn Accumulation Rules</label>
+                        <div id="warn_rules_container" class="rules-list-container">
+                            <span class="empty-rules-placeholder" data-empty-for="warn">No warn rules yet - click "Add Warn Rule" below.</span>
+                        </div>
                         <button type="button" id="add_warn_rule_btn" class="add-rule-btn">
                             <i class="fa-solid fa-plus"></i> Add Warn Rule
                         </button>
 
                         <!-- 2. Mute Accumulation Rules -->
                         <label class="form-label" style="border-left: 3px solid var(--accent-red); padding-left: 8px; margin-top: 14px;">Mute Accumulation Rules</label>
-                        <div id="mute_rules_container" class="rules-list-container"></div>
+                        <div id="mute_rules_container" class="rules-list-container">
+                            <span class="empty-rules-placeholder" data-empty-for="mute">No mute rules yet - click "Add Mute Rule" below.</span>
+                        </div>
                         <button type="button" id="add_mute_rule_btn" class="add-rule-btn">
                             <i class="fa-solid fa-plus"></i> Add Mute Rule
                         </button>
 
                         <!-- 3. Kick Accumulation Rules -->
                         <label class="form-label" style="border-left: 3px solid var(--accent-red); padding-left: 8px; margin-top: 14px;">Kick Accumulation Rules</label>
-                        <div id="kick_rules_container" class="rules-list-container"></div>
+                        <div id="kick_rules_container" class="rules-list-container">
+                            <span class="empty-rules-placeholder" data-empty-for="kick">No kick rules yet - click "Add Kick Rule" below.</span>
+                        </div>
                         <button type="button" id="add_kick_rule_btn" class="add-rule-btn">
                             <i class="fa-solid fa-plus"></i> Add Kick Rule
                         </button>
@@ -986,60 +1090,99 @@
                 });
             });
 
-            // --- [4] إدارة نظام القواعد المتعددة المتدرجة (Dynamic Rules Builder) ---
-            const warnContainer = document.getElementById('warn_rules_container');
-            const muteContainer = document.getElementById('mute_rules_container');
-            const kickContainer = document.getElementById('kick_rules_container');
+            // ============================================================
+            // [4] Automated Infraction System - Dynamic Rules (v5.3)
+            // ============================================================
+            // كل قاعدة (warn/mute/kick) صف مستقل بجدول auto_mod_rule_config -
+            // تُحفظ/تُحذف فوراً عبر /guild/:guildId/auto-mod-rules (راجع
+            // apiRouter.js Section 3.5)، مو جزء من زر "Save Changes" العام
+            // بالأسفل (buildPayload() العام بـ dashboard.js لا يلمس هذا
+            // القسم إطلاقاً - ولا يحتاج، لأن ما فيه أي input بداخله بدون
+            // parent .rules-list-container له id مباشر يُقرأ تلقائياً).
 
-            function createRuleRow(type) {
+            const RULE_ACTION_OPTIONS = {
+                warn: [
+                    { value: 'mute', label: 'Mute' },
+                    { value: 'kick', label: 'Kick' },
+                    { value: 'ban', label: 'Ban' }
+                ],
+                mute: [
+                    { value: 'demote', label: 'Demote (Strip Roles)' },
+                    { value: 'kick', label: 'Kick' },
+                    { value: 'ban', label: 'Ban' }
+                ],
+                kick: [
+                    { value: 'ban', label: 'Ban' }
+                ]
+            };
+            const RULE_TRIGGER_LABEL = { warn: 'Warnings', mute: 'Mutes', kick: 'Kicks' };
+
+            /** يظهر/يخفي عبارة "لا توجد قواعد بعد" حسب عدد الصفوف الفعلي بالحاوية */
+            function updateEmptyPlaceholder(container) {
+                const placeholder = container.querySelector('.empty-rules-placeholder');
+                if (!placeholder) return;
+                const hasRows = container.querySelector('.action-row-builder') !== null;
+                placeholder.style.display = hasRows ? 'none' : 'block';
+            }
+
+            /** يعرض رسالة خطأ صغيرة أسفل الصف لمدة 3 ثواني (عتبة مكررة، حقل ناقص...) */
+            function showRuleRowError(row, msg) {
+                let errEl = row.querySelector('.rule-row-error');
+                if (!errEl) {
+                    errEl = document.createElement('small');
+                    errEl.className = 'rule-row-error';
+                    row.appendChild(errEl);
+                }
+                errEl.textContent = msg;
+                clearTimeout(errEl._hideTimer);
+                errEl._hideTimer = setTimeout(() => errEl.remove(), 3000);
+            }
+
+            /**
+             * ينشئ صف قاعدة واحد. existingRule (لو موجود) يعني الصف محمّل من
+             * قاعدة البيانات فعلاً (له data-rule-id) - وإلا فهو صف جديد فاضي
+             * (زر "Add Rule") ينحفظ لأول مرة بضغطة زر الحفظ بالصف نفسه.
+             */
+            function createRuleRow(type, existingRule = null) {
                 const row = document.createElement('div');
                 row.className = 'action-row-builder';
+                if (existingRule) row.dataset.ruleId = existingRule.id;
 
-                let triggerUnit = '';
-                let optionsHtml = '<option value="" disabled selected>Select action...</option>';
-
-                if (type === 'warn') {
-                    triggerUnit = 'Warnings';
-                    optionsHtml += `
-                        <option value="mute">Mute</option>
-                        <option value="kick">Kick</option>
-                        <option value="ban">Ban</option>
-                    `;
-                } else if (type === 'mute') {
-                    triggerUnit = 'Mutes';
-                    optionsHtml += `
-                        <option value="demote">Demote (Strip Roles)</option>
-                        <option value="kick">Kick</option>
-                        <option value="ban">Ban</option>
-                    `;
-                } else if (type === 'kick') {
-                    triggerUnit = 'Kicks';
-                    optionsHtml += `
-                        <option value="ban">Ban</option>
-                    `;
-                }
+                const optionsHtml = RULE_ACTION_OPTIONS[type]
+                    .map(opt => `<option value="${opt.value}">${opt.label}</option>`)
+                    .join('');
 
                 row.innerHTML = `
                     <span>After</span>
                     <input type="number" class="form-input inline-input rule-threshold" placeholder="1" min="1" max="50">
-                    <span>${triggerUnit}</span>
+                    <span>${RULE_TRIGGER_LABEL[type]}</span>
                     <i class="fa-solid fa-arrow-right-long rule-arrow-icon"></i>
                     <span>Apply Action</span>
                     <select class="form-select inline-select rule-action">
+                        <option value="" disabled selected>Select action...</option>
                         ${optionsHtml}
                     </select>
                     <span>for</span>
                     <input type="text" class="form-input inline-time-input duration-input rule-duration" placeholder="e.g., 12h" maxlength="6">
-                    <button type="button" class="btn-delete-rule" title="Delete Rule">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
+                    <button type="button" class="btn-save-rule" title="Save Rule"><i class="fa-solid fa-check"></i></button>
+                    <button type="button" class="btn-delete-rule" title="Delete Rule"><i class="fa-solid fa-trash-can"></i></button>
                 `;
 
+                const thresholdInput = row.querySelector('.rule-threshold');
                 const actionSelect = row.querySelector('.rule-action');
                 const durationInput = row.querySelector('.rule-duration');
+                const saveBtn = row.querySelector('.btn-save-rule');
                 const deleteBtn = row.querySelector('.btn-delete-rule');
 
-                actionSelect.addEventListener('change', () => {
+                if (existingRule) {
+                    thresholdInput.value = existingRule.threshold;
+                    actionSelect.value = existingRule.action;
+                    durationInput.value = existingRule.duration || '';
+                }
+
+                // Kick لا يقبل مدة إطلاقاً - نفس القيد الموجود بقاعدة البيانات
+                // (chk_auto_mod_rule_duration) مطبّق هنا بصرياً مسبقاً
+                function syncDurationDisabledState() {
                     if (actionSelect.value === 'kick') {
                         durationInput.value = '';
                         durationInput.disabled = true;
@@ -1048,29 +1191,141 @@
                         durationInput.disabled = false;
                         durationInput.placeholder = 'e.g., 12h';
                     }
-                });
+                }
+                syncDurationDisabledState();
+                actionSelect.addEventListener('change', syncDurationDisabledState);
 
                 durationInput.addEventListener('input', () => sanitizeDurationField(durationInput));
-                deleteBtn.addEventListener('click', () => row.remove());
+
+                saveBtn.addEventListener('click', () => saveRule(type, row));
+                deleteBtn.addEventListener('click', () => deleteRule(row));
 
                 return row;
             }
 
-            if (warnContainer) warnContainer.appendChild(createRuleRow('warn'));
-            if (muteContainer) muteContainer.appendChild(createRuleRow('mute'));
-            if (kickContainer) kickContainer.appendChild(createRuleRow('kick'));
+            /** يحفظ صف واحد (POST لو جديد، PUT لو له data-rule-id مسبقاً) */
+            async function saveRule(type, row) {
+                const guildId = getGuildId();
+                if (!guildId) return;
 
+                const threshold = parseInt(row.querySelector('.rule-threshold').value, 10);
+                const action = row.querySelector('.rule-action').value;
+                const durationInput = row.querySelector('.rule-duration');
+                const duration = durationInput.disabled ? null : (durationInput.value.trim() || null);
+                const ruleId = row.dataset.ruleId;
+
+                if (!Number.isInteger(threshold) || threshold < 1 || threshold > 50) {
+                    return showRuleRowError(row, 'Enter a valid threshold (1-50).');
+                }
+                if (!action) {
+                    return showRuleRowError(row, 'Select an action.');
+                }
+
+                const saveBtn = row.querySelector('.btn-save-rule');
+                saveBtn.disabled = true;
+
+                try {
+                    const response = await fetch(
+                        ruleId ? `${API_BASE}/guild/${guildId}/auto-mod-rules/${ruleId}` : `${API_BASE}/guild/${guildId}/auto-mod-rules`,
+                        {
+                            method: ruleId ? 'PUT' : 'POST',
+                            headers: getHeaders(),
+                            body: JSON.stringify(ruleId ? { threshold, action, duration } : { ruleType: type, threshold, action, duration })
+                        }
+                    );
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        return showRuleRowError(row, data.error || 'Failed to save rule.');
+                    }
+
+                    if (data.rule && data.rule.id) row.dataset.ruleId = data.rule.id;
+                    row.classList.remove('rule-saved-flash');
+                    void row.offsetWidth; // إعادة تشغيل الأنيميشن لو الصف اتحفظ أكثر من مرة متتالية
+                    row.classList.add('rule-saved-flash');
+                } catch (err) {
+                    showRuleRowError(row, 'Network error - could not save rule.');
+                } finally {
+                    saveBtn.disabled = false;
+                }
+            }
+
+            /** يحذف الصف - فوري من القاعدة لو محفوظ مسبقاً، أو محلي فقط لو صف جديد لسه ما انحفظ */
+            async function deleteRule(row) {
+                const guildId = getGuildId();
+                const ruleId = row.dataset.ruleId;
+                const container = row.parentElement;
+
+                if (!ruleId) {
+                    row.remove();
+                    if (container) updateEmptyPlaceholder(container);
+                    return;
+                }
+
+                const deleteBtn = row.querySelector('.btn-delete-rule');
+                deleteBtn.disabled = true;
+
+                try {
+                    const response = await fetch(`${API_BASE}/guild/${guildId}/auto-mod-rules/${ruleId}`, {
+                        method: 'DELETE',
+                        headers: getHeaders()
+                    });
+                    if (response.ok) {
+                        row.remove();
+                        if (container) updateEmptyPlaceholder(container);
+                    } else {
+                        deleteBtn.disabled = false;
+                        showRuleRowError(row, 'Failed to delete rule.');
+                    }
+                } catch (err) {
+                    deleteBtn.disabled = false;
+                    showRuleRowError(row, 'Network error - could not delete rule.');
+                }
+            }
+
+            const rulesContainers = {
+                warn: document.getElementById('warn_rules_container'),
+                mute: document.getElementById('mute_rules_container'),
+                kick: document.getElementById('kick_rules_container')
+            };
+
+            // زر "Add Rule" لكل نوع - يضيف صف فاضي جديد بدون data-rule-id
             document.getElementById('add_warn_rule_btn')?.addEventListener('click', () => {
-                warnContainer.appendChild(createRuleRow('warn'));
+                rulesContainers.warn.appendChild(createRuleRow('warn'));
+                updateEmptyPlaceholder(rulesContainers.warn);
             });
-
             document.getElementById('add_mute_rule_btn')?.addEventListener('click', () => {
-                muteContainer.appendChild(createRuleRow('mute'));
+                rulesContainers.mute.appendChild(createRuleRow('mute'));
+                updateEmptyPlaceholder(rulesContainers.mute);
+            });
+            document.getElementById('add_kick_rule_btn')?.addEventListener('click', () => {
+                rulesContainers.kick.appendChild(createRuleRow('kick'));
+                updateEmptyPlaceholder(rulesContainers.kick);
             });
 
-            document.getElementById('add_kick_rule_btn')?.addEventListener('click', () => {
-                kickContainer.appendChild(createRuleRow('kick'));
-            });
+            /** يجلب كل القواعد المحفوظة للسيرفر ويوزّعها على الحاويات الثلاث */
+            async function loadAutoModRules() {
+                const guildId = getGuildId();
+                if (!guildId) return;
+
+                try {
+                    const response = await fetch(`${API_BASE}/guild/${guildId}/auto-mod-rules`, { headers: getHeaders() });
+                    if (!response.ok) return;
+                    const rules = await response.json();
+                    if (!Array.isArray(rules)) return;
+
+                    rules.forEach(rule => {
+                        const container = rulesContainers[rule.rule_type];
+                        if (container) container.appendChild(createRuleRow(rule.rule_type, rule));
+                    });
+
+                    Object.values(rulesContainers).forEach(c => c && updateEmptyPlaceholder(c));
+                } catch (err) {
+                    console.error('[Auto-Mod Rules] Failed to load existing rules:', err);
+                }
+            }
+
+            loadAutoModRules();
         });
     </script>
 </body>

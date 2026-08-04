@@ -67,12 +67,20 @@ const ARRAY_COLUMNS = new Set([
  * عن جداول الإعدادات "صف واحد لكل سيرفر".
  *
  * role_delay_config: PK = (id_guild, id_role) - راجع omniguard_schema_v5.sql.
+ * auto_mod_rule_config: عدة قواعد لكل (سيرفر + نوع) - راجع v5.3 delta.
+ *         [ملاحظة] هذا الجدول لا يُقرأ فعلياً عبر المسار العام (auto-mod.html
+ *         تستخدم مسارات مخصصة /guild/:guildId/auto-mod-rules - راجع Section
+ *         3.5 بـ apiRouter.js). أُضيف هنا فقط كطبقة حماية دفاعية إضافية: لو
+ *         أي كود مستقبلي استدعى المسار العام بالغلط لهذا الجدول، سيرجع
+ *         مصفوفة بدل ما يفشل بصمت أو يكسر UPDATE على كل قواعد السيرفر دفعة
+ *         وحدة.
  *
  * أضف أي جدول آخر متعدد الصفوف هنا لو احتجت الداشبورد يقرأه عبر المسار
  * العام مستقبلاً (مثل role_removal_schedule لو صار له صفحة داشبورد).
  */
 const MULTI_ROW_TABLES = new Set([
-    'role_delay_config'
+    'role_delay_config',
+    'auto_mod_rule_config'
 ]);
 
 /**
@@ -308,7 +316,112 @@ async function addWarning({ guildId, userId, reason, moderatorId, expiresAt }) {
 }
 
 // ============================================
-// 4. SYSTEM INITIALIZATION
+// 4. AUTO-MOD DYNAMIC INFRACTION RULES (v5.3)
+// ============================================
+// auto_mod_rule_config: عدة قواعد لكل (سيرفر + نوع warn/mute/kick). يستبدل
+// نظام Tier1/Tier2 الثابت القديم (limit_trigger_warn/limit_trigger_severe -
+// أعمدة متروكة الآن، راجع COMMENT ON COLUMN بملف v5.3 delta). هذا الجدول
+// متعدد الصفوف فعلياً (راجع MULTI_ROW_TABLES بالأعلى)، فلا يُدار عبر
+// universalGet/universalUpdate - يستخدم مسارات apiRouter.js مخصصة
+// (/guild/:guildId/auto-mod-rules) تنادي الدوال الأربع تحت مباشرة.
+
+/**
+ * يرجع كل القواعد لسيرفر معيّن (كل الأنواع)، أو نوع واحد بس لو مُرِّر
+ * ruleType. مرتبة تصاعدياً حسب threshold عشان تظهر بترتيب منطقي بالواجهة.
+ * @param {string} guildId
+ * @param {'warn'|'mute'|'kick'|null} ruleType
+ */
+async function getAutoModRules(guildId, ruleType = null) {
+    let query = supabase.from('auto_mod_rule_config').select('*').eq('id_guild', guildId);
+    if (ruleType) query = query.eq('rule_type', ruleType);
+    query = query.order('threshold', { ascending: true });
+
+    const { data, error } = await query;
+    if (error) {
+        console.error('[Database Error] getAutoModRules:', error.message);
+        throw error;
+    }
+    return data || [];
+}
+
+/**
+ * ينشئ قاعدة جديدة. يرمي الخطأ الخام لو القيد UNIQUE(id_guild, rule_type,
+ * threshold) أو أي CHECK constraint (تطابق action مع rule_type، أو duration
+ * مع action='kick') انتهك - apiRouter.js يحوّل err.code (23505/23514) لرسالة
+ * مفهومة، فما نبتلعه هنا.
+ * @param {{guildId:string, ruleType:string, threshold:number, action:string, duration:?string}} params
+ */
+async function addAutoModRule({ guildId, ruleType, threshold, action, duration }) {
+    const { data, error } = await supabase
+        .from('auto_mod_rule_config')
+        .insert({
+            id_guild: guildId,
+            rule_type: ruleType,
+            threshold,
+            action,
+            duration: duration || null
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.error('[Database Error] addAutoModRule:', error.message);
+        throw error;
+    }
+    return data;
+}
+
+/**
+ * يعدّل قاعدة موجودة. eq('id_guild', guildId) هنا مو مجرد فلترة إضافية -
+ * هي فحص ملكية فعلي يمنع تعديل قاعدة تخص سيرفر ثاني حتى لو ruleId تخمّن
+ * بالغلط أو انتقل بطريقة خاطئة. يرجع null (مو throw) لو ما فيه صف مطابق
+ * (id غلط أو يخص سيرفر ثاني) - apiRouter.js يحولها لـ 404 نظيف.
+ * @param {string} ruleId
+ * @param {string} guildId
+ * @param {{threshold:?number, action:?string, duration:?string}} updates
+ */
+async function updateAutoModRule(ruleId, guildId, updates) {
+    const payload = { ...updates, updated_at: new Date().toISOString() };
+
+    const { data, error } = await supabase
+        .from('auto_mod_rule_config')
+        .update(payload)
+        .eq('id', ruleId)
+        .eq('id_guild', guildId)
+        .select()
+        .single();
+
+    if (error) {
+        if (error.code === 'PGRST116') return null; // ما فيه صف مطابق - راجع الشرح أعلاه
+        console.error('[Database Error] updateAutoModRule:', error.message);
+        throw error;
+    }
+    return data;
+}
+
+/**
+ * يحذف قاعدة. نفس فحص الملكية بـ eq('id_guild', guildId) أعلاه. لا يرمي
+ * خطأ لو ما فيه صف مطابق أصلاً (حذف غير موجود = نجاح ساكت، متوافق مع سلوك
+ * زر الحذف الفوري بالواجهة).
+ * @param {string} ruleId
+ * @param {string} guildId
+ */
+async function deleteAutoModRule(ruleId, guildId) {
+    const { error } = await supabase
+        .from('auto_mod_rule_config')
+        .delete()
+        .eq('id', ruleId)
+        .eq('id_guild', guildId);
+
+    if (error) {
+        console.error('[Database Error] deleteAutoModRule:', error.message);
+        throw error;
+    }
+    return true;
+}
+
+// ============================================
+// 5. SYSTEM INITIALIZATION
 // ============================================
 // ✅ تحقّقت: دالة init_guild_settings(p_guild_id TEXT) موجودة بالضبط بنفس
 // الاسم واسم المعامل بالسكيما، وتُنشئ صفوف افتراضية بست جداول الإعدادات.
@@ -351,6 +464,12 @@ module.exports = {
     getBackupRoles,
     deleteBackupRoles,
     addWarning,
+
+    // Auto-Mod Dynamic Rules (v5.3)
+    getAutoModRules,
+    addAutoModRule,
+    updateAutoModRule,
+    deleteAutoModRule,
 
     // System
     initGuildSettings,

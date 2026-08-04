@@ -50,6 +50,11 @@ const { isMemberCommandExempt } = require('./GRS');
 const spamTracker = new Map();
 const adminActionTracker = new Map();
 
+// [v5.3 NEW] عداد سبام الأوامر - منفصل تماماً عن spamTracker (اللي يفحص كل
+// رسالة عادية). مفتاحه بنفس نمط guildId:userId، بس مصدره مختلف: يُستدعى من
+// commandhandler.js فقط (راجع checkCommandSpam بالأسفل)، مو من handleMessage.
+const commandSpamTracker = new Map();
+
 
 // ---------------------------------------------------------------------------
 // أداة تحويل المدة النصية (30m, 2h, 1d ...) إلى مللي ثانية - نفس وحدات mute.js
@@ -205,7 +210,51 @@ module.exports = {
             spamTracker.set(key, { count: 1, lastMsg: now });
         }
     },
- /**
+
+    /**
+     * [v5.3 NEW] Command Spam Detection
+     * ------------------------------------------------------------------
+     * منفصل تماماً عن checkSpam() فوق (اللي يفحص كل رسالة عادية). هذا يُستدعى
+     * فقط من commandhandler.js، حصراً لما رسالة تُطابق أمر فعلي بالبوت - يقرأ
+     * أعمدة cmd_* الجديدة (v5.3) بدل spam_* و cooldown_spam العامة، عشان
+     * تصعيد سبام الأوامر يبقى مستقل الإعداد عن سبام الدردشة العادي.
+     *
+     * يرجع true لو تم تطبيق عقوبة (أو لو الأكشن 'none') - commandhandler.js
+     * يوقف تنفيذ الأمر بهالحالة. يرجع false لو ما فيه سبام (الأمر يكمل تنفيذه).
+     */
+    async checkCommandSpam(message, dbUtils) {
+        if (!message.guild) return false;
+
+        const settings = await universalGet('setting_moderation_security', message.guild.id);
+        if (!settings) return false;
+
+        const key = `${message.guild.id}:${message.author.id}`;
+        const now = Date.now();
+        const limit = settings.cmd_spam_max_commands || 5;
+        const cooldownMs = parseInt(settings.cmd_cooldown_spam) * 1000 || 10000;
+
+        if (!commandSpamTracker.has(key)) {
+            commandSpamTracker.set(key, { count: 1, lastMsg: now });
+            return false;
+        }
+
+        const userData = commandSpamTracker.get(key);
+        if (now - userData.lastMsg >= cooldownMs) {
+            commandSpamTracker.set(key, { count: 1, lastMsg: now });
+            return false;
+        }
+
+        userData.count++;
+        if (userData.count < limit) return false;
+
+        commandSpamTracker.delete(key); // إعادة تصفير بعد العقوبة - نفس فلسفة checkSpam
+        if (settings.cmd_spam_default_action === 'none' || !settings.cmd_spam_default_action) return true;
+
+        await this.applyPunishment(message, 'Command Spamming', settings.cmd_spam_default_action, settings.cmd_spam_action_duration);
+        return true;
+    },
+
+    /**
      * Admin Protection Logic (Anti-Raid)
      * Tracks consecutive administrative actions
      * [FIX #9] المفتاح الآن `guildId:moderatorId` بدل moderatorId فقط
@@ -321,42 +370,63 @@ module.exports = {
         }
     },
 /**
-     * [NEW] Tier 2 "Severe" Escalation Check
+     * [v5.3 REWRITE] Dynamic Rule-Based Escalation Check
      * ------------------------------------------------------------------
-     * يتحقق بعد كل عملية Mute فعلية من إجمالي عدد مرات الميوت لنفس العضو
-     * بهالسيرفر (log_moderation, action_type='mute')، ولو وصل بالضبط
-     * لقيمة limit_trigger_severe يطبّق severe_trigger_action (يقرأها من
-     * setting_moderation_security بعد توسيع CHECK constraint بـ v5.3).
+     * يستبدل checkSevereEscalation() الثابتة القديمة (كانت تقرأ عمود واحد
+     * limit_trigger_severe فقط). يقرأ الآن من auto_mod_rule_config - جدول
+     * مفتوح يسمح بعدد غير محدود من القواعد لكل triggerType.
      *
-     * ⚠️ قرار مفترض لازم تأكيده قبل الرفع: نستخدم `count === limit`
-     * (مساواة تامة) مو `count >= limit`، عشان العقوبة تتفعّل مرة وحدة
-     * بالضبط عند الوصول للحد وما تتكرر على كل ميوت جاي بعدها. ما فيه
-     * عمود "تصفير عداد" لهذا الـ Tier بالسكيما (بعكس warn_reset_behavior
-     * لـ Tier 1) - لو تبي سلوك مختلف (تصفير، أو تكرار كل مرة يتجاوز
-     * الحد)، هذا يحتاج قرار منك + عمود جديد محتمل بالسكيما.
+     * @param {Guild} guild
+     * @param {GuildMember} member
+     * @param {User} author
+     * @param {'mute'|'kick'} triggerType - نوع العقوبة اللي لسه صارت للتو
+     *        (نعد كم مرة صارت هذي بالضبط لهذا العضو، ونقارنها بعتبات القواعد
+     *        المسجّلة لنفس النوع).
+     *
+     * [FIX سلوك محفوظ من النسخة القديمة] `threshold === count` (مساواة تامة)
+     * مو `>=` - نفس فلسفة checkSevereEscalation الأصلية بالضبط: كل قاعدة
+     * تتفعّل مرة واحدة بالضبط عند الوصول لعتبتها، وما تتكرر على كل عقوبة
+     * لاحقة من نفس النوع. القيد UNIQUE(id_guild, rule_type, threshold)
+     * بالسكيما يضمن عدم وجود قاعدتين بنفس العتبة أصلاً، فـ .find() هنا
+     * دايماً يرجع قاعدة وحدة كحد أقصى.
+     *
+     * [NEW] تصعيد متسلسل (Chained Escalation): لو العقوبة الناتجة من هذي
+     * القاعدة نفسها 'mute' أو 'kick'، نستدعي نفس الفحص مرة ثانية لهذا النوع
+     * الجديد فوراً - يسمح بسلاسل زي "6 ميوتات = طرد" ثم "2 طرد = باند" تُفحص
+     * بنفس اللحظة بدون انتظار عقوبة تالية منفصلة.
+     *
+     * [قيد موروث من النسخة القديمة، لم يتغيّر] يُستدعى فقط من داخل
+     * applyPunishment() بهذا الملف (يعني بس لما AutoMod نفسه يطبّق mute/kick
+     * تلقائياً، أو warn.js يستدعيه صراحة بعد تصعيده الخاص - راجع warn.js).
+     * عقوبات mute/kick يدوية بأوامر staff مباشرة (mute.js/kick.js) ما تمر
+     * من هنا حالياً - نفس الفجوة الموجودة أصلاً بالنسخة القديمة، لم تُوسَّع
+     * ولم تُصلح بهذا التعديل (يحتاج ملفات mute.js/kick.js لإضافة الاستدعاء
+     * فيها لو حبيت تغطيها لاحقاً).
      */
-    async checkSevereEscalation(guild, member, author) {
-        const settings = await universalGet('setting_moderation_security', guild.id);
-        if (!settings || !settings.limit_trigger_severe || !settings.severe_trigger_action) return;
-        if (settings.severe_trigger_action === 'none') return;
-
+    async checkRuleEscalation(guild, member, author, triggerType) {
         try {
+            const rules = await dbUtils.getAutoModRules(guild.id, triggerType);
+            if (!rules || rules.length === 0) return;
+
             const supabase = require('../supabase/db');
             const { count, error } = await supabase
                 .from('log_moderation')
                 .select('id', { count: 'exact', head: true })
                 .eq('id_guild', guild.id)
                 .eq('id_target', author.id)
-                .eq('action_type', 'mute');
+                .eq('action_type', triggerType);
 
-            if (error || count == null || count !== settings.limit_trigger_severe) return;
+            if (error || count == null) return;
 
-            const reason = `Severe Infraction Escalation: reached ${settings.limit_trigger_severe} mutes`;
-            const severeAction = settings.severe_trigger_action;
+            const matchedRule = rules.find(r => r.threshold === count);
+            if (!matchedRule) return;
 
-            switch (severeAction) {
+            const reason = `Auto-Escalation: reached ${count} ${triggerType}(s)`;
+            const escAction = matchedRule.action;
+
+            switch (escAction) {
                 case 'mute': {
-                    const ms = parseDurationToMs(settings.severe_trigger_duration) || 10 * 60 * 1000;
+                    const ms = parseDurationToMs(matchedRule.duration) || 10 * 60 * 1000;
                     if (!member.moderatable) return;
                     await member.timeout(ms, reason);
                     await supabase.from('temp_actions').insert({
@@ -383,9 +453,14 @@ module.exports = {
                     return;
             }
 
-            await dbUtils.addInfraction(guild.id, author.id, guild.client.user.id, severeAction, reason, settings.severe_trigger_duration, author.username);
+            await dbUtils.addInfraction(guild.id, author.id, guild.client.user.id, escAction, reason, matchedRule.duration, author.username);
+
+            // [NEW] تصعيد متسلسل - راجع الشرح بالأعلى
+            if (escAction === 'mute' || escAction === 'kick') {
+                await this.checkRuleEscalation(guild, member, author, escAction);
+            }
         } catch (err) {
-            console.error(`[AutoMod] Severe escalation check failed for ${author.tag}: ${err.message}`);
+            console.error(`[AutoMod] Rule escalation check failed (${triggerType}) for ${author.tag}: ${err.message}`);
         }
     },
 
@@ -485,9 +560,11 @@ module.exports = {
             // استُبدلت بـ dbUtils.addInfraction المستخدمة بباقي ملفات الأوامر (ban.js, kick.js, mute.js).
             await dbUtils.addInfraction(guild.id, author.id, message.client.user.id, action, reason, duration, author.username);
 
-            // [NEW] فحص تصعيد Tier 2 "Severe" - بس لما تكون العقوبة الحالية 'mute'
-            if (action === 'mute') {
-                await this.checkSevereEscalation(guild, member, author);
+            // [v5.3 REWRITE] فحص القواعد التراكمية الديناميكية - لكل من mute
+            // و kick الآن (النسخة القديمة كانت تفحص mute فقط لأن Tier 2 كانت
+            // مقفلة على "بعد X ميوت"؛ الجدول الجديد يدعم تصعيد Kick→Ban أيضاً).
+            if (action === 'mute' || action === 'kick') {
+                await this.checkRuleEscalation(guild, member, author, action);
             }
 
         } catch (error) {
