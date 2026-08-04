@@ -406,15 +406,26 @@
                 }
             });
 
-            // 2. عزل الحقول المؤقتة عن عملية الحفظ العامة
-            const PENDING_FIELD_IDS = ['autoRemoveRolesBox', 'removalDelayTime'];
+            // 2. توحيد payload الخاص بالصفحة ليشمل القائمة الثانية والقيمة المفردة
+            //    (مفتاح target_roles_to_strip وremoval_delay_duration يُحدّدان بحسب
+            //     اسم العمود الذي يتوقعه الـ Backend عندك، وما زال هذا الملف يترك
+            //     باقي منطق buildPayload() العام كما هو).
             const checkPayload = setInterval(() => {
                 if (typeof window.buildPayload === 'function') {
                     const originalBuildPayload = window.buildPayload;
                     window.buildPayload = function () {
                         const payload = originalBuildPayload();
                         if (payload && payload.updates) {
-                            PENDING_FIELD_IDS.forEach((id) => delete payload.updates[id]);
+                            payload.updates.new_user_auto_roles = typeof window.collectTags === 'function'
+                                ? window.collectTags('#new_user_auto_roles')
+                                : payload.updates.new_user_auto_roles || [];
+
+                            payload.updates.target_roles_to_strip = typeof window.collectTags === 'function'
+                                ? window.collectTags('#autoRemoveRolesBox')
+                                : [];
+
+                            const delayInput = document.getElementById('removalDelayTime');
+                            payload.updates.removal_delay_duration = delayInput ? delayInput.value.trim() : null;
                         }
                         return payload;
                     };
