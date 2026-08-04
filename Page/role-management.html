@@ -394,30 +394,35 @@
     <script src="dashboard.js"></script>
 
     <script>
-        // تعريف الاحتياط لدالة فتح وإغلاق القوائم لضمان عدم توقف المتصفح
-        window.toggleDropdown = window.toggleDropdown || function(dropdownId) {
-            const dropdown = document.getElementById(dropdownId);
-            if (dropdown) {
-                dropdown.classList.toggle('show');
-            }
-        };
-
         document.addEventListener('DOMContentLoaded', function () {
-            // عزل الحقول الخاصة بالتأخير من الحفظ التلقائي لجدول setting_management_role
-            const PENDING_FIELD_IDS = ['autoRemoveRolesBox', 'removalDelayTime'];
-            
-            if (typeof window.buildPayload === 'function') {
-                const originalBuildPayload = window.buildPayload;
-                window.buildPayload = function () {
-                    const payload = originalBuildPayload();
-                    if (payload && payload.updates) {
-                        PENDING_FIELD_IDS.forEach((id) => delete payload.updates[id]);
+            // 1. تفعيل فتح القوائم المنسدلة تلقائياً عند الضغط على أي selector-box
+            document.addEventListener('click', function (e) {
+                const box = e.target.closest('.selector-box');
+                if (box && box.dataset.dropdown) {
+                    e.stopPropagation();
+                    if (typeof window.toggleDropdown === 'function') {
+                        window.toggleDropdown(box.dataset.dropdown);
                     }
-                    return payload;
-                };
-            }
+                }
+            });
 
-            // التثبت والتحقق من صحة مدة الإزالة (Removal Delay Duration)
+            // 2. عزل الحقول المؤقتة عن عملية الحفظ العامة
+            const PENDING_FIELD_IDS = ['autoRemoveRolesBox', 'removalDelayTime'];
+            const checkPayload = setInterval(() => {
+                if (typeof window.buildPayload === 'function') {
+                    const originalBuildPayload = window.buildPayload;
+                    window.buildPayload = function () {
+                        const payload = originalBuildPayload();
+                        if (payload && payload.updates) {
+                            PENDING_FIELD_IDS.forEach((id) => delete payload.updates[id]);
+                        }
+                        return payload;
+                    };
+                    clearInterval(checkPayload);
+                }
+            }, 50);
+
+            // 3. التحقق من صحة مدة الإزالة (Removal Delay Duration)
             const DURATION_PATTERN = /^\d+(s|min|h|d|w|mo|y)$/;
             const delayInput = document.getElementById('removalDelayTime');
             const delayError = document.getElementById('removalDelayError');
