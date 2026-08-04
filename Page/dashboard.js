@@ -169,14 +169,8 @@ async function fetchGuildStructure() {
         const response = await fetch(`${API_BASE}/guild/${guildId}/guild_structure_cache`, { headers: getHeaders() });
         const data = await response.json();
 
-        // [FIX] response.ok يرجع false لأي حالة 304 (خارج مدى 200-299) رغم
-        // إن fetch() فعلياً نجح وسلّم البيانات الحقيقية من كاش المتصفح -
-        // كان يفرّغ guildStructure.roles/channels بالغلط كل مرة يرجع فيها
-        // 304 (يصير كثير لأن الرد نفسه ما يتغيّر بين تحميلة وتانية). الاعتماد
-        // على شكل البيانات نفسها (Array.isArray) كافٍ ومضمون هنا؛ أي فشل
-        // شبكة حقيقي أصلاً يوقف عند catch بالأعلى قبل ما يوصل هالسطر.
-        guildStructure.roles = Array.isArray(data?.roles) ? data.roles : [];
-        guildStructure.channels = Array.isArray(data?.channels) ? data.channels : [];
+        guildStructure.roles = (response.ok && Array.isArray(data?.roles)) ? data.roles : [];
+        guildStructure.channels = (response.ok && Array.isArray(data?.channels)) ? data.channels : [];
     } catch (error) {
         console.error('[Guild Structure Error]:', error);
         guildStructure.roles = [];
@@ -443,12 +437,7 @@ async function loadPageSettings() {
             try {
                 const response = await fetch(`${API_BASE}/guild/${guildId}/${table}`, { headers: getHeaders() });
                 const data = await response.json();
-                // [FIX] نفس علة response.ok مع 304 (راجع fetchGuildStructure
-                // بالأعلى) - هنا كانت أخطر لأنها تمنع تعبئة الفورم كامل بس
-                // كل ما رجع 304 من كاش المتصفح. status < 400 يغطي كل حالات
-                // النجاح الحقيقية (200-2xx وكذلك 304) ويستثني فقط الأخطاء
-                // الفعلية (400/401/500...).
-                return { table, ok: response.status < 400, data };
+                return { table, ok: response.ok, data };
             } catch (err) {
                 return { table, ok: false, data: null, error: err };
             }
