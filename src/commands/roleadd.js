@@ -223,12 +223,13 @@ async function handleDemote(message, args, dbUtils = null) {
 
     try {
         const activeAutoMod = autoMod || require('./AutoMod');
-        const demoted = await activeAutoMod.demoteMember(target, reason, targetRole);
+        const demoteResult = await activeAutoMod.demoteMember(target, reason, targetRole);
 
-        if (!demoted) {
+        if (!demoteResult.success) {
             return message.reply('❌ Could not demote this member. Check role hierarchy or specified target role.');
         }
 
+        const finalRoleName = targetRole?.name || demoteResult.roleName || 'No Role Assigned';
         const userTag = target.user?.tag || target.user?.username || target.id;
 
         if (dbUtils?.addInfraction) {
@@ -258,7 +259,7 @@ async function handleDemote(message, args, dbUtils = null) {
                 channel: message.channel,
                 action: 'demote',
                 reason: reason,
-                roleName: targetRole?.name || 'Auto/Highest Role',
+                roleName: finalRoleName,
                 duration: null
             });
         }

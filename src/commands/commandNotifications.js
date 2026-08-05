@@ -85,7 +85,7 @@ async function getActiveWarningCount(guildId, userId) {
  * ما يرمي أي خطأ للخارج - كل فشل (DM مقفل، صلاحية ناقصة بالقناة، ...) يُبتلع
  * بصمت عشان ما يوقف تنفيذ العقوبة نفسها اللي أصلاً صارت بنجاح.
  */
-async function notifyCommandExecution({ guild, targetMember, moderator, channel = null, action, reason, duration = null }) {
+async function notifyCommandExecution({ guild, targetMember, moderator, channel = null, action, reason, duration = null, roleName = null }) {
     if (!guild || !targetMember || !action) return;
 
     const settings = await universalGet('setting_guild', guild.id);
@@ -104,6 +104,10 @@ async function notifyCommandExecution({ guild, targetMember, moderator, channel 
         .setColor(color)
         .setTitle(`You have been ${label} in ${guild.name}`)
         .addFields({ name: 'Moderator', value: String(moderatorTag), inline: true });
+
+    // [FIX] حقل الرتبة منفصل تماماً عن Reason - كان يُمرَّر من roleadd.js لكن
+    // يُتجاهل بصمت لأن الدالة ما كانت تستقبله أصلاً بالمعاملات
+    if (roleName) embed.addFields({ name: 'Role', value: String(roleName), inline: true });
 
     if (duration) embed.addFields({ name: 'Duration', value: String(duration), inline: true });
     if (reason) embed.addFields({ name: 'Reason', value: String(reason) });

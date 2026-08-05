@@ -818,7 +818,7 @@
                                 <option value="mute">Mute Member</option>
                                 <option value="kick">Kick Member</option>
                                 <option value="ban">Ban Member</option>
-                                <option value="demote">Demote (Strip Roles)</option>
+                                <option value="demote">Demote (Demote to Safe Role)</option>
                                 <option value="none">None (Delete Message Only)</option>
                             </select>
                         </div>
@@ -1126,11 +1126,13 @@
                     { value: 'ban', label: 'Ban' }
                 ],
                 mute: [
-                    { value: 'demote', label: 'Demote (Strip Roles)' },
+                    { value: 'mute', label: 'Mute' },
                     { value: 'kick', label: 'Kick' },
                     { value: 'ban', label: 'Ban' }
                 ],
                 kick: [
+                    { value: 'mute', label: 'Mute' },
+                    { value: 'kick', label: 'Kick' },
                     { value: 'ban', label: 'Ban' }
                 ]
             };
@@ -1338,7 +1340,15 @@
                         if (container) container.appendChild(createRuleRow(rule.rule_type, rule));
                     });
 
-                    Object.values(rulesContainers).forEach(c => c && updateEmptyPlaceholder(c));
+                    // [تعديل] لو الحاوية طلعت فاضية (ما فيه قواعد محفوظة لهذا النوع)،
+                    // نضيف صف فاضي جاهز تلقائياً بدل الاكتفاء بعبارة "لا توجد قواعد بعد"
+                    Object.entries(rulesContainers).forEach(([type, container]) => {
+                        if (!container) return;
+                        if (container.querySelector('.action-row-builder') === null) {
+                            container.appendChild(createRuleRow(type));
+                        }
+                        updateEmptyPlaceholder(container);
+                    });
                 } catch (err) {
                     console.error('[Auto-Mod Rules] Failed to load existing rules:', err);
                 }

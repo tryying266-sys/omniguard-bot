@@ -52,6 +52,11 @@ const { notifyCommandExecution } = require('./commandNotifications');
 const spamTracker = new Map();
 const adminActionTracker = new Map();
 
+// [NEW] عداد Mass Mentions - يجمع المنشنات عبر رسائل متتالية بدل فحص رسالة وحدة فقط
+const mentionTracker = new Map();
+const MENTION_WINDOW_MS = 15000; // نافذة 15 ثانية تُعتبر "رسائل متتالية"
+const MENTION_THRESHOLD = 15;    // العتبة الإجمالية (برسالة وحدة أو مجمّعة)
+
 // [v5.3 NEW] عداد سبام الأوامر - منفصل تماماً عن spamTracker (اللي يفحص كل
 // رسالة عادية). مفتاحه بنفس نمط guildId:userId، بس مصدره مختلف: يُستدعى من
 // commandhandler.js فقط (راجع checkCommandSpam بالأسفل)، مو من handleMessage.
@@ -160,6 +165,7 @@ module.exports = {
 
         let triggered = false;
         let reason = '';
+        let skipPunishment = false; // نعاقب مرة وحدة بس بكل نافذة Mass Mentions
 
         if (settings.invites_block && inviteRegex.test(message.content)) {
             triggered = true;
@@ -167,16 +173,34 @@ module.exports = {
         } else if (settings.links_block && linkRegex.test(message.content)) {
             triggered = true;
             reason = 'Posting Unauthorized Links';
-        } else if (settings.block_mentions && message.mentions.users.size > 5) {
-            triggered = true;
-            reason = 'Mass Mentioning';
+        } else if (settings.block_mentions && message.mentions.users.size > 0) {
+            const key = `${message.guild.id}:${message.author.id}`;
+            const now = Date.now();
+            const mentionCount = message.mentions.users.size;
+
+            let tracker = mentionTracker.get(key);
+            if (!tracker || now - tracker.windowStart > MENTION_WINDOW_MS) {
+                tracker = { total: 0, windowStart: now, flagged: false, punished: false };
+                mentionTracker.set(key, tracker);
+            }
+            tracker.total += mentionCount;
+
+            const singleMessageExceeds = mentionCount > MENTION_THRESHOLD;
+            if (singleMessageExceeds || tracker.total > MENTION_THRESHOLD) {
+                tracker.flagged = true;
+            }
+
+            if (tracker.flagged) {
+                triggered = true;
+                reason = 'Mass Mentioning';
+                skipPunishment = tracker.punished;
+                tracker.punished = true;
+            }
         }
 
         if (triggered) {
             await message.delete().catch(() => {});
-            // If action is 'none' (Zero Penalty), we just delete and stop
-            // ملاحظة: أضفت 'none' كقيمة مسموحة بالـ CHECK constraint على spam_default_action بملف الـ SQL
-            if (settings.spam_default_action !== 'none') {
+            if (!skipPunishment && settings.spam_default_action !== 'none') {
                 await this.applyPunishment(message, reason, settings.spam_default_action, settings.spam_action_duration);
             }
             return true;
@@ -341,62 +365,62 @@ module.exports = {
     async demoteMember(member, reason, targetRoleInput = null) {
         const guild = member.guild;
         const botMember = guild.members.me;
-        if (!botMember) return false;
+        if (!botMember) return { success: false, roleName: null };
 
         const currentRoles = member.roles.cache.filter(r => r.id !== guild.id && !r.managed);
         if (currentRoles.size === 0) {
             console.log(`[AutoMod] Demote skipped for ${member.user.tag}: no demotable roles.`);
-            return false;
+            return { success: false, roleName: null };
         }
 
         const highestRole = currentRoles.sort((a, b) => b.position - a.position).first();
 
         if (botMember.roles.highest.position <= highestRole.position) {
             console.error(`[AutoMod] Demote failed for ${member.user.tag}: bot's role is not higher than target's highest role.`);
-            return false;
+            return { success: false, roleName: null };
         }
 
         try {
             let targetRole = null;
+            const roleSettings = targetRoleInput ? null : await universalGet('setting_management_role', guild.id);
 
             if (targetRoleInput) {
                 targetRole = targetRoleInput;
-            } else {
-                const roleSettings = await universalGet('setting_management_role', guild.id);
-                const mode = roleSettings?.demote_mode || 'single_rank';
+            } else if (roleSettings?.demote_mode === 'fixed_role' && roleSettings?.demote_target_role) {
+                targetRole = guild.roles.cache.get(roleSettings.demote_target_role) || null;
+            }
 
-                if (mode === 'single_rank') {
-                    const allRoles = Array.from(
-                        guild.roles.cache.filter(r => r.id !== guild.id && !r.managed).values()
-                    ).sort((a, b) => b.position - a.position);
-
-                    const idx = allRoles.findIndex(r => r.id === highestRole.id);
-                    targetRole = idx !== -1
-                        ? allRoles.slice(idx + 1).find(r => this.isRoleSafeForDemotion(r, roleSettings))
-                        : null;
-                } else {
-                    const targetRoleId = roleSettings?.demote_target_role;
-                    if (targetRoleId) {
-                        targetRole = guild.roles.cache.get(targetRoleId);
-                    }
-                }
+            // [تعديل] بدل التقيد بالبحث تحت الرتبة الحالية بالتسلسل الهرمي فقط،
+            // نبحث عن أي رتبة آمنة بكامل السيرفر (بدون صلاحيات إدارية) طالما
+            // رتبة البوت أعلى منها فعلياً - المهم فقط إنها آمنة، مو ترتيبها
+            if (!targetRole) {
+                targetRole = guild.roles.cache
+                    .filter(r =>
+                        r.id !== guild.id &&
+                        !r.managed &&
+                        r.position < botMember.roles.highest.position &&
+                        this.isRoleSafeForDemotion(r, roleSettings)
+                    )
+                    .sort((a, b) => b.position - a.position)
+                    .first() || null;
             }
 
             if (targetRole) {
                 if (!this.isRoleSafeForDemotion(targetRole, null)) {
                     console.error(`[AutoMod] Demote failed: target role carries moderator/admin permissions.`);
-                    return false;
+                    return { success: false, roleName: null };
                 }
                 await member.roles.remove(currentRoles, reason).catch(() => {});
                 await member.roles.add(targetRole, reason);
-            } else {
-                await member.roles.remove(highestRole, reason);
+                return { success: true, roleName: targetRole.name };
             }
 
-            return true;
+            console.warn(`[AutoMod] No safe role available in guild ${guild.id} - stripping roles without replacement.`);
+            await member.roles.remove(currentRoles, reason);
+            return { success: true, roleName: null };
         } catch (error) {
             console.error(`[AutoMod] Demote error for ${member.user.tag}: ${error.message}`);
-            return false;
+            return { success: false, roleName: null };
         }
     },
 /**
@@ -454,6 +478,8 @@ module.exports = {
             const reason = `Auto-Escalation: reached ${count} ${triggerType}(s)`;
             const escAction = matchedRule.action;
 
+            let demotedRoleName = null;
+
             switch (escAction) {
                 case 'mute': {
                     const ms = parseDurationToMs(matchedRule.duration) || 10 * 60 * 1000;
@@ -476,9 +502,12 @@ module.exports = {
                     if (!member.bannable) return;
                     await member.ban({ reason });
                     break;
-                case 'demote':
-                    if (!(await this.demoteMember(member, reason))) return;
+                case 'demote': {
+                    const demoteResult = await this.demoteMember(member, reason);
+                    if (!demoteResult.success) return;
+                    demotedRoleName = demoteResult.roleName;
                     break;
+                }
                 default:
                     return;
             }
@@ -493,11 +522,17 @@ module.exports = {
                 channel,
                 action: escAction,
                 reason,
-                duration: matchedRule.duration
+                duration: matchedRule.duration,
+                roleName: demotedRoleName
             });
 
-            // [NEW] تصعيد متسلسل - راجع الشرح بالأعلى
-            if (escAction === 'mute' || escAction === 'kick') {
+            // [FIX] تفادي حلقة تصعيد ذاتية: لو قاعدة نوعها mute أدّت لعقوبة
+            // mute بنفس النوع، ما نكرر فحص نفس النوع فوراً بنفس السلسلة
+            // المتزامنة - نخليها تُلتقط طبيعياً بالمرة الجاية لما يصير ميوت
+            // فعلي جديد لاحقاً، بدل تسلسل فوري بلا توقف بنفس اللحظة.
+            // التصعيد المتسلسل بين أنواع مختلفة (مثلاً mute → kick → ban)
+            // يبقى شغّال زي ما هو، هذا القيد يمنع بس النوع يصعّد نفسه.
+            if ((escAction === 'mute' || escAction === 'kick') && escAction !== triggerType) {
                 await this.checkRuleEscalation(guild, member, author, escAction, channel);
             }
         } catch (err) {
@@ -540,6 +575,8 @@ module.exports = {
                 return;
             }
 
+            let demotedRoleName = null;
+
             switch (action) {
                 case 'mute': {
                     const ms = parseDurationToMs(duration) || 10 * 60 * 1000;
@@ -580,8 +617,9 @@ module.exports = {
                     break;
 
                 case 'demote': {
-                    const demoted = await this.demoteMember(member, reason);
-                    if (!demoted) return;
+                    const demoteResult = await this.demoteMember(member, reason);
+                    if (!demoteResult.success) return;
+                    demotedRoleName = demoteResult.roleName;
                     break;
                 }
 
@@ -600,7 +638,8 @@ module.exports = {
                 channel: message.channel,
                 action,
                 reason,
-                duration
+                duration,
+                roleName: demotedRoleName
             });
 
             if (action === 'mute' || action === 'kick') {
