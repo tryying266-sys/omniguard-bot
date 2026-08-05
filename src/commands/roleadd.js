@@ -167,34 +167,42 @@ async function handleDemote(message, args, dbUtils = null) {
         return message.reply('❌ You do not have permission to manage roles.');
     }
 
-    const [targetArg, ...reasonParts] = args;
-    const reason = reasonParts.join(' ').trim() || 'No reason provided';
-
-    if (!targetArg) {
-        return message.reply('⚠️ Usage: `demote <@member> <reason>`');
+    if (args.length < 1) {
+        return message.reply('⚠️ Usage: `demote <@member> [roleName/ID] [reason]`');
     }
 
+    const targetArg = args[0];
     const target = message.mentions.members?.first() || await message.guild.members.fetch(targetArg.replace(/[<@!>]/g, '')).catch(() => null);
+    
     if (!target) {
         return message.reply('❌ I could not find that member.');
     }
 
-    if (target.id === message.author.id) {
-        return message.reply('❌ You cannot demote yourself.');
-    }
-    if (target.id === message.guild.ownerId) {
-        return message.reply('❌ You cannot demote the server owner.');
-    }
+    if (target.id === message.author.id) return message.reply('❌ You cannot demote yourself.');
+    if (target.id === message.guild.ownerId) return message.reply('❌ You cannot demote the server owner.');
     if (message.author.id !== message.guild.ownerId && message.member.roles.highest.position <= target.roles.highest.position) {
         return message.reply('❌ Your role is not high enough to demote this member.');
     }
 
+    let targetRole = null;
+    let reasonParts = args.slice(1);
+
+    if (args.length > 1) {
+        const potentialRole = findRoleSmart(message.guild, args[1]);
+        if (potentialRole) {
+            targetRole = potentialRole;
+            reasonParts = args.slice(2);
+        }
+    }
+
+    const reason = reasonParts.join(' ').trim() || 'No reason provided';
+
     try {
         const activeAutoMod = autoMod || require('./AutoMod');
-        const demoted = await activeAutoMod.demoteMember(target, reason);
+        const demoted = await activeAutoMod.demoteMember(target, reason, targetRole);
 
         if (!demoted) {
-            return message.reply('❌ Could not demote this member. Check the bot\'s role hierarchy or the demote configuration in the dashboard.');
+            return message.reply('❌ Could not demote this member. Check role hierarchy or specified target role.');
         }
 
         const userTag = target.user?.tag || target.user?.username || target.id;
@@ -216,7 +224,6 @@ async function handleDemote(message, args, dbUtils = null) {
             });
         }
 
-        // إرسال الإشعار عبر commandNotifications
         if (commandNotifications?.notifyCommandExecution) {
             await commandNotifications.notifyCommandExecution({
                 guild: message.guild,
@@ -229,7 +236,7 @@ async function handleDemote(message, args, dbUtils = null) {
             });
         }
 
-        return;
+        return message.reply(`✅ Successfully demoted **${target.user.username}**.`);
     } catch (error) {
         console.error('[Demote Command Error]', error);
         return message.reply('❌ Something went wrong while demoting this member.');

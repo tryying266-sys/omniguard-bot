@@ -338,15 +338,11 @@ module.exports = {
      *
      * يرجع true لو نجح التخفيض، false لو تعذر (بدون رمي خطأ - يُسجَّل بالـ console فقط)
      */
-    async demoteMember(member, reason) {
+    async demoteMember(member, reason, targetRoleInput = null) {
         const guild = member.guild;
-        const roleSettings = await universalGet('setting_management_role', guild.id);
-        const mode = roleSettings?.demote_mode || 'fixed_role';
-
         const botMember = guild.members.me;
         if (!botMember) return false;
 
-        // الرتب الحالية للعضو (باستثناء @everyone والرتب المُدارة تلقائياً مثل رتبة البوست/التكاملات)
         const currentRoles = member.roles.cache.filter(r => r.id !== guild.id && !r.managed);
         if (currentRoles.size === 0) {
             console.log(`[AutoMod] Demote skipped for ${member.user.tag}: no demotable roles.`);
@@ -355,55 +351,48 @@ module.exports = {
 
         const highestRole = currentRoles.sort((a, b) => b.position - a.position).first();
 
-        // شرط Discord: رتبة البوت لازم تكون أعلى من أعلى رتبة للعضو المستهدف
         if (botMember.roles.highest.position <= highestRole.position) {
-            console.error(`[AutoMod] Demote failed for ${member.user.tag}: bot's role is not higher than the target's highest role.`);
+            console.error(`[AutoMod] Demote failed for ${member.user.tag}: bot's role is not higher than target's highest role.`);
             return false;
         }
 
         try {
-            let targetRole;
+            let targetRole = null;
 
-            if (mode === 'single_rank') {
-                // [FIX-11] بدل "أول رتبة أدنى" حرفياً (ممكن توصله لرتبة لسه
-                // فيها صلاحيات إشراف)، ننزل بالتسلسل الهرمي بدءاً من تحت
-                // أعلى رتبة حالية للعضو، لحد أول رتبة تُعتبر آمنة تماماً.
-                const allRoles = Array.from(
-                    guild.roles.cache.filter(r => r.id !== guild.id && !r.managed).values()
-                ).sort((a, b) => b.position - a.position);
-
-                const idx = allRoles.findIndex(r => r.id === highestRole.id);
-                targetRole = idx !== -1
-                    ? allRoles.slice(idx + 1).find(r => this.isRoleSafeForDemotion(r, roleSettings))
-                    : null;
-
-                if (!targetRole) {
-                    console.log(`[AutoMod] Demote skipped for ${member.user.tag}: no permission-free role found below their current rank.`);
-                    return false;
-                }
+            if (targetRoleInput) {
+                targetRole = targetRoleInput;
             } else {
-                // fixed_role: رتبة ثابتة يحددها المشرف بالداشبورد
-                const targetRoleId = roleSettings?.demote_target_role;
-                if (!targetRoleId) {
-                    console.error('[AutoMod] Demote failed: "demote_target_role" is not configured in setting_management_role.');
-                    return false;
-                }
-                targetRole = guild.roles.cache.get(targetRoleId);
-                if (!targetRole) {
-                    console.error('[AutoMod] Demote failed: configured demote_target_role no longer exists on this server.');
-                    return false;
-                }
-                // [FIX-11] تحقق أمان: حتى لو المشرف حددها يدوياً، نرفض التخفيض
-                // إليها لو تبيّن إنها تحمل أي صلاحية إشراف/إدارة فعلية.
-                if (!this.isRoleSafeForDemotion(targetRole, roleSettings)) {
-                    console.error(`[AutoMod] Demote failed for ${member.user.tag}: configured demote_target_role ("${targetRole.name}") carries moderator/admin permissions - refusing to demote into it.`);
-                    return false;
+                const roleSettings = await universalGet('setting_management_role', guild.id);
+                const mode = roleSettings?.demote_mode || 'single_rank';
+
+                if (mode === 'single_rank') {
+                    const allRoles = Array.from(
+                        guild.roles.cache.filter(r => r.id !== guild.id && !r.managed).values()
+                    ).sort((a, b) => b.position - a.position);
+
+                    const idx = allRoles.findIndex(r => r.id === highestRole.id);
+                    targetRole = idx !== -1
+                        ? allRoles.slice(idx + 1).find(r => this.isRoleSafeForDemotion(r, roleSettings))
+                        : null;
+                } else {
+                    const targetRoleId = roleSettings?.demote_target_role;
+                    if (targetRoleId) {
+                        targetRole = guild.roles.cache.get(targetRoleId);
+                    }
                 }
             }
 
-            // [FIX-11] نشيل كل الرتب الحالية (مو بس الأعلى) - راجع الشرح بالأعلى
-            await member.roles.remove(currentRoles, reason).catch(() => {});
-            await member.roles.add(targetRole, reason);
+            if (targetRole) {
+                if (!this.isRoleSafeForDemotion(targetRole, null)) {
+                    console.error(`[AutoMod] Demote failed: target role carries moderator/admin permissions.`);
+                    return false;
+                }
+                await member.roles.remove(currentRoles, reason).catch(() => {});
+                await member.roles.add(targetRole, reason);
+            } else {
+                await member.roles.remove(highestRole, reason);
+            }
+
             return true;
         } catch (error) {
             console.error(`[AutoMod] Demote error for ${member.user.tag}: ${error.message}`);
