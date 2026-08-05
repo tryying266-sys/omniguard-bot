@@ -5,682 +5,136 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="dashboard-api-key" content="dK8#mP2$vxL9!zQ5@wR3*tY7^bN1&cX4_uJ6+eA0-fG8~hM2?sK9<pL1>qW5%zX8">
     <meta name="dashboard-guild-id" content="REPLACE_WITH_YOUR_GUILD_ID">
-    <title>OmniGuard - Auto-Mod Configuration</title>
-    <!-- Google Fonts & FontAwesome Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>OmniGuard - Admin Control Panel</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
         /* Base Colors & Reset */
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Inter', sans-serif;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         :root {
             --bg-primary: #0a0a0c;
             --bg-secondary: #111115;
             --bg-tertiary: #18181c;
             --accent-red: #ff3344;
             --accent-red-hover: #ff5566;
+            --accent-green: #3ba55d;
+            --accent-green-hover: #43b869;
+            --accent-amber: #faa61a;
+            --accent-blue: #00b0f4;
             --text-primary: #ffffff;
             --text-secondary: #8e9297;
             --border-color: #2a2b30;
-            --warning-amber: #ffaa00;
         }
 
-        body {
-            background-color: var(--bg-primary);
-            color: var(--text-primary);
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-        }
+        body { background-color: var(--bg-primary); color: var(--text-primary); display: flex; height: 100vh; overflow: hidden; }
 
         /* Sidebar Styles */
-        .sidebar {
-            width: 280px;
-            background-color: var(--bg-secondary);
-            border-right: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            padding: 24px 16px;
-            overflow-y: auto;
-            flex-shrink: 0;
-        }
-
-        .sidebar::-webkit-scrollbar {
-            width: 4px;
-        }
-        .sidebar::-webkit-scrollbar-thumb {
-            background: var(--border-color);
-            border-radius: 4px;
-        }
-
-        .logo-section {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 24px;
-            padding-left: 8px;
-            flex-shrink: 0;
-        }
-
-        .logo-icon {
-            color: var(--accent-red);
-            font-size: 24px;
-        }
-
-        .logo-text {
-            font-size: 20px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-        }
-
-        .category-container {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-top: 18px;
-            margin-bottom: 10px;
-            width: 100%;
-        }
-
-        .category-header {
-            font-size: 10px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1.2px;
-            color: var(--text-secondary);
-            white-space: nowrap;
-        }
-
-        .category-line {
-            flex-grow: 1;
-            height: 1px;
-            background-color: var(--border-color);
-        }
-
-        .menu-list {
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .menu-item a {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 14px;
-            color: var(--text-secondary);
-            text-decoration: none;
-            border-radius: 8px;
-            font-weight: 500;
-            font-size: 14px;
-            transition: all 0.2s ease;
-        }
-
-        .menu-item a:hover {
-            color: var(--text-primary);
-            background-color: var(--bg-tertiary);
-        }
-
-        /* Highlight Active Item */
-        .menu-item.active a {
-            color: var(--text-primary);
-            background-color: rgba(255, 51, 68, 0.1);
-            border-left: 3px solid var(--accent-red);
-            padding-left: 11px;
-        }
+        .sidebar { width: 280px; background-color: var(--bg-secondary); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 24px 16px; overflow-y: auto; flex-shrink: 0; }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        .logo-section { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-left: 8px; flex-shrink: 0; }
+        .logo-icon { color: var(--accent-red); font-size: 24px; }
+        .logo-text { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+        .category-container { display: flex; align-items: center; gap: 10px; margin-top: 18px; margin-bottom: 10px; width: 100%; }
+        .category-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-secondary); white-space: nowrap; }
+        .category-line { flex-grow: 1; height: 1px; background-color: var(--border-color); }
+        .menu-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+        .menu-item a { display: flex; align-items: center; gap: 12px; padding: 10px 14px; color: var(--text-secondary); text-decoration: none; border-radius: 8px; font-weight: 500; font-size: 14px; transition: all 0.2s ease; }
+        .menu-item a:hover { color: var(--text-primary); background-color: var(--bg-tertiary); }
+        .menu-item.active a { color: var(--text-primary); background-color: rgba(255, 51, 68, 0.1); border-left: 3px solid var(--accent-red); padding-left: 11px; }
 
         /* Main Content Area */
-        .main-content {
-            flex-grow: 1;
-            background-color: var(--bg-primary);
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-        }
-
-        header {
-            height: 70px;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 40px;
-            background-color: var(--bg-secondary);
-            flex-shrink: 0;
-        }
-
-        .header-title {
-            font-size: 18px;
-            font-weight: 600;
-        }
-
-        .user-profile {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            cursor: pointer;
-        }
-
-        .avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background-color: var(--accent-red);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 14px;
-        }
-
-        .content-body {
-            padding: 40px;
-            max-width: 1200px;
-            width: 100%;
-            margin: 0 auto;
-        }
-
-        /* Settings Grid Layout */
-        .settings-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 24px;
-            margin-bottom: 32px;
-        }
-
-        @media (max-width: 992px) {
-            .settings-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .settings-card {
-            background-color: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 28px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .full-width {
-            grid-column: span 2;
-        }
-
-        @media (max-width: 992px) {
-            .full-width {
-                grid-column: span 1;
-            }
-        }
-
-        .card-header-group {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 14px;
-        }
-
-        .card-header-icon {
-            color: var(--accent-red);
-            font-size: 20px;
-        }
-
-        .card-header-title {
-            font-size: 16px;
-            font-weight: 700;
-            letter-spacing: 0.3px;
-        }
-
-        /* Form Controls */
-        .form-row {
-            display: flex;
-            gap: 16px;
-        }
-
-        @media (max-width: 600px) {
-            .form-row {
-                flex-direction: column;
-            }
-        }
-
-        .form-group {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .form-label {
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--text-secondary);
-            letter-spacing: 0.5px;
-        }
-
-        .form-input, .form-select, .form-textarea {
-            width: 100%;
-            background-color: var(--bg-tertiary);
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            padding: 12px 16px;
-            border-radius: 8px;
-            font-size: 14px;
-            outline: none;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-
-        .form-input:focus, .form-select:focus, .form-textarea:focus {
-            border-color: var(--accent-red);
-            box-shadow: 0 0 0 3px rgba(255, 51, 68, 0.15);
-        }
-
-        .form-textarea {
-            resize: vertical;
-            min-height: 90px;
-        }
-
-        /* Action Row Builder */
-        .action-row-builder {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background-color: var(--bg-tertiary);
-            padding: 16px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            flex-wrap: wrap;
-        }
-
-        .action-row-builder span {
-            font-size: 14px;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-
-        .action-row-builder .inline-input {
-            width: 70px;
-            text-align: center;
-            padding: 8px;
-        }
-
-        .action-row-builder .inline-select {
-            width: auto;
-            min-width: 180px;
-            padding: 8px 12px;
-        }
-
-        .action-row-builder .inline-time-input {
-            width: 110px;
-            padding: 8px 12px;
-        }
-
-        /* Custom Switch Styling */
-        .switch-container {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background-color: var(--bg-tertiary);
-            border: 1px solid var(--border-color);
-            padding: 14px 18px;
-            border-radius: 8px;
-            transition: background-color 0.2s;
-        }
-
-        .switch-info {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .switch-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .switch-desc {
-            font-size: 12px;
-            color: var(--text-secondary);
-        }
-
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 46px;
-            height: 24px;
-            flex-shrink: 0;
-        }
-
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            transition: .25s;
-            border-radius: 34px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 16px;
-            width: 16px;
-            left: 4px;
-            bottom: 3px;
-            background-color: var(--text-secondary);
-            transition: .25s;
-            border-radius: 50%;
-        }
-
-        input:checked + .slider {
-            background-color: rgba(255, 51, 68, 0.2);
-            border-color: var(--accent-red);
-        }
-
-        input:checked + .slider:before {
-            transform: translateX(20px);
-            background-color: var(--accent-red);
-        }
-
-        /* Custom Word Filter and Tags Styles */
-        .filter-tags-box {
-            background-color: var(--bg-tertiary);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 12px;
-            min-height: 52px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            align-items: center;
-        }
-
-        .empty-tag-placeholder {
-            font-size: 13px;
-            color: var(--text-secondary);
-            font-style: italic;
-        }
-
-        /* Word Chip Style to fit design without alteration */
-        .word-badge-tag {
-            background-color: rgba(255, 51, 68, 0.1);
-            border: 1px solid rgba(255, 51, 68, 0.25);
-            color: var(--text-primary);
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            animation: tagFadeIn 0.15s ease-in-out;
-        }
-
-        @keyframes tagFadeIn {
-            from { transform: scale(0.95); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-
-        .word-badge-tag i {
-            cursor: pointer;
-            color: var(--text-secondary);
-            font-size: 11px;
-            transition: color 0.2s;
-        }
-
-        .word-badge-tag i:hover {
-            color: var(--accent-red);
-        }
-
-        /* [تصحيح] العناصر اللي dashboard.js فعلياً ينشئها لأي صندوق تاقات
-           (.tag-item / .remove-btn) - نفس شكل .word-badge-tag تماماً بدون
-           أي تغيير بصري، بس بأسماء الكلاسات اللي الكود الفعلي يستهدفها. */
-        .tag-item {
-            background-color: rgba(255, 51, 68, 0.1);
-            border: 1px solid rgba(255, 51, 68, 0.25);
-            color: var(--text-primary);
-            padding: 4px 10px;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            animation: tagFadeIn 0.15s ease-in-out;
-        }
-
-        .tag-item .remove-btn {
-            cursor: pointer;
-            color: var(--text-secondary);
-            font-size: 13px;
-            line-height: 1;
-            transition: color 0.2s;
-        }
-
-        .tag-item .remove-btn:hover {
-            color: var(--accent-red);
-        }
-
-        .tag-input-ghost {
-            background: transparent;
-            border: none;
-            outline: none;
-            color: var(--text-primary);
-            font-size: 13px;
-            font-family: 'Inter', sans-serif;
-            flex: 1;
-            min-width: 140px;
-            padding: 4px;
-        }
-
-        .tag-input-ghost::placeholder {
-            color: var(--text-secondary);
-        }
-
-        .tag-adder-row {
-            display: flex;
-            gap: 10px;
-            margin-top: 8px;
-        }
-
-        .tag-btn {
-            background-color: var(--accent-red);
-            color: var(--text-primary);
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        .tag-btn:hover {
-            background-color: var(--accent-red-hover);
-        }
-
-        .note-banner {
-            background-color: rgba(255, 170, 0, 0.07);
-            border: 1px dashed var(--warning-amber);
-            border-radius: 8px;
-            padding: 12px 16px;
-            display: flex;
-            gap: 10px;
-            align-items: flex-start;
-        }
-
-        .note-banner i {
-            color: var(--warning-amber);
-            font-size: 16px;
-            margin-top: 2px;
-        }
-
-        .note-banner p {
-            font-size: 12px;
-            color: var(--text-secondary);
-            line-height: 1.5;
-        }
-
-        /* Bottom Fixed Save Bar */
-        .save-changes-bar {
-            background-color: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 20px 32px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-top: 8px;
-        }
-
-        .save-info-text {
-            font-size: 14px;
-            color: var(--text-secondary);
-        }
-
-        .save-btn {
-            background-color: var(--accent-red);
-            color: var(--text-primary);
-            border: none;
-            padding: 12px 28px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        .save-btn:hover {
-            background-color: var(--accent-red-hover);
-        }
-
-        /* Dynamic Rules System Styling (v5.3 - Automated Infraction System) */
-        .rules-list-container {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        .empty-rules-placeholder {
-            font-size: 13px;
-            color: var(--text-secondary);
-            font-style: italic;
-            padding: 4px 2px;
-        }
-
-        .btn-delete-rule, .btn-save-rule {
-            background: transparent;
-            border: none;
-            color: var(--text-secondary);
-            cursor: pointer;
-            font-size: 14px;
-            padding: 8px 10px;
-            border-radius: 6px;
-            transition: color 0.2s, background-color 0.2s;
-        }
-
-        .btn-save-rule {
-            margin-left: auto;
-        }
-
-        .btn-save-rule:hover {
-            color: #3ba55d;
-            background-color: rgba(59, 165, 93, 0.12);
-        }
-
-        .btn-save-rule:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .btn-delete-rule:hover {
-            color: var(--accent-red);
-            background-color: rgba(255, 51, 68, 0.12);
-        }
-
-        .add-rule-btn {
-            background-color: transparent;
-            border: 1px dashed var(--border-color);
-            color: var(--text-primary);
-            padding: 10px 16px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.2s ease;
-            width: fit-content;
-        }
-
-        .add-rule-btn:hover {
-            border-color: var(--accent-red);
-            color: var(--accent-red);
-            background-color: rgba(255, 51, 68, 0.05);
-        }
-
-        .rule-arrow-icon {
-            color: var(--text-secondary);
-            font-size: 13px;
-            margin: 0 4px;
-            transition: color 0.2s;
-        }
-
-        .action-row-builder:hover .rule-arrow-icon {
-            color: var(--accent-red);
-        }
-
-        .inline-time-input:disabled {
-            opacity: 0.35;
-            cursor: not-allowed;
-            background-color: rgba(0, 0, 0, 0.2);
-            border-color: transparent;
-        }
-
-        /* صف بيحمل خطأ حفظ (عتبة مكررة، أكشن غير صالح، ...) */
-        .rule-row-error {
-            color: var(--accent-red);
-            font-size: 11px;
-            font-weight: 500;
-            width: 100%;
-            padding-top: 4px;
-        }
-
-        /* ومضة خضراء قصيرة بعد نجاح الحفظ - تأكيد بصري بدون Alert مزعج */
-        @keyframes ruleSavedFlash {
-            0% { border-color: #3ba55d; box-shadow: 0 0 0 2px rgba(59, 165, 93, 0.25); }
-            100% { border-color: var(--border-color); box-shadow: none; }
-        }
-
-        .rule-saved-flash {
-            animation: ruleSavedFlash 0.8s ease-out;
-        }
+        .main-content { flex-grow: 1; background-color: var(--bg-primary); display: flex; flex-direction: column; overflow-y: auto; }
+        header { height: 70px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background-color: var(--bg-secondary); flex-shrink: 0; }
+        .header-title { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .header-badge { font-size: 11px; background-color: rgba(255, 51, 68, 0.15); color: var(--accent-red); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(255, 51, 68, 0.3); font-weight: 700; }
+        .user-profile { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; background-color: var(--accent-red); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
+
+        .content-body { padding: 40px; max-width: 1200px; width: 100%; margin: 0 auto; }
+
+        /* Settings Grid */
+        .settings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 32px; }
+        @media (max-width: 992px) { .settings-grid { grid-template-columns: 1fr; } }
+
+        .settings-card { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 28px; display: flex; flex-direction: column; gap: 20px; position: relative; }
+        .full-width { grid-column: span 2; }
+        @media (max-width: 992px) { .full-width { grid-column: span 1; } }
+
+        .card-header-group { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 14px; }
+        .card-header-left { display: flex; align-items: center; gap: 12px; }
+        .card-header-icon { color: var(--accent-red); font-size: 20px; }
+        .card-header-title { font-size: 16px; font-weight: 600; }
+
+        .form-row { display: flex; gap: 16px; }
+        @media (max-width: 768px) { .form-row { flex-direction: column; } }
+        .form-group { flex: 1; display: flex; flex-direction: column; gap: 8px; position: relative; }
+        .form-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .form-input, .form-select, .form-textarea { width: 100%; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 12px 16px; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent-red); }
+        .form-select { cursor: pointer; }
+        .form-textarea { resize: vertical; min-height: 80px; }
+
+        /* Custom Toggle Switches */
+        .switch-container { display: flex; flex-direction: column; gap: 12px; }
+        .switch-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; }
+        .switch-info { display: flex; flex-direction: column; gap: 2px; }
+        .switch-title { font-size: 14px; font-weight: 600; }
+        .switch-desc { font-size: 12px; color: var(--text-secondary); }
+
+        .toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--bg-primary); border: 1px solid var(--border-color); transition: .3s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: var(--text-secondary); transition: .3s; border-radius: 50%; }
+        input:checked + .slider { background-color: rgba(255, 51, 68, 0.2); border-color: var(--accent-red); }
+        input:checked + .slider:before { transform: translateX(20px); background-color: var(--accent-red); }
+
+        /* Live Metrics Cards */
+        .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        @media (max-width: 768px) { .metrics-grid { grid-template-columns: repeat(2, 1fr); } }
+        .metric-card { background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; text-align: center; display: flex; flex-direction: column; gap: 6px; }
+        .metric-value { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+        .metric-label { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
+
+        /* Log Console Viewers */
+        .console-box { background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; font-family: monospace; font-size: 12px; color: var(--text-secondary); height: 160px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5; }
+        .console-box::-webkit-scrollbar { width: 4px; }
+        .console-box::-webkit-scrollbar-thumb { background: var(--border-color); }
+
+        /* Buttons & Actions */
+        .btn-action { background-color: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
+        .btn-action:hover { background-color: rgba(255, 51, 68, 0.15); border-color: var(--accent-red); color: var(--accent-red); }
+        .btn-action-primary { background-color: var(--accent-red); border: 1px solid var(--accent-red); color: var(--text-primary); }
+        .btn-action-primary:hover { background-color: var(--accent-red-hover); color: white; }
+        .actions-row { display: flex; gap: 12px; flex-wrap: wrap; }
+
+        /* Dynamic Table Container */
+        .table-container { width: 100%; overflow-x: auto; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; }
+        .data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+        .data-table th { background-color: rgba(0,0,0,0.2); padding: 12px 16px; color: var(--text-secondary); font-weight: 600; border-bottom: 1px solid var(--border-color); text-transform: uppercase; font-size: 11px; }
+        .data-table td { padding: 12px 16px; border-bottom: 1px solid var(--border-color); color: var(--text-primary); }
+        .data-table tr:last-child td { border-bottom: none; }
+        .table-empty { padding: 20px; text-align: center; color: var(--text-secondary); font-size: 13px; }
+
+        /* Save Bar */
+        .save-changes-bar { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; bottom: 20px; z-index: 10; }
+        .save-info-text { font-size: 14px; color: var(--text-secondary); }
+
+        .save-btn { border: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 0.2s, color 0.2s; }
+        .save-btn.state-default { background-color: var(--bg-tertiary); color: var(--text-secondary); cursor: not-allowed; }
+        .save-btn.state-dirty { background-color: var(--accent-red); color: var(--text-primary); }
+        .save-btn.state-dirty:hover { background-color: var(--accent-red-hover); }
+        .save-btn.state-saved { background-color: var(--accent-green); color: var(--text-primary); cursor: default; }
+        .save-btn.state-error { background-color: var(--accent-red); color: var(--text-primary); }
     </style>
 </head>
 <body>
 
-    <!-- Left Sidebar Navigation -->
+    <!-- Left Sidebar Navigation - Identical Layout -->
     <aside class="sidebar">
-        <!-- Bot Logo and Name -->
         <div class="logo-section">
             <i class="fa-solid fa-shield-halved logo-icon"></i>
             <span class="logo-text">OmniGuard</span>
@@ -735,7 +189,7 @@
             <div class="category-line"></div>
         </div>
         <ul class="menu-list">
-            <li class="menu-item active">
+            <li class="menu-item">
                 <a href="auto-mod.html">
                     <i class="fa-solid fa-robot"></i>
                     Auto-Mod
@@ -775,12 +229,30 @@
                 </a>
             </li>
         </ul>
+
+        <!-- ADMINISTRATION CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Administration</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item active">
+                <a href="admin-control.html">
+                    <i class="fa-solid fa-user-ninja"></i>
+                    Control Panel
+                </a>
+            </li>
+        </ul>
     </aside>
 
     <!-- Main Content Area -->
     <main class="main-content">
         <header>
-            <div class="header-title">Auto-Mod Settings</div>
+            <div class="header-title">
+                Control Panel
+                <span class="header-badge">Super Admin</span>
+            </div>
             <div class="user-profile">
                 <span>Administrator</span>
                 <div class="avatar">OG</div>
@@ -789,544 +261,380 @@
 
         <div class="content-body">
             <div class="settings-grid">
-                
-                <!-- SECTION 1a: Command Spam Protection (v5.3 - NEW, actually command-specific) -->
-                <div class="settings-card">
+
+                <!-- 1. Live System Monitoring & Health -->
+                <div class="settings-card full-width">
                     <div class="card-header-group">
-                        <i class="fa-solid fa-terminal card-header-icon"></i>
-                        <h2 class="card-header-title">Command Spam Protection</h2>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Max Commands Allowed</label>
-                            <input id="cmd_spam_max_commands" type="number" class="form-input" placeholder="e.g., 5" min="1" max="50">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Cooldown / Time Window</label>
-                            <input id="cmd_cooldown_spam" type="text" class="form-input duration-input" placeholder="e.g., 10s" maxlength="6">
-                            <small style="color: var(--text-secondary); font-size: 11px;">Format: number + s/m/h/d/w (e.g. 10s, 5m, 1h)</small>
+                        <div class="card-header-left">
+                            <i class="fa-solid fa-chart-line card-header-icon"></i>
+                            <h2 class="card-header-title">Live System Metrics</h2>
                         </div>
                     </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Default Action on Spam</label>
-                            <select id="cmd_spam_default_action" class="form-select">
-                                <option value="" disabled selected>Select an action...</option>
-                                <option value="mute">Mute Member</option>
-                                <option value="kick">Kick Member</option>
-                                <option value="ban">Ban Member</option>
-                                <option value="demote">Demote (Strip Roles)</option>
-                                <option value="none">None (Delete Message Only)</option>
-                            </select>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <span class="metric-label">Bot Latency</span>
+                            <span id="metric_latency" class="metric-value">-- ms</span>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Action Duration</label>
-                            <input id="cmd_spam_action_duration" type="text" class="form-input duration-input" placeholder="e.g., 30m" maxlength="6">
-                            <small style="color: var(--text-secondary); font-size: 11px;">Format: number + s/m/h/d/w (e.g. 30m, 12h, 1w)</small>
+                        <div class="metric-card">
+                            <span class="metric-label">CPU Usage</span>
+                            <span id="metric_cpu" class="metric-value">-- %</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">RAM Memory</span>
+                            <span id="metric_ram" class="metric-value">-- MB</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Database Status</span>
+                            <span id="metric_db_status" class="metric-value" style="font-size:14px; color: var(--accent-green);">Connected</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Total Guilds</span>
+                            <span id="metric_guilds" class="metric-value">0</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Total Users</span>
+                            <span id="metric_users" class="metric-value">0</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Commands Today</span>
+                            <span id="metric_commands_today" class="metric-value">0</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Active Blacklists</span>
+                            <span id="metric_blacklists_count" class="metric-value">0</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- SECTION 1b: Regular Chat Spam (renamed from "Command Spam Protection" -
-                     it actually checks EVERY message via AutoMod.js's checkSpam(), not
-                     commands specifically. Same fields/columns as before - v5.3 only
-                     relabeled it and removed the misleading Code Note below. -->
+                <!-- 2. Global Bot State & Maintenance -->
                 <div class="settings-card">
                     <div class="card-header-group">
-                        <i class="fa-solid fa-bolt card-header-icon"></i>
-                        <h2 class="card-header-title">Regular Chat Spam</h2>
+                        <div class="card-header-left">
+                            <i class="fa-solid fa-power-off card-header-icon"></i>
+                            <h2 class="card-header-title">Bot State & Maintenance</h2>
+                        </div>
                     </div>
                     
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Max Messages Allowed</label>
-                            <input id="spam_max_commands" type="number" class="form-input" placeholder="e.g., 5" min="1" max="50">
+                    <div class="switch-container">
+                        <div class="switch-item">
+                            <div class="switch-info">
+                                <span class="switch-title">Maintenance Mode</span>
+                                <span class="switch-desc">Restrict all bot commands to super administrators.</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="maintenance_enabled">
+                                <span class="slider"></span>
+                            </label>
                         </div>
-                        <div class="form-group">
-                            <label class="form-label">Cooldown / Time Window</label>
-                            <input id="cooldown_spam" type="text" class="form-input duration-input" placeholder="e.g., 10s" maxlength="6">
-                            <small style="color: var(--text-secondary); font-size: 11px;">Format: number + s/m/h/d/w (e.g. 10s, 5m, 1h)</small>
-                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Maintenance Notice Message</label>
+                        <input id="maintenance_message" type="text" class="form-input" placeholder="OmniGuard is currently under scheduled maintenance. Please try again later.">
                     </div>
 
                     <div class="form-row">
                         <div class="form-group">
-                            <label class="form-label">Default Action on Spam</label>
-                            <select id="spam_default_action" class="form-select">
-                                <option value="" disabled selected>Select an action...</option>
-                                <option value="mute">Mute Member</option>
-                                <option value="kick">Kick Member</option>
-                                <option value="ban">Ban Member</option>
-                                <option value="demote">Demote (Strip Roles)</option>
-                                <option value="none">None (Delete Message Only)</option>
+                            <label class="form-label">Online Status</label>
+                            <select id="bot_online_status" class="form-select">
+                                <option value="online">Online</option>
+                                <option value="idle">Idle</option>
+                                <option value="dnd">Do Not Disturb</option>
+                                <option value="invisible">Invisible</option>
                             </select>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Action Duration</label>
-                            <input id="spam_action_duration" type="text" class="form-input duration-input" placeholder="e.g., 30m" maxlength="6">
-                            <small style="color: var(--text-secondary); font-size: 11px;">Format: number + s/m/h/d/w (e.g. 30m, 12h, 1w)</small>
+                            <label class="form-label">Activity Type</label>
+                            <select id="bot_activity_type" class="form-select">
+                                <option value="PLAYING">Playing</option>
+                                <option value="WATCHING">Watching</option>
+                                <option value="LISTENING">Listening</option>
+                                <option value="COMPETING">Competing</option>
+                            </select>
                         </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Activity Text</label>
+                        <input id="bot_activity_text" type="text" class="form-input" placeholder="e.g. Protecting Servers | !help">
                     </div>
                 </div>
 
-                <!-- SECTION 2: Advanced Server Security -->
+                <!-- 3. Feature Flags / Global Toggles -->
                 <div class="settings-card">
                     <div class="card-header-group">
-                        <i class="fa-solid fa-user-shield card-header-icon"></i>
-                        <h2 class="card-header-title">Advanced Security</h2>
+                        <div class="card-header-left">
+                            <i class="fa-solid fa-toggle-on card-header-icon"></i>
+                            <h2 class="card-header-title">Feature Flags</h2>
+                        </div>
                     </div>
 
-                    <div class="form-group" style="gap: 14px;">
-                        <!-- Role Restore Toggle -->
-                        <div class="switch-container">
+                    <div class="switch-container">
+                        <div class="switch-item">
                             <div class="switch-info">
-                                <span class="switch-title">Role Restore on Rejoin</span>
-                                <span class="switch-desc">Reassign previous roles automatically when members rejoin to prevent Mute Evading.</span>
+                                <span class="switch-title">Auto-Mod Rules</span>
+                                <span class="switch-desc">Global toggle for spam & link filter execution.</span>
                             </div>
-                            <label class="switch">
-                                <input id="autorole_enabled" data-target-table="setting_guild" type="checkbox">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="flag_automod" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="switch-item">
+                            <div class="switch-info">
+                                <span class="switch-title">Anti-Alt System</span>
+                                <span class="switch-desc">Global toggle for alt account detection on join.</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="flag_antialt" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="switch-item">
+                            <div class="switch-info">
+                                <span class="switch-title">Welcome & Leave Dispatcher</span>
+                                <span class="switch-desc">Global toggle for greeting message generation.</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="flag_welcome" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="switch-item">
+                            <div class="switch-info">
+                                <span class="switch-title">Leveling & XP System</span>
+                                <span class="switch-desc">Global toggle for tracking user XP & level ups.</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="flag_leveling" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="switch-item">
+                            <div class="switch-info">
+                                <span class="switch-title">Custom Messages Module</span>
+                                <span class="switch-desc">Global toggle for automated trigger responses.</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="flag_custom_messages" checked>
                                 <span class="slider"></span>
                             </label>
                         </div>
                     </div>
                 </div>
 
-                <!-- SECTION 3: Automated Infraction System (v5.3 - Dynamic Rules)
-                     يستبدل نظام Tier1/Tier2 الثابت القديم (limit_trigger_warn/
-                     limit_trigger_severe وأعمدتهم - أصبحوا "متروكين" بالسكيما،
-                     راجع v5.3 delta). كل قاعدة (After X <Type> -> Action [for
-                     Duration]) صف مستقل بجدول auto_mod_rule_config، تُحفظ/تُحذف
-                     فوراً عبر مسارات /guild/:guildId/auto-mod-rules المخصصة -
-                     مو جزء من زر "Save Changes" العام بالأسفل. -->
+                <!-- 4. Global Website Banners & User Notices -->
                 <div class="settings-card full-width">
                     <div class="card-header-group">
-                        <i class="fa-solid fa-triangle-exclamation card-header-icon"></i>
-                        <h2 class="card-header-title">Automated Infraction System</h2>
+                        <div class="card-header-left">
+                            <i class="fa-solid fa-bullhorn card-header-icon"></i>
+                            <h2 class="card-header-title">Website Banners & Targeted Alerts</h2>
+                        </div>
                     </div>
 
-                    <div class="form-group" style="gap: 16px;">
-
-                        <!-- Warning Precision Sub-Options - إعداد عام مستقل عن
-                             "القاعدة" نفسها (انتهاء صلاحية + سلوك التصفير)،
-                             ما زال مرتبط بـ setting_moderation_security عادي -->
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">Warning Expiration (Decay Time)</label>
-                                <input id="expiration_warn" type="text" class="form-input duration-input" placeholder="e.g., 30d (leave blank for permanent warnings)" maxlength="6">
+                    <div class="form-row">
+                        <!-- Global Website Banner -->
+                        <div class="form-group" style="flex:1.2;">
+                            <label class="form-label">Global Top Banner Notice</label>
+                            <div class="switch-item" style="margin-bottom: 10px;">
+                                <div class="switch-info">
+                                    <span class="switch-title">Display Banner on Dashboard</span>
+                                    <span class="switch-desc">Renders an alert strip at the top of all user web pages.</span>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="banner_enabled">
+                                    <span class="slider"></span>
+                                </label>
                             </div>
-                            <div class="form-group">
-                                <label class="form-label">Infraction Limit Reset Behavior</label>
-                                <select id="warn_reset_behavior" class="form-select">
-                                    <option value="reset">Reset Warnings to 0 upon Action Trigger</option>
-                                    <option value="keep">Keep Warnings Accumulating Post-Action</option>
-                                </select>
+                            <div class="form-row" style="margin-bottom: 10px;">
+                                <div class="form-group">
+                                    <label class="form-label">Banner Style</label>
+                                    <select id="banner_type" class="form-select">
+                                        <option value="info">Informational (Blue)</option>
+                                        <option value="warning">Warning (Yellow)</option>
+                                        <option value="error">Critical Incident (Red)</option>
+                                    </select>
+                                </div>
                             </div>
+                            <input id="banner_text" type="text" class="form-input" placeholder="e.g. Scheduled maintenance window in 2 hours.">
                         </div>
 
-                        <!-- 1. Warn Accumulation Rules -->
-                        <label class="form-label" style="border-left: 3px solid var(--accent-red); padding-left: 8px; margin-top: 6px;">Warn Accumulation Rules</label>
-                        <div id="warn_rules_container" class="rules-list-container">
-                            <span class="empty-rules-placeholder" data-empty-for="warn">No warn rules yet - click "Add Warn Rule" below.</span>
+                        <!-- Targeted User Popup -->
+                        <div class="form-group" style="flex:1;">
+                            <label class="form-label">User-Targeted Login Popup</label>
+                            <input id="popup_target_user_id" type="text" class="form-input" placeholder="Target User Discord ID" style="margin-bottom: 8px;">
+                            <input id="popup_title" type="text" class="form-input" placeholder="Popup Title" style="margin-bottom: 8px;">
+                            <textarea id="popup_message" class="form-textarea" placeholder="Detailed message displayed on target user login..." style="margin-bottom: 8px;"></textarea>
+                            <div class="switch-item" style="margin-bottom: 12px;">
+                                <div class="switch-info">
+                                    <span class="switch-title">Force Dismissal</span>
+                                    <span class="switch-desc">User must click "I Understand" to proceed.</span>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="popup_force_dismiss" checked>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <button id="btn_send_user_popup" type="button" class="btn-action btn-action-primary">
+                                <i class="fa-solid fa-paper-plane"></i> Dispatch User Notice
+                            </button>
                         </div>
-                        <button type="button" id="add_warn_rule_btn" class="add-rule-btn">
-                            <i class="fa-solid fa-plus"></i> Add Warn Rule
-                        </button>
-
-                        <!-- 2. Mute Accumulation Rules -->
-                        <label class="form-label" style="border-left: 3px solid var(--accent-red); padding-left: 8px; margin-top: 14px;">Mute Accumulation Rules</label>
-                        <div id="mute_rules_container" class="rules-list-container">
-                            <span class="empty-rules-placeholder" data-empty-for="mute">No mute rules yet - click "Add Mute Rule" below.</span>
-                        </div>
-                        <button type="button" id="add_mute_rule_btn" class="add-rule-btn">
-                            <i class="fa-solid fa-plus"></i> Add Mute Rule
-                        </button>
-
-                        <!-- 3. Kick Accumulation Rules -->
-                        <label class="form-label" style="border-left: 3px solid var(--accent-red); padding-left: 8px; margin-top: 14px;">Kick Accumulation Rules</label>
-                        <div id="kick_rules_container" class="rules-list-container">
-                            <span class="empty-rules-placeholder" data-empty-for="kick">No kick rules yet - click "Add Kick Rule" below.</span>
-                        </div>
-                        <button type="button" id="add_kick_rule_btn" class="add-rule-btn">
-                            <i class="fa-solid fa-plus"></i> Add Kick Rule
-                        </button>
-
                     </div>
                 </div>
 
-                <!-- SECTION 4: Content Filter & Custom Alerts -->
+                <!-- 5. Access Control & Blacklist Management -->
                 <div class="settings-card full-width">
                     <div class="card-header-group">
-                        <i class="fa-solid fa-filter card-header-icon"></i>
-                        <h2 class="card-header-title">Content Filter</h2>
+                        <div class="card-header-left">
+                            <i class="fa-solid fa-user-slash card-header-icon"></i>
+                            <h2 class="card-header-title">Access Control & Blacklist Management</h2>
+                        </div>
                     </div>
 
-                    <div class="form-row" style="flex-wrap: wrap;">
-                        <!-- Filter Toggles -->
-                        <div class="form-group" style="min-width: 280px; gap: 12px;">
-                            <label class="form-label">Automatic Text Filtering</label>
-                            
-                            <div class="switch-container">
-                                <div class="switch-info">
-                                    <span class="switch-title">Block Links</span>
+                    <div class="form-row">
+                        <!-- User Blacklist Form -->
+                        <div class="form-group">
+                            <label class="form-label">Blacklist User</label>
+                            <input id="blacklist_user_id" type="text" class="form-input" placeholder="Discord User ID (e.g. 123456789012345678)" style="margin-bottom: 8px;">
+                            <div class="form-row" style="margin-bottom: 8px;">
+                                <div class="form-group">
+                                    <select id="blacklist_user_duration" class="form-select">
+                                        <option value="permanent">Permanent Ban</option>
+                                        <option value="24h">24 Hours</option>
+                                        <option value="7d">7 Days</option>
+                                        <option value="30d">30 Days</option>
+                                    </select>
                                 </div>
-                                <label class="switch">
-                                    <input id="links_block" type="checkbox">
-                                    <span class="slider"></span>
-                                </label>
                             </div>
-
-                            <div class="switch-container">
-                                <div class="switch-info">
-                                    <span class="switch-title">Block Server Invites</span>
-                                </div>
-                                <label class="switch">
-                                    <input id="invites_block" type="checkbox">
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
-
-                            <div class="switch-container">
-                                <div class="switch-info">
-                                    <span class="switch-title">Block Mass Mentions</span>
-                                </div>
-                                <label class="switch">
-                                    <input id="block_mentions" type="checkbox">
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
+                            <input id="blacklist_user_reason" type="text" class="form-input" placeholder="Reason for blacklist..." style="margin-bottom: 12px;">
+                            <button id="btn_add_user_blacklist" type="button" class="btn-action btn-action-primary">
+                                <i class="fa-solid fa-user-xmark"></i> Ban User
+                            </button>
                         </div>
 
-                        <!-- Custom Word Filter -->
-                        <div class="form-group" style="min-width: 280px;">
-                            <label class="form-label">Custom Bad Words Filter</label>
-
-                            <div class="filter-tags-box" id="words_bad_custom">
-                                <input type="text" class="tag-input-ghost" maxlength="50" placeholder="Type a word and press Enter...">
+                        <!-- Guild Blacklist Form -->
+                        <div class="form-group">
+                            <label class="form-label">Blacklist Guild (Server)</label>
+                            <input id="blacklist_guild_id" type="text" class="form-input" placeholder="Discord Guild ID (e.g. 987654321098765432)" style="margin-bottom: 8px;">
+                            <div class="switch-item" style="margin-bottom: 8px;">
+                                <div class="switch-info">
+                                    <span class="switch-title">Auto-Leave Server</span>
+                                    <span class="switch-desc">Bot will immediately leave target server upon blacklist.</span>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="blacklist_guild_autoleave" checked>
+                                    <span class="slider"></span>
+                                </label>
                             </div>
-                            <small style="color: var(--text-secondary); font-size: 11px;">Up to 100 words, 50 characters each — press Enter to add.</small>
+                            <input id="blacklist_guild_reason" type="text" class="form-input" placeholder="Reason for server blacklist..." style="margin-bottom: 12px;">
+                            <button id="btn_add_guild_blacklist" type="button" class="btn-action btn-action-primary">
+                                <i class="fa-solid fa-server"></i> Ban Guild
+                            </button>
                         </div>
+                    </div>
+
+                    <!-- Active Blacklists Records -->
+                    <div class="form-group" style="margin-top: 10px;">
+                        <label class="form-label">Active Blacklist Records</label>
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Target ID</th>
+                                        <th>Type</th>
+                                        <th>Duration</th>
+                                        <th>Reason</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="active_blacklists_tbody">
+                                    <tr>
+                                        <td colspan="5" class="table-empty">No active blacklists recorded in database.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. Logs & Diagnostic Trackers -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group">
+                        <div class="card-header-left">
+                            <i class="fa-solid fa-shield-virus card-header-icon"></i>
+                            <h2 class="card-header-title">Logs & Diagnostics</h2>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Unhandled Exceptions & Error Crash Logs</label>
+                            <div id="error_logs_console" class="console-box">[SYSTEM] Log listener initialized. Awaiting system events...</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Admin Control Audit Trail</label>
+                            <div id="admin_audit_logs_console" class="console-box">[AUDIT] Session active. Tracking administrative changes...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 7. Emergency Controls & System Operations -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group">
+                        <div class="card-header-left">
+                            <i class="fa-solid fa-triangle-exclamation card-header-icon"></i>
+                            <h2 class="card-header-title">Emergency Controls & Maintenance Operations</h2>
+                        </div>
+                    </div>
+
+                    <div class="actions-row">
+                        <button id="btn_soft_reload" type="button" class="btn-action">
+                            <i class="fa-solid fa-rotate"></i> Soft Reload Commands & Events
+                        </button>
+                        <button id="btn_clear_cache" type="button" class="btn-action">
+                            <i class="fa-solid fa-broom"></i> Clear Cache Memory
+                        </button>
+                        <button id="btn_manual_backup" type="button" class="btn-action">
+                            <i class="fa-solid fa-database"></i> Trigger Database Backup
+                        </button>
+                        <button id="btn_discord_broadcast" type="button" class="btn-action btn-action-primary">
+                            <i class="fa-solid fa-tower-broadcast"></i> Dispatch Global Discord Announcement
+                        </button>
                     </div>
                 </div>
 
             </div>
 
-            <!-- Bottom Save Bar -->
+            <!-- Sticky Save Bar -->
             <div class="save-changes-bar">
-                <span class="save-info-text">Careful — make sure to save changes to apply them to your server!</span>
-                <button class="save-btn">Save Changes</button>
+                <span class="save-info-text">Careful — any unsaved modifications will be lost!</span>
+                <button class="save-btn state-default" disabled>Save Changes</button>
             </div>
         </div>
     </main>
 
+    <!-- JS Core Engine Script Binding -->
     <script src="dashboard.js"></script>
 
-    <!-- ======================================================================
-         سكربت خاص بصفحة auto-mod.html فقط - مستقل تماماً عن dashboard.js
-         (ما يعدّل عليه ولا يتعارض مع منطقه العام، بس يضيف طبقة تحقق محلية
-         فوقه لحقلين نوعين حساسين موجودين بهالصفحة تحديداً):
-
-         [1] حقول المدة الزمنية (.duration-input): تصفية حية للكتابة تسمح
-             بس بـ "رقم (حتى 4 خانات) + حرف وحدة واحد" مطابقة لصيغة
-             parseDurationToMs() الفعلية بـ AutoMod.js حالياً (s/m/h/d/w
-             حرف واحد بس - بدون min/mo، لأن الباك-إند الحالي ما يفهمها).
-             لو الباك-إند تحدّث مستقبلاً ليدعم صيغ أطول، هذا الـ regex لازم
-             يتحدث معه بنفس الوقت.
-
-         [2] صندوق الكلمات الممنوعة (#words_bad_custom): حد أقصى 100 كلمة
-             (كافي وواسع عملياً، بس يمنع تضخم غير محدود يأثر على أداء فحص
-             كل رسالة بـ checkBadWords()). المستمع مرتبط مباشرة بعنصر
-             الإدخال نفسه (مو document) عشان يشتغل قبل مستمع dashboard.js
-             العام - stopPropagation() يمنع إضافة تاق زايد عن الحد فقط،
-             وباقي الحالات تكمل طبيعي لمنطق dashboard.js القياسي.
-
-         [3] حقول الأرقام العادية اللي فيها max: تثبيت القيمة عند الحد لو
-             المستخدم كتب رقم أكبر يدوياً (attribute max وحده ما يمنع الكتابة
-             الفعلية بكل المتصفحات).
-    ====================================================================== -->
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-
-            // --- [1] تنقية حقول المدة الزمنية ---
-            const DURATION_PATTERN = /^(\d{1,4})([smhdw]?)/i;
-
-            function sanitizeDurationField(el) {
-                const cleanedChars = el.value.toLowerCase().replace(/[^0-9smhdw]/g, '');
-                const match = cleanedChars.match(DURATION_PATTERN);
-                el.value = match ? (match[1] + match[2]) : '';
-            }
-
-            document.querySelectorAll('.duration-input').forEach(el => {
-                el.addEventListener('input', () => sanitizeDurationField(el));
-            });
-
-            // --- [2] حد أقصى لعدد الكلمات الممنوعة ---
-            const MAX_BAD_WORDS = 100;
-            const wordsBox = document.getElementById('words_bad_custom');
-            const wordsInput = wordsBox ? wordsBox.querySelector('.tag-input-ghost') : null;
-
-            if (wordsBox && wordsInput) {
-                wordsInput.addEventListener('keypress', (e) => {
-                    if (e.key !== 'Enter') return;
-                    const currentCount = wordsBox.querySelectorAll('.tag-item').length;
-                    if (currentCount >= MAX_BAD_WORDS) {
-                        e.preventDefault();
-                        e.stopPropagation(); // يمنع مستمع dashboard.js العام من إضافة تاق زايد عن الحد
-                        const originalPlaceholder = wordsInput.placeholder;
-                        wordsInput.placeholder = `Limit reached (${MAX_BAD_WORDS} words max)`;
-                        setTimeout(() => { wordsInput.placeholder = originalPlaceholder; }, 2000);
-                    }
+        (function () {
+            // Sanitize numeric Discord IDs for user/guild blacklist forms
+            const sanitizeIdInput = (inputEl) => {
+                if (!inputEl) return;
+                inputEl.addEventListener('input', () => {
+                    const cleaned = inputEl.value.replace(/\D/g, '').slice(0, 20);
+                    if (cleaned !== inputEl.value) inputEl.value = cleaned;
                 });
-            }
-
-            // --- [3] تثبيت الحقول الرقمية عند حدها الأقصى ---
-            document.querySelectorAll('input[type="number"][max]').forEach(el => {
-                el.addEventListener('input', () => {
-                    const maxVal = parseInt(el.max, 10);
-                    if (el.value !== '' && parseInt(el.value, 10) > maxVal) {
-                        el.value = maxVal;
-                    }
-                });
-            });
-
-            // ============================================================
-            // [4] Automated Infraction System - Dynamic Rules (v5.3)
-            // ============================================================
-            // كل قاعدة (warn/mute/kick) صف مستقل بجدول auto_mod_rule_config -
-            // تُحفظ/تُحذف فوراً عبر /guild/:guildId/auto-mod-rules (راجع
-            // apiRouter.js Section 3.5)، مو جزء من زر "Save Changes" العام
-            // بالأسفل (buildPayload() العام بـ dashboard.js لا يلمس هذا
-            // القسم إطلاقاً - ولا يحتاج، لأن ما فيه أي input بداخله بدون
-            // parent .rules-list-container له id مباشر يُقرأ تلقائياً).
-
-            const RULE_ACTION_OPTIONS = {
-                warn: [
-                    { value: 'mute', label: 'Mute' },
-                    { value: 'kick', label: 'Kick' },
-                    { value: 'ban', label: 'Ban' }
-                ],
-                mute: [
-                    { value: 'demote', label: 'Demote (Strip Roles)' },
-                    { value: 'kick', label: 'Kick' },
-                    { value: 'ban', label: 'Ban' }
-                ],
-                kick: [
-                    { value: 'ban', label: 'Ban' }
-                ]
-            };
-            const RULE_TRIGGER_LABEL = { warn: 'Warnings', mute: 'Mutes', kick: 'Kicks' };
-
-            /** يظهر/يخفي عبارة "لا توجد قواعد بعد" حسب عدد الصفوف الفعلي بالحاوية */
-            function updateEmptyPlaceholder(container) {
-                const placeholder = container.querySelector('.empty-rules-placeholder');
-                if (!placeholder) return;
-                const hasRows = container.querySelector('.action-row-builder') !== null;
-                placeholder.style.display = hasRows ? 'none' : 'block';
-            }
-
-            /** يعرض رسالة خطأ صغيرة أسفل الصف لمدة 3 ثواني (عتبة مكررة، حقل ناقص...) */
-            function showRuleRowError(row, msg) {
-                let errEl = row.querySelector('.rule-row-error');
-                if (!errEl) {
-                    errEl = document.createElement('small');
-                    errEl.className = 'rule-row-error';
-                    row.appendChild(errEl);
-                }
-                errEl.textContent = msg;
-                clearTimeout(errEl._hideTimer);
-                errEl._hideTimer = setTimeout(() => errEl.remove(), 3000);
-            }
-
-            /**
-             * ينشئ صف قاعدة واحد. existingRule (لو موجود) يعني الصف محمّل من
-             * قاعدة البيانات فعلاً (له data-rule-id) - وإلا فهو صف جديد فاضي
-             * (زر "Add Rule") ينحفظ لأول مرة بضغطة زر الحفظ بالصف نفسه.
-             */
-            function createRuleRow(type, existingRule = null) {
-                const row = document.createElement('div');
-                row.className = 'action-row-builder';
-                if (existingRule) row.dataset.ruleId = existingRule.id;
-
-                const optionsHtml = RULE_ACTION_OPTIONS[type]
-                    .map(opt => `<option value="${opt.value}">${opt.label}</option>`)
-                    .join('');
-
-                row.innerHTML = `
-                    <span>After</span>
-                    <input type="number" class="form-input inline-input rule-threshold" placeholder="1" min="1" max="50">
-                    <span>${RULE_TRIGGER_LABEL[type]}</span>
-                    <i class="fa-solid fa-arrow-right-long rule-arrow-icon"></i>
-                    <span>Apply Action</span>
-                    <select class="form-select inline-select rule-action">
-                        <option value="" disabled selected>Select action...</option>
-                        ${optionsHtml}
-                    </select>
-                    <span>for</span>
-                    <input type="text" class="form-input inline-time-input duration-input rule-duration" placeholder="e.g., 12h" maxlength="6">
-                    <button type="button" class="btn-save-rule" title="Save Rule"><i class="fa-solid fa-check"></i></button>
-                    <button type="button" class="btn-delete-rule" title="Delete Rule"><i class="fa-solid fa-trash-can"></i></button>
-                `;
-
-                const thresholdInput = row.querySelector('.rule-threshold');
-                const actionSelect = row.querySelector('.rule-action');
-                const durationInput = row.querySelector('.rule-duration');
-                const saveBtn = row.querySelector('.btn-save-rule');
-                const deleteBtn = row.querySelector('.btn-delete-rule');
-
-                if (existingRule) {
-                    thresholdInput.value = existingRule.threshold;
-                    actionSelect.value = existingRule.action;
-                    durationInput.value = existingRule.duration || '';
-                }
-
-                // Kick لا يقبل مدة إطلاقاً - نفس القيد الموجود بقاعدة البيانات
-                // (chk_auto_mod_rule_duration) مطبّق هنا بصرياً مسبقاً
-                function syncDurationDisabledState() {
-                    if (actionSelect.value === 'kick') {
-                        durationInput.value = '';
-                        durationInput.disabled = true;
-                        durationInput.placeholder = 'N/A';
-                    } else {
-                        durationInput.disabled = false;
-                        durationInput.placeholder = 'e.g., 12h';
-                    }
-                }
-                syncDurationDisabledState();
-                actionSelect.addEventListener('change', syncDurationDisabledState);
-
-                durationInput.addEventListener('input', () => sanitizeDurationField(durationInput));
-
-                saveBtn.addEventListener('click', () => saveRule(type, row));
-                deleteBtn.addEventListener('click', () => deleteRule(row));
-
-                return row;
-            }
-
-            /** يحفظ صف واحد (POST لو جديد، PUT لو له data-rule-id مسبقاً) */
-            async function saveRule(type, row) {
-                const guildId = getGuildId();
-                if (!guildId) return;
-
-                const threshold = parseInt(row.querySelector('.rule-threshold').value, 10);
-                const action = row.querySelector('.rule-action').value;
-                const durationInput = row.querySelector('.rule-duration');
-                const duration = durationInput.disabled ? null : (durationInput.value.trim() || null);
-                const ruleId = row.dataset.ruleId;
-
-                if (!Number.isInteger(threshold) || threshold < 1 || threshold > 50) {
-                    return showRuleRowError(row, 'Enter a valid threshold (1-50).');
-                }
-                if (!action) {
-                    return showRuleRowError(row, 'Select an action.');
-                }
-
-                const saveBtn = row.querySelector('.btn-save-rule');
-                saveBtn.disabled = true;
-
-                try {
-                    const response = await fetch(
-                        ruleId ? `${API_BASE}/guild/${guildId}/auto-mod-rules/${ruleId}` : `${API_BASE}/guild/${guildId}/auto-mod-rules`,
-                        {
-                            method: ruleId ? 'PUT' : 'POST',
-                            headers: getHeaders(),
-                            body: JSON.stringify(ruleId ? { threshold, action, duration } : { ruleType: type, threshold, action, duration })
-                        }
-                    );
-                    const data = await response.json();
-
-                    if (!response.ok) {
-                        return showRuleRowError(row, data.error || 'Failed to save rule.');
-                    }
-
-                    if (data.rule && data.rule.id) row.dataset.ruleId = data.rule.id;
-                    row.classList.remove('rule-saved-flash');
-                    void row.offsetWidth; // إعادة تشغيل الأنيميشن لو الصف اتحفظ أكثر من مرة متتالية
-                    row.classList.add('rule-saved-flash');
-                } catch (err) {
-                    showRuleRowError(row, 'Network error - could not save rule.');
-                } finally {
-                    saveBtn.disabled = false;
-                }
-            }
-
-            /** يحذف الصف - فوري من القاعدة لو محفوظ مسبقاً، أو محلي فقط لو صف جديد لسه ما انحفظ */
-            async function deleteRule(row) {
-                const guildId = getGuildId();
-                const ruleId = row.dataset.ruleId;
-                const container = row.parentElement;
-
-                if (!ruleId) {
-                    row.remove();
-                    if (container) updateEmptyPlaceholder(container);
-                    return;
-                }
-
-                const deleteBtn = row.querySelector('.btn-delete-rule');
-                deleteBtn.disabled = true;
-
-                try {
-                    const response = await fetch(`${API_BASE}/guild/${guildId}/auto-mod-rules/${ruleId}`, {
-                        method: 'DELETE',
-                        headers: getHeaders()
-                    });
-                    if (response.ok) {
-                        row.remove();
-                        if (container) updateEmptyPlaceholder(container);
-                    } else {
-                        deleteBtn.disabled = false;
-                        showRuleRowError(row, 'Failed to delete rule.');
-                    }
-                } catch (err) {
-                    deleteBtn.disabled = false;
-                    showRuleRowError(row, 'Network error - could not delete rule.');
-                }
-            }
-
-            const rulesContainers = {
-                warn: document.getElementById('warn_rules_container'),
-                mute: document.getElementById('mute_rules_container'),
-                kick: document.getElementById('kick_rules_container')
             };
 
-            // زر "Add Rule" لكل نوع - يضيف صف فاضي جديد بدون data-rule-id
-            document.getElementById('add_warn_rule_btn')?.addEventListener('click', () => {
-                rulesContainers.warn.appendChild(createRuleRow('warn'));
-                updateEmptyPlaceholder(rulesContainers.warn);
-            });
-            document.getElementById('add_mute_rule_btn')?.addEventListener('click', () => {
-                rulesContainers.mute.appendChild(createRuleRow('mute'));
-                updateEmptyPlaceholder(rulesContainers.mute);
-            });
-            document.getElementById('add_kick_rule_btn')?.addEventListener('click', () => {
-                rulesContainers.kick.appendChild(createRuleRow('kick'));
-                updateEmptyPlaceholder(rulesContainers.kick);
-            });
-
-            /** يجلب كل القواعد المحفوظة للسيرفر ويوزّعها على الحاويات الثلاث */
-            async function loadAutoModRules() {
-                const guildId = getGuildId();
-                if (!guildId) return;
-
-                try {
-                    const response = await fetch(`${API_BASE}/guild/${guildId}/auto-mod-rules`, { headers: getHeaders() });
-                    if (!response.ok) return;
-                    const rules = await response.json();
-                    if (!Array.isArray(rules)) return;
-
-                    rules.forEach(rule => {
-                        const container = rulesContainers[rule.rule_type];
-                        if (container) container.appendChild(createRuleRow(rule.rule_type, rule));
-                    });
-
-                    Object.values(rulesContainers).forEach(c => c && updateEmptyPlaceholder(c));
-                } catch (err) {
-                    console.error('[Auto-Mod Rules] Failed to load existing rules:', err);
-                }
-            }
-
-            loadAutoModRules();
-        });
+            sanitizeIdInput(document.getElementById('blacklist_user_id'));
+            sanitizeIdInput(document.getElementById('blacklist_guild_id'));
+            sanitizeIdInput(document.getElementById('popup_target_user_id'));
+        })();
     </script>
 </body>
 </html>

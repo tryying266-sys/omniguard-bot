@@ -45,6 +45,8 @@ const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const dbUtils = require('../supabase/dbUtils');
 const { universalGet } = dbUtils;
 const { isMemberCommandExempt } = require('./GRS');
+// [v5.3 NEW] ينفّذ فعلياً خانتي "Notify via DM" / "Notify in Channel" بالداشبورد
+const { notifyCommandExecution } = require('./commandNotifications');
 
 // عدادات السبام وحماية الأدمن - الآن مفتاحها `guildId:userId` (عزل كامل بين السيرفرات) [FIX #9]
 const spamTracker = new Map();
@@ -291,21 +293,49 @@ module.exports = {
     },
 
     /**
-     * [NEW] تنفيذ تخفيض الرتبة الفعلي
-
-    
+     * [v5.3 FIX-11] قائمة الصلاحيات اللي تُعتبر "إشراف/إدارة" - أي رتبة تملك
+     * ولو صلاحية وحدة منها تُستبعد تلقائياً كوجهة محتملة للتخفيض (Demote)،
+     * بغض النظر عن الوضع المُختار (single_rank أو fixed_role). عدّل هذي
+     * القائمة لو تبي تضيف/تشيل صلاحية معينة من التعريف.
+     */
+    DEMOTE_UNSAFE_PERMISSIONS: [
+        PermissionFlagsBits.Administrator,
+        PermissionFlagsBits.BanMembers,
+        PermissionFlagsBits.KickMembers,
+        PermissionFlagsBits.ModerateMembers, // Timeout (Mute)
+        PermissionFlagsBits.ManageRoles,
+        PermissionFlagsBits.ManageGuild,
+        PermissionFlagsBits.ManageChannels,
+        PermissionFlagsBits.ManageMessages,
+        PermissionFlagsBits.ManageWebhooks,
+        PermissionFlagsBits.MentionEveryone
+    ],
 
     /**
-     * [NEW] تنفيذ تخفيض الرتبة الفعلي
-    
-
-    
+     * [v5.3 FIX-11] هل هذي الرتبة "آمنة" كوجهة تخفيض؟ آمنة يعني: ما فيها ولا
+     * صلاحية إشراف/إدارة فعلية بديسكورد (راجع DEMOTE_UNSAFE_PERMISSIONS)،
+     * وكمان مو مدرجة يدوياً بقائمة roles_admin_bot (رتب إدارة البوت -
+     * ممكن تكون "آمنة" بصلاحيات ديسكورد الخام بس هي فعلياً رتبة ثقة عالية).
+     */
+    isRoleSafeForDemotion(role, roleSettings) {
+        if (role.permissions.any(this.DEMOTE_UNSAFE_PERMISSIONS)) return false;
+        if (roleSettings?.roles_admin_bot?.includes(role.id)) return false;
+        return true;
+    },
 
     /**
-     * [NEW] تنفيذ تخفيض الرتبة الفعلي
+     * [NEW / v5.3 FIX-11] تنفيذ تخفيض الرتبة الفعلي
      * يقرأ وضع التخفيض من setting_management_role:
-     *   - demote_mode = 'single_rank'  -> ينزل رتبة واحدة فقط بالتسلسل الهرمي
+     *   - demote_mode = 'single_rank'  -> ينزل بالتسلسل الهرمي حتى أول رتبة
+     *                                     آمنة تماماً (بدون صلاحيات إشراف)
      *   - demote_mode = 'fixed_role'   -> ينزله مباشرة لرتبة "بدون صلاحيات" محددة (demote_target_role)
+     *
+     * [تعديل سلوك متعمّد v5.3] كلا الوضعين الآن يشيلون كل رتب العضو الحالية
+     * (مو بس أعلى رتبة) قبل إضافة الرتبة الآمنة - قبل هذا التعديل، وضع
+     * single_rank كان يشيل أعلى رتبة بس، فلو العضو عنده رتبة ثانية فيها
+     * صلاحيات إشراف بجانب أعلى رتبة، كانت تضل معه بعد "التخفيض" - يكسر
+     * الضمان المطلوب: العضو المخفّض ما يبقى معه أي صلاحية إشراف إطلاقاً.
+     *
      * يرجع true لو نجح التخفيض، false لو تعذر (بدون رمي خطأ - يُسجَّل بالـ console فقط)
      */
     async demoteMember(member, reason) {
@@ -332,37 +362,48 @@ module.exports = {
         }
 
         try {
+            let targetRole;
+
             if (mode === 'single_rank') {
-                // ننزل رتبة واحدة فقط: نبحث عن أول رتبة أدنى من أعلى رتبة حالية للعضو
+                // [FIX-11] بدل "أول رتبة أدنى" حرفياً (ممكن توصله لرتبة لسه
+                // فيها صلاحيات إشراف)، ننزل بالتسلسل الهرمي بدءاً من تحت
+                // أعلى رتبة حالية للعضو، لحد أول رتبة تُعتبر آمنة تماماً.
                 const allRoles = Array.from(
                     guild.roles.cache.filter(r => r.id !== guild.id && !r.managed).values()
                 ).sort((a, b) => b.position - a.position);
 
                 const idx = allRoles.findIndex(r => r.id === highestRole.id);
-                const nextRole = idx !== -1 ? allRoles[idx + 1] : null;
+                targetRole = idx !== -1
+                    ? allRoles.slice(idx + 1).find(r => this.isRoleSafeForDemotion(r, roleSettings))
+                    : null;
 
-                if (!nextRole) {
-                    console.log(`[AutoMod] Demote skipped for ${member.user.tag}: already at the lowest rank available.`);
+                if (!targetRole) {
+                    console.log(`[AutoMod] Demote skipped for ${member.user.tag}: no permission-free role found below their current rank.`);
                     return false;
                 }
-
-                await member.roles.remove(highestRole, reason);
-                await member.roles.add(nextRole, reason);
             } else {
-                // fixed_role: نستبدل كل رتبه الحالية برتبة "بدون صلاحيات" محددة من المشرف
+                // fixed_role: رتبة ثابتة يحددها المشرف بالداشبورد
                 const targetRoleId = roleSettings?.demote_target_role;
                 if (!targetRoleId) {
                     console.error('[AutoMod] Demote failed: "demote_target_role" is not configured in setting_management_role.');
                     return false;
                 }
-                if (!guild.roles.cache.has(targetRoleId)) {
+                targetRole = guild.roles.cache.get(targetRoleId);
+                if (!targetRole) {
                     console.error('[AutoMod] Demote failed: configured demote_target_role no longer exists on this server.');
                     return false;
                 }
-
-                await member.roles.remove(currentRoles, reason).catch(() => {});
-                await member.roles.add(targetRoleId, reason);
+                // [FIX-11] تحقق أمان: حتى لو المشرف حددها يدوياً، نرفض التخفيض
+                // إليها لو تبيّن إنها تحمل أي صلاحية إشراف/إدارة فعلية.
+                if (!this.isRoleSafeForDemotion(targetRole, roleSettings)) {
+                    console.error(`[AutoMod] Demote failed for ${member.user.tag}: configured demote_target_role ("${targetRole.name}") carries moderator/admin permissions - refusing to demote into it.`);
+                    return false;
+                }
             }
+
+            // [FIX-11] نشيل كل الرتب الحالية (مو بس الأعلى) - راجع الشرح بالأعلى
+            await member.roles.remove(currentRoles, reason).catch(() => {});
+            await member.roles.add(targetRole, reason);
             return true;
         } catch (error) {
             console.error(`[AutoMod] Demote error for ${member.user.tag}: ${error.message}`);
@@ -403,7 +444,7 @@ module.exports = {
      * ولم تُصلح بهذا التعديل (يحتاج ملفات mute.js/kick.js لإضافة الاستدعاء
      * فيها لو حبيت تغطيها لاحقاً).
      */
-    async checkRuleEscalation(guild, member, author, triggerType) {
+    async checkRuleEscalation(guild, member, author, triggerType, channel = null) {
         try {
             const rules = await dbUtils.getAutoModRules(guild.id, triggerType);
             if (!rules || rules.length === 0) return;
@@ -455,9 +496,20 @@ module.exports = {
 
             await dbUtils.addInfraction(guild.id, author.id, guild.client.user.id, escAction, reason, matchedRule.duration, author.username);
 
+            // [v5.3 NEW] إشعار DM/Channel لو مفعّل بإعدادات السيرفر
+            await notifyCommandExecution({
+                guild,
+                targetMember: member,
+                moderator: guild.client.user,
+                channel,
+                action: escAction,
+                reason,
+                duration: matchedRule.duration
+            });
+
             // [NEW] تصعيد متسلسل - راجع الشرح بالأعلى
             if (escAction === 'mute' || escAction === 'kick') {
-                await this.checkRuleEscalation(guild, member, author, escAction);
+                await this.checkRuleEscalation(guild, member, author, escAction, channel);
             }
         } catch (err) {
             console.error(`[AutoMod] Rule escalation check failed (${triggerType}) for ${author.tag}: ${err.message}`);
@@ -466,9 +518,12 @@ module.exports = {
 
     /**
      * Universal Punishment Executor
-    /**
-     * Universal Punishment Executor
      * Executes Mute, Kick, Ban, Demote, or Warn based on DB settings
+     *
+     * [v5.3 NOTE] مسار warn العادي (executeWarn ناجحة) يسجّل ويصعّد كل شي
+     * بنفسه من warn.js - إشعار DM/Channel لهالمسار لازم يُضاف داخل warn.js
+     * نفسه (بعد نجاح executeWarn هناك)، مو هنا. مسار الفشل الاحتياطي تحت
+     * (catch) مغطّى بالكامل بهذا الملف.
      */
     async applyPunishment(message, reason, action, duration) {
         const { guild, member, author } = message;
@@ -476,40 +531,35 @@ module.exports = {
         if (action === 'none' || !action) return;
 
         try {
-            // --- حالة 'warn' منفصلة: تمر بالكامل عبر warn.js (بدون تعديل عليه) ---
-            // عشان أي إنذار تلقائي من AutoMod يُحسب ضمن نظام التصعيد بالتحذيرات
-            // نفسه (warning_active + limit_trigger_warn)، بدل تسجيل منفصل ناقص.
             if (action === 'warn') {
                 try {
-                    const { executeWarn } = require('./warn'); // lazy require - يتجنب أي مشاكل ترتيب تحميل
+                    const { executeWarn } = require('./warn');
                     const botModerator = {
                         id: message.client.user.id,
                         tag: message.client.user.tag || message.client.user.username,
-                        roles: { highest: { position: Infinity } } // البوت يتجاوز فحص التسلسل الهرمي دائماً
+                        roles: { highest: { position: Infinity } }
                     };
                     await executeWarn(guild, author.id, botModerator, reason, dbUtils);
                 } catch (warnErr) {
-                    // احتياط نادر: لو فشل الاستدعاء لأي سبب، لا نفقد السجل بالكامل
                     console.error('[AutoMod] Failed to route warn through warn.js, using fallback log:', warnErr.message);
                     await dbUtils.addInfraction(guild.id, author.id, message.client.user.id, 'warn', reason, null, author.username);
-                    await message.channel.send(`${author}, you have been warned: ${reason}`).catch(() => {});
+                    await notifyCommandExecution({
+                        guild, targetMember: member, moderator: message.client.user,
+                        channel: message.channel, action: 'warn', reason, duration: null
+                    });
                 }
-                return; // executeWarn يسجل كل شيء بنفسه - لا داعي للتسجيل العام بالأسفل
+                return;
             }
 
             switch (action) {
                 case 'mute': {
-                    // [FIX #4] Timeout حقيقي بالمدة الفعلية من قاعدة البيانات (spam_action_duration)
-                    // بدل رتبة يدوية كانت تبقى للأبد بدون أي آلية إزالة.
-                    const ms = parseDurationToMs(duration) || 10 * 60 * 1000; // افتراضي 10 دقائق لو القيمة بالقاعدة غير صالحة/فارغة
+                    const ms = parseDurationToMs(duration) || 10 * 60 * 1000;
                     if (!member.moderatable) {
                         console.error(`[AutoMod] Cannot mute ${author.tag}: member is not moderatable by the bot.`);
                         return;
                     }
                     await member.timeout(ms, reason);
 
-                    // تسجيل توثيقي بـ temp_actions فقط (Discord نفسه ينهي التايم أوت تلقائياً،
-                    // هذا يبقيها متسقة مع باقي الملفات مثل mute.js و warn.js فقط للأرشفة)
                     try {
                         const supabase = require('../supabase/db');
                         const endsAt = new Date(Date.now() + ms).toISOString();
@@ -520,9 +570,7 @@ module.exports = {
                             ends_at: endsAt,
                             processed: false
                         });
-                    } catch (e) { /* لا نكسر تنفيذ العقوبة لو فشل التوثيق فقط */ }
-
-                    await message.channel.send(`${author} has been muted for ${duration || '10m'}. Reason: ${reason}`).catch(() => {});
+                    } catch (e) {}
                     break;
                 }
 
@@ -543,10 +591,8 @@ module.exports = {
                     break;
 
                 case 'demote': {
-                    // [NEW] لم تكن منفذة إطلاقاً سابقاً - راجع demoteMember() بالأعلى
                     const demoted = await this.demoteMember(member, reason);
-                    if (!demoted) return; // فشل التخفيض - لا نسجل عقوبة لم تُنفذ فعلياً
-                    await message.channel.send(`${author} has been demoted. Reason: ${reason}`).catch(() => {});
+                    if (!demoted) return;
                     break;
                 }
 
@@ -555,16 +601,21 @@ module.exports = {
                     return;
             }
 
-            // Log to log_moderation table (لكل الحالات ما عدا 'warn' اللي سجلت نفسها بالأعلى)
-            // [BUG FIX] كانت تستخدم logModeration غير الموجودة أصلاً بـ databaseQueries.js -
-            // استُبدلت بـ dbUtils.addInfraction المستخدمة بباقي ملفات الأوامر (ban.js, kick.js, mute.js).
             await dbUtils.addInfraction(guild.id, author.id, message.client.user.id, action, reason, duration, author.username);
 
-            // [v5.3 REWRITE] فحص القواعد التراكمية الديناميكية - لكل من mute
-            // و kick الآن (النسخة القديمة كانت تفحص mute فقط لأن Tier 2 كانت
-            // مقفلة على "بعد X ميوت"؛ الجدول الجديد يدعم تصعيد Kick→Ban أيضاً).
+            // إرسال الإشعار كاملاً عبر المتحكم الموحد بناءً على إعدادات الداشبورد
+            await notifyCommandExecution({
+                guild,
+                targetMember: member,
+                moderator: message.client.user,
+                channel: message.channel,
+                action,
+                reason,
+                duration
+            });
+
             if (action === 'mute' || action === 'kick') {
-                await this.checkRuleEscalation(guild, member, author, action);
+                await this.checkRuleEscalation(guild, member, author, action, message.channel);
             }
 
         } catch (error) {

@@ -790,7 +790,8 @@
         <div class="content-body">
             <div class="settings-grid">
                 
-                <!-- SECTION 1a: Command Spam Protection (v5.3 - NEW, actually command-specific) -->
+                <!-- SECTION 0: Command Spam Protection (v5.3 - NEW, actually command-specific)
+                     [swapped with Advanced Security below - same content, new position] -->
                 <div class="settings-card">
                     <div class="card-header-group">
                         <i class="fa-solid fa-terminal card-header-icon"></i>
@@ -825,6 +826,29 @@
                             <label class="form-label">Action Duration</label>
                             <input id="cmd_spam_action_duration" type="text" class="form-input duration-input" placeholder="e.g., 30m" maxlength="6">
                             <small style="color: var(--text-secondary); font-size: 11px;">Format: number + s/m/h/d/w (e.g. 30m, 12h, 1w)</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 1a: Advanced Server Security
+                     [swapped with Command Spam Protection above - same content, new position] -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-user-shield card-header-icon"></i>
+                        <h2 class="card-header-title">Advanced Security</h2>
+                    </div>
+
+                    <div class="form-group" style="gap: 14px;">
+                        <!-- Role Restore Toggle -->
+                        <div class="switch-container">
+                            <div class="switch-info">
+                                <span class="switch-title">Role Restore on Rejoin</span>
+                                <span class="switch-desc">Reassign previous roles automatically when members rejoin to prevent Mute Evading.</span>
+                            </div>
+                            <label class="switch">
+                                <input id="role_restore_on_rejoin" data-target-table="setting_moderation_security" type="checkbox">
+                                <span class="slider"></span>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -871,22 +895,34 @@
                     </div>
                 </div>
 
-                <!-- SECTION 2: Advanced Server Security -->
+                <!-- SECTION 2: Command Execution Notifications (v5.3.1) -->
                 <div class="settings-card">
                     <div class="card-header-group">
-                        <i class="fa-solid fa-user-shield card-header-icon"></i>
-                        <h2 class="card-header-title">Advanced Security</h2>
+                        <i class="fa-solid fa-comment-dots card-header-icon"></i>
+                        <h2 class="card-header-title">Command Notifications</h2>
                     </div>
 
                     <div class="form-group" style="gap: 14px;">
-                        <!-- Role Restore Toggle -->
+                        <!-- Toggle 1: DM the target user -->
                         <div class="switch-container">
                             <div class="switch-info">
-                                <span class="switch-title">Role Restore on Rejoin</span>
-                                <span class="switch-desc">Reassign previous roles automatically when members rejoin to prevent Mute Evading.</span>
+                                <span class="switch-title">Notify via DM</span>
+                                <span class="switch-desc">Send a private message to the affected member whenever a command is executed on them.</span>
                             </div>
                             <label class="switch">
-                                <input id="autorole_enabled" data-target-table="setting_guild" type="checkbox">
+                                <input id="notify_command_dm" data-target-table="setting_guild" type="checkbox">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <!-- Toggle 2: Post confirmation in the channel -->
+                        <div class="switch-container">
+                            <div class="switch-info">
+                                <span class="switch-title">Notify in Channel</span>
+                                <span class="switch-desc">Post a confirmation message in the same channel whenever a command is executed.</span>
+                            </div>
+                            <label class="switch">
+                                <input id="notify_command_channel" data-target-table="setting_guild" type="checkbox">
                                 <span class="slider"></span>
                             </label>
                         </div>
@@ -908,25 +944,8 @@
 
                     <div class="form-group" style="gap: 16px;">
 
-                        <!-- Warning Precision Sub-Options - إعداد عام مستقل عن
-                             "القاعدة" نفسها (انتهاء صلاحية + سلوك التصفير)،
-                             ما زال مرتبط بـ setting_moderation_security عادي -->
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label class="form-label">Warning Expiration (Decay Time)</label>
-                                <input id="expiration_warn" type="text" class="form-input duration-input" placeholder="e.g., 30d (leave blank for permanent warnings)" maxlength="6">
-                            </div>
-                            <div class="form-group">
-                                <label class="form-label">Infraction Limit Reset Behavior</label>
-                                <select id="warn_reset_behavior" class="form-select">
-                                    <option value="reset">Reset Warnings to 0 upon Action Trigger</option>
-                                    <option value="keep">Keep Warnings Accumulating Post-Action</option>
-                                </select>
-                            </div>
-                        </div>
-
                         <!-- 1. Warn Accumulation Rules -->
-                        <label class="form-label" style="border-left: 3px solid var(--accent-red); padding-left: 8px; margin-top: 6px;">Warn Accumulation Rules</label>
+                        <label class="form-label" style="border-left: 3px solid var(--accent-red); padding-left: 8px;">Warn Accumulation Rules</label>
                         <div id="warn_rules_container" class="rules-list-container">
                             <span class="empty-rules-placeholder" data-empty-for="warn">No warn rules yet - click "Add Warn Rule" below.</span>
                         </div>

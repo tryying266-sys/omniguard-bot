@@ -110,7 +110,19 @@ async function handleMute(message, args, dbUtils) {
             console.error('[Admin Protection] trackAdminAction failed:', e.message);
         }
 
-        return message.reply(`✅ **${target.user.tag}** muted for **${formatDuration(durationMs)}**.\n📝 Reason: ${reason}`);
+        // إرسال الإشعار التلقائي بحسب إعدادات الداشبورد
+        const { notifyCommandExecution } = require('./commandNotifications');
+        await notifyCommandExecution({
+            guild: message.guild,
+            targetMember: target,
+            moderator: message.author,
+            channel: message.channel,
+            action: 'mute',
+            reason,
+            duration: formatDuration(durationMs)
+        });
+
+        return;
     } catch (err) {
         console.error('[Mute Error]', err);
         return message.reply('❌ Failed to mute member.');
@@ -155,7 +167,18 @@ async function handleUnmute(message, args, dbUtils) {
             });
         }
 
-        return message.reply(`✅ **${target.user.tag}** has been unmuted.\n📝 Reason: ${reason}`);
+        const { notifyCommandExecution } = require('./commandNotifications');
+        await notifyCommandExecution({
+            guild: message.guild,
+            targetMember: target,
+            moderator: message.author,
+            channel: message.channel,
+            action: 'unmute',
+            reason,
+            duration: null
+        });
+
+        return;
     } catch (err) {
         console.error('[Unmute Error]', err);
         return message.reply('❌ Failed to unmute member.');

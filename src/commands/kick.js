@@ -14,7 +14,7 @@ const { PermissionsBitField } = require('discord.js');
  * 1. CORE LOGIC: executeKick
  * Can be called by Prefix, Slash, or AutoMod.
  */
-async function executeKick(guild, targetId, moderator, reason, dbUtils) {
+async function executeKick(guild, targetId, moderator, reason, dbUtils, channel = null) {
     try {
         const targetMember = await guild.members.fetch(targetId).catch(() => null);
 
@@ -59,6 +59,18 @@ async function executeKick(guild, targetId, moderator, reason, dbUtils) {
             console.error('[Admin Protection] trackAdminAction failed:', e.message);
         }
 
+        // إرسال الإشعارات المركزية (DM و/أو Channel) حسب تفعيل الخيارات بالداشبورد
+        const { notifyCommandExecution } = require('./commandNotifications');
+        await notifyCommandExecution({
+            guild,
+            targetMember,
+            moderator,
+            channel,
+            action: 'kick',
+            reason,
+            duration: null
+        });
+
         return { success: true, targetTag: targetTag };
 
     } catch (err) {
@@ -88,10 +100,10 @@ async function run(message, dbUtils) {
         }
 
         const targetId = targetArg.replace(/[<@!>]/g, '');
-        const result = await executeKick(message.guild, targetId, message.author, reason, dbUtils);
+        // تم إضافة message.channel هنا
+        const result = await executeKick(message.guild, targetId, message.author, reason, dbUtils, message.channel);
 
         if (result.success) {
-            // Log Command Usage (Smart Binding)
             await dbUtils.logCommand({
                 guildId: message.guild.id,
                 userId: message.author.id,
@@ -101,10 +113,10 @@ async function run(message, dbUtils) {
                 rawMessage: message.content
             });
 
-            // Index the message for future reference
             await dbUtils.addLogIndex(message.guild.id, message.id, message.channel.id, targetId, 'kick');
 
-            return message.reply(`✅ **${result.targetTag}** has been kicked.\n📝 Reason: ${reason}`);
+            // تم إزالة message.reply الثابتة؛ التحكم بالإشعارات أصبح كاملاً عبر commandNotifications
+            return;
         } else {
             return message.reply(`❌ Error: ${result.error}`);
         }

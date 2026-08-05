@@ -82,7 +82,6 @@ async function executeBan(guild, targetId, moderator, durationStr, reason, dbUti
         }
 
         // [Admin Protection] تتبع عدد إجراءات الحظر المتتالية من هذا المشرف
-        // (حماية ضد اختراق حساب أدمن - راجع AutoMod.js: trackAdminAction)
         try {
             const AutoMod = require('./AutoMod');
             await AutoMod.trackAdminAction(guild, moderator, 'ban');
@@ -90,7 +89,18 @@ async function executeBan(guild, targetId, moderator, durationStr, reason, dbUti
             console.error('[Admin Protection] trackAdminAction failed:', e.message);
         }
 
-        // إرجاع النتيجة بنجاح باستخدام التاق المحفوظ مسبقاً
+        // إرسال الإشعارات المركزية (DM و/أو Channel) حسب تفعيل الخيارات بالداشبورد
+        const { notifyCommandExecution } = require('./commandNotifications');
+        await notifyCommandExecution({
+            guild,
+            targetMember,
+            moderator,
+            channel,
+            action: 'ban',
+            reason,
+            duration: duration.permanent ? null : duration.text
+        });
+
         return { success: true, targetTag: targetTag, durationText: duration.text };
 
     } catch (err) {
@@ -102,12 +112,25 @@ async function executeBan(guild, targetId, moderator, durationStr, reason, dbUti
 /**
  * 2. CORE LOGIC: executeUnban
  */
-async function executeUnban(guild, targetId, moderator, reason, dbUtils) {
+async function executeUnban(guild, targetId, moderator, reason, dbUtils, channel = null) {
     try {
         await guild.members.unban(targetId, `Unbanned by: ${moderator.tag} | Reason: ${reason}`);
 
-        // Log to database
         await dbUtils.addInfraction(guild.id, targetId, moderator.id, 'unban', reason);
+
+        const { notifyCommandExecution } = require('./commandNotifications');
+        const targetUser = await guild.client.users.fetch(targetId).catch(() => null);
+        if (targetUser) {
+            await notifyCommandExecution({
+                guild,
+                targetMember: targetUser,
+                moderator,
+                channel,
+                action: 'unban',
+                reason,
+                duration: null
+            });
+        }
 
         return { success: true };
     } catch (err) {
@@ -134,9 +157,6 @@ async function run(message, dbUtils) {
             return message.reply("⚠️ Usage: `ban @user [duration/perm] <reason>`");
         }
 
-        // [FIX] المدة صارت اختيارية. لو الكلمة الثانية "perm"/"permanent" أو تطابق
-        // صيغة مدة صحيحة (1d, 2w, 12h...) نستخدمها كما هي. غير كذا (أو مو موجودة
-        // أصلاً) نعتبرها جزء من السبب مباشرة، والحظر يصير دائم افتراضياً.
         let durationArg = args[1];
         let reasonArgs = args.slice(2);
 
@@ -148,10 +168,10 @@ async function run(message, dbUtils) {
         const reason = reasonArgs.join(' ') || "No reason provided";
 
         const targetId = targetArg.replace(/[<@!>]/g, '');
-        const result = await executeBan(message.guild, targetId, message.author, durationArg, reason, dbUtils);
+        // تم إضافة message.channel هنا ليتم التحقق من خيار Notify in Channel إدارياً
+        const result = await executeBan(message.guild, targetId, message.author, durationArg, reason, dbUtils, message.channel);
 
         if (result.success) {
-            // Log Command Usage (Smart Binding)
             await dbUtils.logCommand({
                 guildId: message.guild.id,
                 userId: message.author.id,
@@ -161,10 +181,25 @@ async function run(message, dbUtils) {
                 rawMessage: message.content
             });
 
-            // Index the message for future reference
             await dbUtils.addLogIndex(message.guild.id, message.id, message.channel.id, targetId, 'ban');
 
-            return message.reply(`✅ **${result.targetTag}** has been banned (${result.durationText}).\n📝 Reason: ${reason}`);
+            // تم إزالة message.reply الثابتة؛ التحكم بالإشعارات أصبح كاملاً عبر commandNotifications
+            return;
+        } else {
+            return message.reply(`❌ Error: ${result.error}`);
+        }
+    }
+
+    if (command === 'unban') {
+        const targetId = args[0];
+        const reason = args.slice(1).join(' ') || "No reason provided";
+
+        if (!targetId) return message.reply("⚠️ Usage: `unban <user_id> <reason>`");
+
+        const result = await executeUnban(message.guild, targetId, message.author, reason, dbUtils, message.channel);
+        if (result.success) {
+            // تم إزالة message.reply الثابتة؛ التحكم بالإشعارات أصبح كاملاً عبر commandNotifications
+            return;
         } else {
             return message.reply(`❌ Error: ${result.error}`);
         }

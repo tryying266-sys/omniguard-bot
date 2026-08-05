@@ -60,7 +60,7 @@ async function findMatchingWarnRule(guildId, count, dbUtils) {
  * 1. CORE LOGIC: executeWarn
  * Adds a warning and checks if escalation (Auto-Punishment) is needed.
  */
-async function executeWarn(guild, targetId, moderator, reason, dbUtils) {
+async function executeWarn(guild, targetId, moderator, reason, dbUtils, channel = null) {
     try {
         const targetMember = await guild.members.fetch(targetId).catch(() => null);
         const supabase = require('../supabase/db'); // استدعاء مباشر للعمليات المتقدمة
@@ -161,9 +161,18 @@ async function executeWarn(guild, targetId, moderator, reason, dbUtils) {
             }
         }
 
-        // [REMOVED] كان هنا DM "You have been warned" - أُزيل بطلب صريح.
-        // التسجيل بقاعدة البيانات (من حذّر، السبب، الوقت، التصعيد لو صار)
-        // يبقى كامل بقسم B أعلاه + قسم التصعيد - بس العضو ما يوصله إشعار مباشر بعد الآن.
+        // إرسال الإشعار الموحد مع تضمن مجموع التحذيرات النشطة
+        const { notifyCommandExecution } = require('./commandNotifications');
+        await notifyCommandExecution({
+            guild,
+            targetMember,
+            moderator,
+            channel,
+            action: 'warn',
+            reason,
+            duration: null
+        });
+
         return { 
             success: true, 
             targetTag: targetTag, 
@@ -227,7 +236,8 @@ async function run(message, dbUtils) {
         if (!targetArg) return message.reply("⚠️ Usage: `warn @user <reason>`");
 
         const targetId = targetArg.replace(/[<@!>]/g, '');
-        const result = await executeWarn(message.guild, targetId, message.author, reason, dbUtils);
+        // تم تمرير message.channel لإرسال الإشعار للقناة لو مفعل بالداشبورد
+        const result = await executeWarn(message.guild, targetId, message.author, reason, dbUtils, message.channel);
 
         if (result.success) {
             await dbUtils.logCommand({
@@ -236,9 +246,7 @@ async function run(message, dbUtils) {
             });
             await dbUtils.addLogIndex(message.guild.id, message.id, message.channel.id, targetId, 'warn');
 
-            let response = `✅ **${result.targetTag}** has been warned. (Total: ${result.currentWarnings})`;
-            if (result.escalated) response += `\n🚫 **Escalation:** User reached the limit and was **${result.action}ed**!`;
-            return message.reply(response);
+            return;
         } else {
             return message.reply(`❌ Error: ${result.error}`);
         }

@@ -1,29 +1,112 @@
 const { PermissionsBitField } = require('discord.js');
 
+/**
+ * خوارزمية البحث الذكي والتقريبي عن الرتب (Fuzzy Match & Smart Search)
+ */
+function levenshteinDistance(a, b) {
+    const matrix = [];
+    for (let i = 0; i <= b.length; i++) matrix[i] = [i];
+    for (let j = 0; j <= a.length; j++) matrix[0][j] = j;
+
+    for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+            if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1,
+                    Math.min(matrix[i][j - 1] + 1, matrix[i - 1][j] + 1)
+                );
+            }
+        }
+    }
+    return matrix[b.length][a.length];
+}
+
+function calculateSimilarity(str1, str2) {
+    const longer = str1.length < str2.length ? str2 : str1;
+    const shorter = str1.length < str2.length ? str1 : str2;
+    if (longer.length === 0) return 1.0;
+    return (longer.length - levenshteinDistance(longer, shorter)) / parseFloat(longer.length);
+}
+
+function findRoleSmart(guild, query) {
+    if (!guild || !query) return null;
+    const cleanQuery = query.trim().replace(/[<@&>]/g, '');
+
+    // 1. البحث بواسطة ID الرتبة
+    const roleById = guild.roles.cache.get(cleanQuery);
+    if (roleById) return roleById;
+
+    const lowerQuery = cleanQuery.toLowerCase();
+
+    // 2. مطابقة تامة لاسم الرتبة
+    const exactMatch = guild.roles.cache.find(r => r.name.toLowerCase() === lowerQuery);
+    if (exactMatch) return exactMatch;
+
+    // 3. مطابقة بداية اسم الرتبة
+    const startsWithMatch = guild.roles.cache.find(r => r.name.toLowerCase().startsWith(lowerQuery));
+    if (startsWithMatch) return startsWithMatch;
+
+    // 4. مطابقة جزء من اسم الرتبة
+    const includesMatch = guild.roles.cache.find(r => r.name.toLowerCase().includes(lowerQuery));
+    if (includesMatch) return includesMatch;
+
+    // 5. البحث التقريبي الذكي (Fuzzy Matching)
+    let bestMatch = null;
+    let highestSimilarity = 0;
+
+    guild.roles.cache.forEach(role => {
+        const roleNameLower = role.name.toLowerCase();
+        const sim = calculateSimilarity(lowerQuery, roleNameLower);
+        if (sim > highestSimilarity) {
+            highestSimilarity = sim;
+            bestMatch = role;
+        }
+    });
+
+    // حد أدنى للقبول (50% تشابه على الأقل، وإلا يُعتبر غير موجود)
+    if (bestMatch && highestSimilarity >= 0.5) {
+        return bestMatch;
+    }
+
+    return null;
+}
+
 async function handleRoleAdd(message, args, dbUtils = null) {
     if (!message.member.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
         return message.reply('❌ You do not have permission to manage roles.');
     }
 
     if (args.length < 2) {
-        return message.reply('⚠️ Usage: `roleadd <roleName> <@member>`');
+        return message.reply('⚠️ Usage: `roleadd <@member> <roleName/ID>`');
     }
 
-    const targetArg = args[args.length - 1];
-    const roleName = args.slice(0, -1).join(' ');
+    // الترتيب الجديد: العضو أولاً ثم اسم/آيدي الرتبة
+    const targetArg = args[0];
+    const roleQuery = args.slice(1).join(' ');
 
-    if (!roleName || !targetArg) {
-        return message.reply('⚠️ Usage: `roleadd <roleName> <@member>`');
+    if (!targetArg || !roleQuery) {
+        return message.reply('⚠️ Usage: `roleadd <@member> <roleName/ID>`');
     }
 
-    const target = message.mentions.members?.first() || await message.guild.members.fetch(targetArg).catch(() => null);
+    const target = message.mentions.members?.first() || await message.guild.members.fetch(targetArg.replace(/[<@!>]/g, '')).catch(() => null);
     if (!target) {
         return message.reply('❌ I could not find that member.');
     }
 
-    const role = message.guild.roles.cache.find(r => r.name.toLowerCase() === roleName.toLowerCase());
+    // البحث الذكي عن الرتبة
+    const role = findRoleSmart(message.guild, roleQuery);
     if (!role) {
-        return message.reply('❌ I could not find that role on this server.');
+        return message.reply('❌ I could not find any role matching that input.');
+    }
+
+    if (message.guild.ownerId !== message.author.id && message.member.roles.highest.position <= role.position) {
+        return message.reply('❌ You cannot manage a role higher than or equal to your highest role.');
+    }
+
+    if (!role.editable) {
+        return message.reply('❌ I cannot assign this role (Role hierarchy constraint).');
     }
 
     try {
@@ -40,20 +123,25 @@ async function handleRoleAdd(message, args, dbUtils = null) {
             });
         }
 
-        return message.reply(`✅ Added role **${role.name}** to **${target.user.tag}**.`);
+        // إرسال الإشعار التلقائي بحسب إعدادات الداشبورد
+        const { notifyCommandExecution } = require('./commandNotifications');
+        await notifyCommandExecution({
+            guild: message.guild,
+            targetMember: target,
+            moderator: message.author,
+            channel: message.channel,
+            action: 'roleadd',
+            reason: `Assigned Role: ${role.name}`,
+            duration: null
+        });
+
+        return;
     } catch (error) {
         console.error('[Role Add Error]', error);
         return message.reply('❌ Something went wrong while adding the role.');
     }
 }
 
-/**
- * [NEW] Manual /demote command.
- * لا يعيد تنفيذ منطق التخفيض من الصفر - يستدعي نفس autoMod.demoteMember()
- * المستخدمة تلقائياً عند تجاوز حد السبام (AutoMod.js)، فيقرأ نفس الوضع
- * (single_rank / fixed_role) ونفس demote_target_role من setting_management_role.
- * هذا يضمن سلوك موحّد بين "الديموت اليدوي" و"الديموت التلقائي" دائماً.
- */
 async function handleDemote(message, args, dbUtils = null) {
     if (!message.member.permissions.has(PermissionsBitField.Flags.ManageRoles)) {
         return message.reply('❌ You do not have permission to manage roles.');
@@ -66,14 +154,11 @@ async function handleDemote(message, args, dbUtils = null) {
         return message.reply('⚠️ Usage: `demote <@member> <reason>`');
     }
 
-    const target = message.mentions.members?.first() || await message.guild.members.fetch(targetArg).catch(() => null);
+    const target = message.mentions.members?.first() || await message.guild.members.fetch(targetArg.replace(/[<@!>]/g, '')).catch(() => null);
     if (!target) {
         return message.reply('❌ I could not find that member.');
     }
 
-    // نفس فحوصات التسلسل الهرمي المستخدمة بـ kick.js/ban.js - demote عقوبة
-    // حقيقية (لهذا أضيفت أصلاً لقائمة action_type بقاعدة البيانات)، فتستحق
-    // نفس الحماية، بعكس roleadd العادي.
     if (target.id === message.author.id) {
         return message.reply('❌ You cannot demote yourself.');
     }
@@ -85,15 +170,10 @@ async function handleDemote(message, args, dbUtils = null) {
     }
 
     try {
-        // lazy require - نفس أسلوب AutoMod.js نفسها عند استدعائها لـ warn.js،
-        // يتجنب أي احتمال لمشاكل ترتيب تحميل الملفات بمجلد commands/.
         const autoMod = require('./AutoMod');
         const demoted = await autoMod.demoteMember(target, reason);
 
         if (!demoted) {
-            // demoteMember() تسجّل السبب الدقيق بالـ console بنفسها (تسلسل
-            // هرمي، لا رتب قابلة للتخفيض، demote_target_role محذوفة/غير
-            // معدة...) - هنا فقط رسالة عامة للمستخدم.
             return message.reply('❌ Could not demote this member. Check the bot\'s role hierarchy or the demote configuration in the dashboard.');
         }
 
@@ -114,7 +194,19 @@ async function handleDemote(message, args, dbUtils = null) {
             });
         }
 
-        return message.reply(`✅ **${target.user.tag}** has been demoted.\n📝 Reason: ${reason}`);
+        // إرسال الإشعار عبر commandNotifications
+        const { notifyCommandExecution } = require('./commandNotifications');
+        await notifyCommandExecution({
+            guild: message.guild,
+            targetMember: target,
+            moderator: message.author,
+            channel: message.channel,
+            action: 'demote',
+            reason: reason,
+            duration: null
+        });
+
+        return;
     } catch (error) {
         console.error('[Demote Command Error]', error);
         return message.reply('❌ Something went wrong while demoting this member.');
@@ -147,5 +239,6 @@ module.exports = {
     run,
     handleRoleAdd,
     handleDemote,
-    aliases: ['demote'] // <-- بدونها !demote ما راح يوصل لـ run() إطلاقاً (نفس فخ unban/unmute/unwarn/clear قبل ما يُصلح بـ commandhandler.js v3.2)
+    findRoleSmart,
+    aliases: ['demote']
 };
