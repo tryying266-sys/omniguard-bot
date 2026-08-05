@@ -406,10 +406,13 @@ module.exports = {
             }
 
             if (targetRole) {
-                if (!this.isRoleSafeForDemotion(targetRole, null)) {
-                    console.error(`[AutoMod] Demote failed: target role carries moderator/admin permissions.`);
-                    return { success: false, roleName: null };
-                }
+                // [تعديل بالطلب] أُزيل فحص "الرتبة الآمنة" (isRoleSafeForDemotion) لما
+                // تكون الرتبة محددة يدوياً (targetRoleInput) - المشرف حر يختار أي رتبة
+                // حتى لو فيها Administrator، بشرط واحد بس: رتبة البوت أعلى من رتبة
+                // العضو المستهدف (مُتحقَّق منه فوق، سطر botMember.roles.highest.position).
+                // ملاحظة: هذا الفحص لسه شغّال بمسار البحث التلقائي عن رتبة آمنة
+                // (لما demote_mode = single_rank/fixed_role بدون تحديد يدوي) - راجع
+                // الأسطر تحت لو تبي تشيله من هناك كمان.
                 await member.roles.remove(currentRoles, reason).catch(() => {});
                 await member.roles.add(targetRole, reason);
                 return { success: true, roleName: targetRole.name };
