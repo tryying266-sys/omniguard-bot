@@ -1,5 +1,25 @@
 const { PermissionsBitField } = require('discord.js');
 
+// استيراد آمن للملفات المساعدة لتجنب خطأ المجلدات الفرعية
+function safeRequire(relativePath) {
+    try {
+        return require(relativePath);
+    } catch (e1) {
+        try {
+            return require(`.${relativePath}`);
+        } catch (e2) {
+            try {
+                return require(`..${relativePath.replace('.', '')}`);
+            } catch (e3) {
+                return null;
+            }
+        }
+    }
+}
+
+const autoMod = safeRequire('./AutoMod');
+const commandNotifications = safeRequire('./commandNotifications');
+
 /**
  * خوارزمية البحث الذكي والتقريبي عن الرتب (Fuzzy Match & Smart Search)
  */
@@ -65,7 +85,7 @@ function findRoleSmart(guild, query) {
         }
     });
 
-    // حد أدنى للقبول (50% تشابه على الأقل، وإلا يُعتبر غير موجود)
+    // حد أدنى للقبول (50% تشابه على الأقل)
     if (bestMatch && highestSimilarity >= 0.5) {
         return bestMatch;
     }
@@ -82,7 +102,6 @@ async function handleRoleAdd(message, args, dbUtils = null) {
         return message.reply('⚠️ Usage: `roleadd <@member> <roleName/ID>`');
     }
 
-    // الترتيب الجديد: العضو أولاً ثم اسم/آيدي الرتبة
     const targetArg = args[0];
     const roleQuery = args.slice(1).join(' ');
 
@@ -116,7 +135,7 @@ async function handleRoleAdd(message, args, dbUtils = null) {
             await dbUtils.logCommand({
                 guildId: message.guild.id,
                 userId: message.author.id,
-                username: message.author.tag,
+                username: message.author.tag || message.author.username,
                 commandName: 'roleadd',
                 channelId: message.channel.id,
                 rawMessage: message.content
@@ -124,16 +143,17 @@ async function handleRoleAdd(message, args, dbUtils = null) {
         }
 
         // إرسال الإشعار التلقائي بحسب إعدادات الداشبورد
-        const { notifyCommandExecution } = require('./commandNotifications');
-        await notifyCommandExecution({
-            guild: message.guild,
-            targetMember: target,
-            moderator: message.author,
-            channel: message.channel,
-            action: 'roleadd',
-            reason: `Assigned Role: ${role.name}`,
-            duration: null
-        });
+        if (commandNotifications?.notifyCommandExecution) {
+            await commandNotifications.notifyCommandExecution({
+                guild: message.guild,
+                targetMember: target,
+                moderator: message.author,
+                channel: message.channel,
+                action: 'roleadd',
+                reason: `Assigned Role: ${role.name}`,
+                duration: null
+            });
+        }
 
         return;
     } catch (error) {
@@ -170,15 +190,17 @@ async function handleDemote(message, args, dbUtils = null) {
     }
 
     try {
-        const autoMod = require('./AutoMod');
-        const demoted = await autoMod.demoteMember(target, reason);
+        const activeAutoMod = autoMod || require('./AutoMod');
+        const demoted = await activeAutoMod.demoteMember(target, reason);
 
         if (!demoted) {
             return message.reply('❌ Could not demote this member. Check the bot\'s role hierarchy or the demote configuration in the dashboard.');
         }
 
+        const userTag = target.user?.tag || target.user?.username || target.id;
+
         if (dbUtils?.addInfraction) {
-            await dbUtils.addInfraction(message.guild.id, target.id, message.author.id, 'demote', reason, null, target.user.tag);
+            await dbUtils.addInfraction(message.guild.id, target.id, message.author.id, 'demote', reason, null, userTag);
         }
         if (dbUtils?.addLogIndex) {
             await dbUtils.addLogIndex(message.guild.id, message.id, message.channel.id, target.id, 'demote');
@@ -187,7 +209,7 @@ async function handleDemote(message, args, dbUtils = null) {
             await dbUtils.logCommand({
                 guildId: message.guild.id,
                 userId: message.author.id,
-                username: message.author.tag,
+                username: message.author.tag || message.author.username,
                 commandName: 'demote',
                 channelId: message.channel.id,
                 rawMessage: message.content
@@ -195,16 +217,17 @@ async function handleDemote(message, args, dbUtils = null) {
         }
 
         // إرسال الإشعار عبر commandNotifications
-        const { notifyCommandExecution } = require('./commandNotifications');
-        await notifyCommandExecution({
-            guild: message.guild,
-            targetMember: target,
-            moderator: message.author,
-            channel: message.channel,
-            action: 'demote',
-            reason: reason,
-            duration: null
-        });
+        if (commandNotifications?.notifyCommandExecution) {
+            await commandNotifications.notifyCommandExecution({
+                guild: message.guild,
+                targetMember: target,
+                moderator: message.author,
+                channel: message.channel,
+                action: 'demote',
+                reason: reason,
+                duration: null
+            });
+        }
 
         return;
     } catch (error) {
@@ -236,9 +259,11 @@ async function run(message, dbUtils = null) {
 }
 
 module.exports = {
+    name: 'roleadd',
+    description: 'Manages member roles and demotions',
+    aliases: ['demote'],
     run,
     handleRoleAdd,
     handleDemote,
-    findRoleSmart,
-    aliases: ['demote']
+    findRoleSmart
 };
