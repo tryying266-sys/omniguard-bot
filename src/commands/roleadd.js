@@ -22,6 +22,8 @@ const commandNotifications = safeRequire('./commandNotifications');
 
 /**
  * خوارزمية البحث الذكي والتقريبي عن الرتب (Fuzzy Match & Smart Search)
+ * يدعم: ID الرتبة - منشن الرتبة (@role) - الاسم الكامل - جزء من الاسم -
+ * اسم مكتوب بالخطأ (Typo Tolerance)
  */
 function levenshteinDistance(a, b) {
     const matrix = [];
@@ -53,8 +55,9 @@ function calculateSimilarity(str1, str2) {
 function findRoleSmart(guild, query) {
     if (!guild || !query) return null;
     const cleanQuery = query.trim().replace(/[<@&>]/g, '');
+    if (!cleanQuery) return null;
 
-    // 1. البحث بواسطة ID الرتبة
+    // 1. البحث بواسطة ID الرتبة (يغطي أيضاً حالة المنشن @role بعد التنظيف)
     const roleById = guild.roles.cache.get(cleanQuery);
     if (roleById) return roleById;
 
@@ -64,7 +67,24 @@ function findRoleSmart(guild, query) {
     const exactMatch = guild.roles.cache.find(r => r.name.toLowerCase() === lowerQuery);
     if (exactMatch) return exactMatch;
 
-    // 3. إذا لم توجد مطابقة تامة، يتم البحث بالذكاء التقريبي دون استعجال على البدايات فقط
+    // 3. مطابقة الاحتواء الجزئي (Partial / Substring Match)
+    // تغطي حالة كتابة جزء من اسم الرتبة فقط (مثلاً "mod" بدل "Moderator")
+    // نجمع كل المرشحين ونختار الأقرب طولاً (الأكثر تطابقاً) لتفادي الالتباس
+    // بين رتب متعددة تحتوي نفس الجزء المكتوب
+    const containsMatches = guild.roles.cache.filter(r => {
+        const roleNameLower = r.name.toLowerCase();
+        return roleNameLower.includes(lowerQuery) || lowerQuery.includes(roleNameLower);
+    });
+
+    if (containsMatches.size > 0) {
+        // نرتّب حسب الأقرب بالطول (الفرق الأصغر بين طول الاسم وطول البحث = تطابق أدق)
+        const sorted = [...containsMatches.values()].sort((a, b) => {
+            return Math.abs(a.name.length - lowerQuery.length) - Math.abs(b.name.length - lowerQuery.length);
+        });
+        return sorted[0];
+    }
+
+    // 4. إذا لم توجد أي مطابقة احتواء، نلجأ للبحث بالذكاء التقريبي (Typo Tolerance)
     let bestMatch = null;
     let highestSimilarity = 0;
 
@@ -77,8 +97,9 @@ function findRoleSmart(guild, query) {
         }
     });
 
-    // يشترط تشابه عالٍ جداً (75% فأكثر) لتجنب الوقوع في رتبة أخرى متقاربة
-    if (bestMatch && highestSimilarity >= 0.75) {
+    // يشترط تشابه عالٍ جداً (60% فأكثر) لتجنب الوقوع في رتبة أخرى غير مقصودة
+    // بينما يبقى مرن بما يكفي لالتقاط الأخطاء الإملائية البسيطة
+    if (bestMatch && highestSimilarity >= 0.6) {
         return bestMatch;
     }
 
@@ -106,7 +127,7 @@ async function handleRoleAdd(message, args, dbUtils = null) {
         return message.reply('❌ I could not find that member.');
     }
 
-    // البحث الذكي عن الرتبة
+    // البحث الذكي عن الرتبة (ID / منشن / اسم كامل / جزء من الاسم / خطأ إملائي)
     const role = findRoleSmart(message.guild, roleQuery);
     if (!role) {
         return message.reply('❌ I could not find any role matching that input.');
@@ -134,7 +155,7 @@ async function handleRoleAdd(message, args, dbUtils = null) {
             });
         }
 
-       // إرسال الإشعار التلقائي بحسب إعدادات الداشبورد مع تضمين اسم الرتبة المضافة
+        // إرسال إشعار الـ Embed فقط - حقل السبب منفصل تماماً عن حقل اسم الرتبة المضافة
         if (commandNotifications?.notifyCommandExecution) {
             await commandNotifications.notifyCommandExecution({
                 guild: message.guild,
@@ -142,13 +163,13 @@ async function handleRoleAdd(message, args, dbUtils = null) {
                 moderator: message.author,
                 channel: message.channel,
                 action: 'roleadd',
-                reason: `Added Role: ${role.name}`,
+                reason: 'No reason provided',
                 roleName: role.name,
                 duration: null
             });
         }
-
-        return message.reply(`✅ Successfully added role **${role.name}** to **${target.user.username}**.`);
+        // ملاحظة: تم إزالة رسالة التأكيد النصية بعد الـ Embed بناءً على الطلب -
+        // الإشعار الوحيد المرسل الآن هو الـ Embed عبر notifyCommandExecution
     } catch (error) {
         console.error('[Role Add Error]', error);
         return message.reply('❌ Something went wrong while adding the role.');
@@ -166,7 +187,7 @@ async function handleDemote(message, args, dbUtils = null) {
 
     const targetArg = args[0];
     const target = message.mentions.members?.first() || await message.guild.members.fetch(targetArg.replace(/[<@!>]/g, '')).catch(() => null);
-    
+
     if (!target) {
         return message.reply('❌ I could not find that member.');
     }
@@ -177,7 +198,7 @@ async function handleDemote(message, args, dbUtils = null) {
         return message.reply('❌ Your role is not high enough to demote this member.');
     }
 
-    // استخراج الرتبة والسبب بدقة عالية مع دعم Mentions و Multi-Word Names و Role ID
+    // استخراج الرتبة والسبب بدقة عالية مع دعم Mentions و Multi-Word Names و Role ID و البحث الجزئي/التقريبي
     let targetRole = message.mentions.roles.first() || null;
     let reasonParts = [];
 
@@ -227,8 +248,8 @@ async function handleDemote(message, args, dbUtils = null) {
             });
         }
 
-        const roleInfo = targetRole ? ` | Role: ${targetRole.name}` : '';
-
+        // إرسال إشعار الـ Embed فقط - حقل السبب (reason) منفصل تماماً عن حقل اسم الرتبة
+        // المُزالة (roleName)، بدون دمجهما بنفس النص كما كان سابقاً
         if (commandNotifications?.notifyCommandExecution) {
             await commandNotifications.notifyCommandExecution({
                 guild: message.guild,
@@ -236,13 +257,13 @@ async function handleDemote(message, args, dbUtils = null) {
                 moderator: message.author,
                 channel: message.channel,
                 action: 'demote',
-                reason: `${reason}${roleInfo}`,
+                reason: reason,
                 roleName: targetRole?.name || 'Auto/Highest Role',
                 duration: null
             });
         }
-
-        return message.reply(`✅ Successfully demoted **${target.user.username}**${targetRole ? ` from **${targetRole.name}**` : ''}.`);
+        // ملاحظة: تم إزالة رسالة التأكيد النصية بعد الـ Embed بناءً على الطلب -
+        // الإشعار الوحيد المرسل الآن هو الـ Embed عبر notifyCommandExecution
     } catch (error) {
         console.error('[Demote Command Error]', error);
         return message.reply('❌ Something went wrong while demoting this member.');
