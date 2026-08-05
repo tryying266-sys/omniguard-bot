@@ -362,7 +362,7 @@ module.exports = {
      *
      * يرجع true لو نجح التخفيض، false لو تعذر (بدون رمي خطأ - يُسجَّل بالـ console فقط)
      */
-    async demoteMember(member, reason, targetRoleInput = null) {
+    async demoteMember(member, reason, roleToRemoveInput = null) {
         const guild = member.guild;
         const botMember = guild.members.me;
         if (!botMember) return { success: false, roleName: null };
@@ -373,31 +373,47 @@ module.exports = {
             return { success: false, roleName: null };
         }
 
-        const highestRole = currentRoles.sort((a, b) => b.position - a.position).first();
+        // [FIX] الرتبة المحددة يدوياً (أمر !demote) تُعتبر "الرتبة المطلوب
+        // شيلها بالضبط" - مو رتبة نضيفها كبديل. لو ما تحدد شي (تخفيض تلقائي
+        // من AutoMod عند سبام مثلاً)، نشيل كل رتب العضو زي القديم (ضمان
+        // عدم بقاء أي صلاحية إشراف بعد التخفيض التلقائي).
+        let rolesToStrip;
+        let primaryRemovedRole;
 
-        if (botMember.roles.highest.position <= highestRole.position) {
-            console.error(`[AutoMod] Demote failed for ${member.user.tag}: bot's role is not higher than target's highest role.`);
+        if (roleToRemoveInput) {
+            if (!currentRoles.has(roleToRemoveInput.id)) {
+                console.warn(`[AutoMod] Demote failed: ${member.user.tag} does not have role "${roleToRemoveInput.name}".`);
+                return { success: false, roleName: null };
+            }
+            rolesToStrip = [roleToRemoveInput];
+            primaryRemovedRole = roleToRemoveInput;
+        } else {
+            rolesToStrip = currentRoles;
+            primaryRemovedRole = currentRoles.sort((a, b) => b.position - a.position).first();
+        }
+
+        if (botMember.roles.highest.position <= primaryRemovedRole.position) {
+            console.error(`[AutoMod] Demote failed for ${member.user.tag}: bot's role is not higher than the role being removed.`);
             return { success: false, roleName: null };
         }
 
         try {
-            let targetRole = null;
-            const roleSettings = targetRoleInput ? null : await universalGet('setting_management_role', guild.id);
+            const roleSettings = await universalGet('setting_management_role', guild.id);
+            let safeRole = null;
 
-            if (targetRoleInput) {
-                targetRole = targetRoleInput;
-            } else if (roleSettings?.demote_mode === 'fixed_role' && roleSettings?.demote_target_role) {
-                targetRole = guild.roles.cache.get(roleSettings.demote_target_role) || null;
+            if (roleSettings?.demote_mode === 'fixed_role' && roleSettings?.demote_target_role) {
+                safeRole = guild.roles.cache.get(roleSettings.demote_target_role) || null;
             }
 
-            // [تعديل] بدل التقيد بالبحث تحت الرتبة الحالية بالتسلسل الهرمي فقط،
-            // نبحث عن أي رتبة آمنة بكامل السيرفر (بدون صلاحيات إدارية) طالما
-            // رتبة البوت أعلى منها فعلياً - المهم فقط إنها آمنة، مو ترتيبها
-            if (!targetRole) {
-                targetRole = guild.roles.cache
+            // [تعديل سابق محفوظ] البحث عن رتبة بديلة آمنة على مستوى السيرفر
+            // كامل - نستثني أي رتبة العضو محتفظ فيها أصلاً حتى ما نرجع نضيف
+            // نفس الرتبة اللي شلناها بالغلط (هذا كان أصل المشكلة).
+            if (!safeRole) {
+                safeRole = guild.roles.cache
                     .filter(r =>
                         r.id !== guild.id &&
                         !r.managed &&
+                        !currentRoles.has(r.id) &&
                         r.position < botMember.roles.highest.position &&
                         this.isRoleSafeForDemotion(r, roleSettings)
                     )
@@ -405,22 +421,12 @@ module.exports = {
                     .first() || null;
             }
 
-            if (targetRole) {
-                // [تعديل بالطلب] أُزيل فحص "الرتبة الآمنة" (isRoleSafeForDemotion) لما
-                // تكون الرتبة محددة يدوياً (targetRoleInput) - المشرف حر يختار أي رتبة
-                // حتى لو فيها Administrator، بشرط واحد بس: رتبة البوت أعلى من رتبة
-                // العضو المستهدف (مُتحقَّق منه فوق، سطر botMember.roles.highest.position).
-                // ملاحظة: هذا الفحص لسه شغّال بمسار البحث التلقائي عن رتبة آمنة
-                // (لما demote_mode = single_rank/fixed_role بدون تحديد يدوي) - راجع
-                // الأسطر تحت لو تبي تشيله من هناك كمان.
-                await member.roles.remove(currentRoles, reason).catch(() => {});
-                await member.roles.add(targetRole, reason);
-                return { success: true, roleName: targetRole.name };
+            await member.roles.remove(rolesToStrip, reason);
+            if (safeRole) {
+                await member.roles.add(safeRole, reason).catch(() => {});
             }
 
-            console.warn(`[AutoMod] No safe role available in guild ${guild.id} - stripping roles without replacement.`);
-            await member.roles.remove(currentRoles, reason);
-            return { success: true, roleName: null };
+            return { success: true, roleName: primaryRemovedRole.name };
         } catch (error) {
             console.error(`[AutoMod] Demote error for ${member.user.tag}: ${error.message}`);
             return { success: false, roleName: null };
