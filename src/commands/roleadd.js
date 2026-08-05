@@ -168,7 +168,7 @@ async function handleDemote(message, args, dbUtils = null) {
     }
 
     if (args.length < 1) {
-        return message.reply('⚠️ Usage: `demote <@member> [roleName/ID] [reason]`');
+        return message.reply('⚠️ Usage: `demote <@member> [@role / roleName / RoleID] [reason]`');
     }
 
     const targetArg = args[0];
@@ -184,14 +184,24 @@ async function handleDemote(message, args, dbUtils = null) {
         return message.reply('❌ Your role is not high enough to demote this member.');
     }
 
-    let targetRole = null;
-    let reasonParts = args.slice(1);
+    // استخراج الرتبة والسبب بدقة عالية مع دعم Mentions و Multi-Word Names و Role ID
+    let targetRole = message.mentions.roles.first() || null;
+    let reasonParts = [];
 
-    if (args.length > 1) {
-        const potentialRole = findRoleSmart(message.guild, args[1]);
-        if (potentialRole) {
-            targetRole = potentialRole;
-            reasonParts = args.slice(2);
+    if (targetRole) {
+        reasonParts = args.slice(1).filter(arg => !arg.includes(targetRole.id));
+    } else if (args.length > 1) {
+        for (let i = args.length - 1; i >= 1; i--) {
+            const possibleRoleQuery = args.slice(1, i + 1).join(' ');
+            const foundRole = findRoleSmart(message.guild, possibleRoleQuery);
+            if (foundRole) {
+                targetRole = foundRole;
+                reasonParts = args.slice(i + 1);
+                break;
+            }
+        }
+        if (!targetRole) {
+            reasonParts = args.slice(1);
         }
     }
 
