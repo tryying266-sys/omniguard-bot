@@ -1082,7 +1082,7 @@
 
             // [NEW] Demote عقوبة نهائية بلا مدة - نعطّل حقل المدة تلقائياً
             // بقسمي Regular Chat Spam و Command Spam Protection لما تُختار
-            function bindDemoteDurationLock(actionSelectId, durationInputId) {
+           function bindDemoteDurationLock(actionSelectId, durationInputId) {
                 const actionSelect = document.getElementById(actionSelectId);
                 const durationInput = document.getElementById(durationInputId);
                 if (!actionSelect || !durationInput) return;
@@ -1097,13 +1097,28 @@
                         durationInput.placeholder = 'e.g., 30m';
                     }
                 }
+
+                // [FIX] الإعدادات المحفوظة تتحمّل لاحقاً بطلب غير متزامن من
+                // dashboard.js وتضبط select.value برمجياً بدون إطلاق حدث
+                // 'change' - فـ syncLock ما كانت تنعاد إلا لو المستخدم لمس
+                // القائمة يدوياً. الحل: نعترض على الـ setter نفسه لـ .value
+                // عشان يلتقط أي تغيير (برمجي أو يدوي) بنفس اللحظة اللي يصير فيها.
+                const nativeDescriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+                Object.defineProperty(actionSelect, 'value', {
+                    configurable: true,
+                    get() { return nativeDescriptor.get.call(actionSelect); },
+                    set(v) {
+                        nativeDescriptor.set.call(actionSelect, v);
+                        syncLock();
+                    }
+                });
+
                 syncLock();
                 actionSelect.addEventListener('change', syncLock);
             }
 
             bindDemoteDurationLock('spam_default_action', 'spam_action_duration');
             bindDemoteDurationLock('cmd_spam_default_action', 'cmd_spam_action_duration');
-
             // --- [2] حد أقصى لعدد الكلمات الممنوعة ---
             const MAX_BAD_WORDS = 100;
             const wordsBox = document.getElementById('words_bad_custom');
