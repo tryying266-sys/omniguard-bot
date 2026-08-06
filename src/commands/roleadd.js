@@ -54,7 +54,7 @@ function calculateSimilarity(str1, str2) {
 
 function findRoleSmart(guild, query) {
     if (!guild || !query) return null;
-    const cleanQuery = query.trim().replace(/[<@&>]/g, '');
+    const cleanQuery = query.trim().replace(/[<@&>]/g, '').trim();
     if (!cleanQuery) return null;
 
     // 1. البحث بواسطة ID الرتبة (يغطي أيضاً حالة المنشن @role بعد التنظيف)
@@ -63,33 +63,40 @@ function findRoleSmart(guild, query) {
 
     const lowerQuery = cleanQuery.toLowerCase();
 
-    // 2. المطابقة التامة المباشرة (Exact Match) - لها الأولوية القاطعة
-    const exactMatch = guild.roles.cache.find(r => r.name.toLowerCase() === lowerQuery);
-    if (exactMatch) return exactMatch;
+    // 2. المطابقة التامة (Exact Match) - نطبّع اسم كل رتبة (trim) قبل المقارنة
+    // عشان فراغات خفية ما تكسر التطابق، ونجمع كل المطابقات التامة بدل أول
+    // وحدة بس - لو فيه أكثر من رتبة بنفس الاسم بالضبط، نرجع الأعلى موقعاً
+    // (الأرجح تكون هي المقصودة إدارياً)
+    const exactMatches = guild.roles.cache.filter(r => r.name.trim().toLowerCase() === lowerQuery);
+    if (exactMatches.size > 0) {
+        return exactMatches.sort((a, b) => b.position - a.position).first();
+    }
 
     // 3. مطابقة الاحتواء الجزئي (Partial / Substring Match)
     // تغطي حالة كتابة جزء من اسم الرتبة فقط (مثلاً "mod" بدل "Moderator")
-    // نجمع كل المرشحين ونختار الأقرب طولاً (الأكثر تطابقاً) لتفادي الالتباس
-    // بين رتب متعددة تحتوي نفس الجزء المكتوب
     const containsMatches = guild.roles.cache.filter(r => {
-        const roleNameLower = r.name.toLowerCase();
+        const roleNameLower = r.name.trim().toLowerCase();
         return roleNameLower.includes(lowerQuery) || lowerQuery.includes(roleNameLower);
     });
 
     if (containsMatches.size > 0) {
-        // نرتّب حسب الأقرب بالطول (الفرق الأصغر بين طول الاسم وطول البحث = تطابق أدق)
+        // [FIX] الترتيب الآن بالتشابه الفعلي (Levenshtein) مش بفرق الطول بس -
+        // فرق الطول ممكن يخطئ لو فيه رتبتين بنفس الطول تقريباً لكن تشابه
+        // مختلف فعلياً بالحروف (مثلاً "Moderator" مقابل "Moderatorx")
         const sorted = [...containsMatches.values()].sort((a, b) => {
-            return Math.abs(a.name.length - lowerQuery.length) - Math.abs(b.name.length - lowerQuery.length);
+            const simA = calculateSimilarity(lowerQuery, a.name.trim().toLowerCase());
+            const simB = calculateSimilarity(lowerQuery, b.name.trim().toLowerCase());
+            return simB - simA; // الأعلى تشابهاً أولاً
         });
         return sorted[0];
     }
 
-    // 4. إذا لم توجد أي مطابقة احتواء، نلجأ للبحث بالذكاء التقريبي (Typo Tolerance)
+    // 4. البحث بالذكاء التقريبي (Typo Tolerance) - آخر خيار
     let bestMatch = null;
     let highestSimilarity = 0;
 
     guild.roles.cache.forEach(role => {
-        const roleNameLower = role.name.toLowerCase();
+        const roleNameLower = role.name.trim().toLowerCase();
         const sim = calculateSimilarity(lowerQuery, roleNameLower);
         if (sim > highestSimilarity) {
             highestSimilarity = sim;
@@ -97,8 +104,6 @@ function findRoleSmart(guild, query) {
         }
     });
 
-    // يشترط تشابه عالٍ جداً (60% فأكثر) لتجنب الوقوع في رتبة أخرى غير مقصودة
-    // بينما يبقى مرن بما يكفي لالتقاط الأخطاء الإملائية البسيطة
     if (bestMatch && highestSimilarity >= 0.6) {
         return bestMatch;
     }

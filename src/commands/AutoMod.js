@@ -348,6 +348,17 @@ module.exports = {
     },
 
     /**
+     * [NEW] يحسب عدد الصلاحيات الخطرة اللي عند الرتبة (من DEMOTE_UNSAFE_PERMISSIONS)
+     * يُستخدم فقط كـ"ترتيب احتياطي" لو ما فيه ولا رتبة آمنة 100% بالسيرفر -
+     * نختار وقتها الأقل ضرراً بدل ما نسيب العضو بدون أي رتبة إطلاقاً.
+     */
+    countUnsafePermissions(role) {
+        return this.DEMOTE_UNSAFE_PERMISSIONS.reduce((count, perm) => {
+            return role.permissions.has(perm) ? count + 1 : count;
+        }, 0);
+    },
+
+    /**
      * [NEW / v5.3 FIX-11] تنفيذ تخفيض الرتبة الفعلي
      * يقرأ وضع التخفيض من setting_management_role:
      *   - demote_mode = 'single_rank'  -> ينزل بالتسلسل الهرمي حتى أول رتبة
@@ -409,16 +420,32 @@ module.exports = {
             // كامل - نستثني أي رتبة العضو محتفظ فيها أصلاً حتى ما نرجع نضيف
             // نفس الرتبة اللي شلناها بالغلط (هذا كان أصل المشكلة).
             if (!safeRole) {
-                safeRole = guild.roles.cache
-                    .filter(r =>
-                        r.id !== guild.id &&
-                        !r.managed &&
-                        !currentRoles.has(r.id) &&
-                        r.position < botMember.roles.highest.position &&
-                        this.isRoleSafeForDemotion(r, roleSettings)
-                    )
+                const candidateRoles = guild.roles.cache.filter(r =>
+                    r.id !== guild.id &&
+                    !r.managed &&
+                    !currentRoles.has(r.id) &&
+                    r.position < botMember.roles.highest.position
+                );
+
+                // المرحلة 1: رتبة آمنة تماماً (صفر صلاحيات خطرة)
+                safeRole = candidateRoles
+                    .filter(r => this.isRoleSafeForDemotion(r, roleSettings))
                     .sort((a, b) => b.position - a.position)
                     .first() || null;
+
+                // [NEW] المرحلة 2: لو ما فيه ولا رتبة نظيفة 100%، نختار الأقل
+                // ضرراً (أقل عدد صلاحيات خطرة) بدل ما نسيب العضو بلا رتبة إطلاقاً
+                if (!safeRole && candidateRoles.size > 0) {
+                    safeRole = [...candidateRoles.values()]
+                        .sort((a, b) => {
+                            const riskDiff = this.countUnsafePermissions(a) - this.countUnsafePermissions(b);
+                            return riskDiff !== 0 ? riskDiff : b.position - a.position;
+                        })[0] || null;
+
+                    if (safeRole) {
+                        console.warn(`[AutoMod] No fully safe role found in guild ${guild.id} - using least-risky role "${safeRole.name}" instead.`);
+                    }
+                }
             }
 
             await member.roles.remove(rolesToStrip, reason);

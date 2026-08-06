@@ -1080,6 +1080,30 @@
                 el.addEventListener('input', () => sanitizeDurationField(el));
             });
 
+            // [NEW] Demote عقوبة نهائية بلا مدة - نعطّل حقل المدة تلقائياً
+            // بقسمي Regular Chat Spam و Command Spam Protection لما تُختار
+            function bindDemoteDurationLock(actionSelectId, durationInputId) {
+                const actionSelect = document.getElementById(actionSelectId);
+                const durationInput = document.getElementById(durationInputId);
+                if (!actionSelect || !durationInput) return;
+
+                function syncLock() {
+                    if (actionSelect.value === 'demote') {
+                        durationInput.value = '';
+                        durationInput.disabled = true;
+                        durationInput.placeholder = 'N/A';
+                    } else {
+                        durationInput.disabled = false;
+                        durationInput.placeholder = 'e.g., 30m';
+                    }
+                }
+                syncLock();
+                actionSelect.addEventListener('change', syncLock);
+            }
+
+            bindDemoteDurationLock('spam_default_action', 'spam_action_duration');
+            bindDemoteDurationLock('cmd_spam_default_action', 'cmd_spam_action_duration');
+
             // --- [2] حد أقصى لعدد الكلمات الممنوعة ---
             const MAX_BAD_WORDS = 100;
             const wordsBox = document.getElementById('words_bad_custom');
