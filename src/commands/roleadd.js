@@ -203,24 +203,55 @@ async function handleDemote(message, args, dbUtils = null) {
         return message.reply('❌ Your role is not high enough to demote this member.');
     }
 
-    // استخراج الرتبة والسبب بدقة عالية مع دعم Mentions و Multi-Word Names و Role ID و البحث الجزئي/التقريبي
+    // استخراج الرتبة والسبب بالتأكد التام أولاً ثم نسبة التشابه (>= 40%) من رتب الشخص المستهدف فقط
     let targetRole = message.mentions.roles.first() || null;
     let reasonParts = [];
 
     if (targetRole) {
         reasonParts = args.slice(1).filter(arg => !arg.includes(targetRole.id));
     } else if (args.length > 1) {
+        // حصر رتب الشخص المستهدف فقط (بدون @everyone أو الرتب المدارة برمجياً)
+        const memberRoles = [...target.roles.cache.filter(r => r.id !== message.guild.id && !r.managed).values()];
+
+        // 1. مرحلة التطابق التام 100% (Exact Match): يفحص من الكلمات الأطول للأقصر لضمان قراءة الاسم الكامل
         for (let i = args.length - 1; i >= 1; i--) {
-            const possibleRoleQuery = args.slice(1, i + 1).join(' ');
-            const foundRole = findRoleSmart(message.guild, possibleRoleQuery);
-            if (foundRole) {
-                targetRole = foundRole;
+            const query = args.slice(1, i + 1).join(' ').trim().toLowerCase();
+            const exactMatch = memberRoles.find(r => r.name.trim().toLowerCase() === query);
+            if (exactMatch) {
+                targetRole = exactMatch;
                 reasonParts = args.slice(i + 1);
                 break;
             }
         }
+
+        // 2. مرحلة نسبة التشابه (Similarity Match >= 40%) إذا لم يجد تطابقاً تاماً
         if (!targetRole) {
-            reasonParts = args.slice(1);
+            let bestMatch = null;
+            let highestSim = 0;
+            let bestIndex = -1;
+
+            for (let i = 1; i < args.length; i++) {
+                const query = args.slice(1, i + 1).join(' ').trim().toLowerCase();
+                for (const role of memberRoles) {
+                    const roleName = role.name.trim().toLowerCase();
+                    const sim = calculateSimilarity(query, roleName);
+                    if (sim >= 0.40 && sim > highestSim) {
+                        highestSim = sim;
+                        bestMatch = role;
+                        bestIndex = i;
+                    }
+                }
+            }
+
+            if (bestMatch) {
+                targetRole = bestMatch;
+                reasonParts = args.slice(bestIndex + 1);
+            }
+        }
+
+        // إذا تم إدخال اسم رتبة ولم يُعثر على أي رتبة مع العضو تتجاوز 40% تشابه
+        if (!targetRole) {
+            return message.reply('❌ Could not demote this member. Check role hierarchy or specified target role.');
         }
     }
 
