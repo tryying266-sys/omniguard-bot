@@ -664,7 +664,11 @@ module.exports = {
                     return;
             }
 
-            await dbUtils.addInfraction(guild.id, author.id, message.client.user.id, action, reason, duration, author.username);
+            // [FIX] Demote عقوبة نهائية بلا مدة - نتجاهل duration القادمة من
+            // الداشبورد إجبارياً بغض النظر عن أي قيمة محفوظة سابقاً بالإعدادات
+            const finalDuration = action === 'demote' ? null : duration;
+
+            await dbUtils.addInfraction(guild.id, author.id, message.client.user.id, action, reason, finalDuration, author.username);
 
             // إرسال الإشعار كاملاً عبر المتحكم الموحد بناءً على إعدادات الداشبورد
             await notifyCommandExecution({
@@ -674,7 +678,7 @@ module.exports = {
                 channel: message.channel,
                 action,
                 reason,
-                duration,
+                duration: finalDuration,
                 roleName: demotedRoleName
             });
 
