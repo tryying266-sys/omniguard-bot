@@ -336,27 +336,14 @@ module.exports = {
     ],
 
     /**
-     * [v5.3 FIX-11] هل هذي الرتبة "آمنة" كوجهة تخفيض؟
-     * تتأكد أن الرتبة ليس بها صلاحيات إشراف، وليست من رتب إدارة البوت،
-     * وتضمن ألا تكون رتبة عزل أو ميوت (لا تمنع إرسال الرسائل أو رؤية القنوات).
+     * [v5.3 FIX-11] هل هذي الرتبة "آمنة" كوجهة تخفيض؟ آمنة يعني: ما فيها ولا
+     * صلاحية إشراف/إدارة فعلية بديسكورد (راجع DEMOTE_UNSAFE_PERMISSIONS)،
+     * وكمان مو مدرجة يدوياً بقائمة roles_admin_bot (رتب إدارة البوت -
+     * ممكن تكون "آمنة" بصلاحيات ديسكورد الخام بس هي فعلياً رتبة ثقة عالية).
      */
     isRoleSafeForDemotion(role, roleSettings) {
-        // 1. استبعاد الرتب ذات الصلاحيات الإدارية أو صلاحيات إدارة البوت
         if (role.permissions.any(this.DEMOTE_UNSAFE_PERMISSIONS)) return false;
         if (roleSettings?.roles_admin_bot?.includes(role.id)) return false;
-
-        // 2. استبعاد رتب العزل/الميوت (التي تعطّل رؤية القنوات أو إرسال الرسائل)
-        if (!role.permissions.has(PermissionFlagsBits.SendMessages) || !role.permissions.has(PermissionFlagsBits.ViewChannel)) {
-            return false;
-        }
-
-        // 3. استبعاد الرتب التي تحتوي على أسماء تدل على العزل أو الميوت
-        const nameLower = role.name.toLowerCase();
-        const isolatedKeywords = ['mute', 'isolated', 'jail', 'unverified', 'prison', 'معزول', 'ميوت', 'مكتوم', 'سجن'];
-        if (isolatedKeywords.some(keyword => nameLower.includes(keyword))) {
-            return false;
-        }
-
         return true;
     },
 
@@ -425,43 +412,38 @@ module.exports = {
             const roleSettings = await universalGet('setting_management_role', guild.id);
             let safeRole = null;
 
-            // [فحص جديد] التأكد مما إذا كان العضو يمتلك رتبة أخرى آمنة متبقية بعد سحب الرتب المحددة
-            const rolesToStripArray = Array.isArray(rolesToStrip) ? rolesToStrip : [...rolesToStrip.values()];
-            const rolesToStripIds = new Set(rolesToStripArray.map(r => r.id));
-            const remainingRoles = currentRoles.filter(r => !rolesToStripIds.has(r.id));
-            const hasExistingSafeRole = remainingRoles.some(r => this.isRoleSafeForDemotion(r, roleSettings));
+            if (roleSettings?.demote_mode === 'fixed_role' && roleSettings?.demote_target_role) {
+                safeRole = guild.roles.cache.get(roleSettings.demote_target_role) || null;
+            }
 
-            // فقط إذا لم تكن لدى العضو أي رتبة متبقية آمنة، نبحث عن رتبة بديلة أو نستخدم الرتبة المحددة
-            if (!hasExistingSafeRole) {
-                if (roleSettings?.demote_mode === 'fixed_role' && roleSettings?.demote_target_role) {
-                    safeRole = guild.roles.cache.get(roleSettings.demote_target_role) || null;
-                }
+            // [تعديل سابق محفوظ] البحث عن رتبة بديلة آمنة على مستوى السيرفر
+            // كامل - نستثني أي رتبة العضو محتفظ فيها أصلاً حتى ما نرجع نضيف
+            // نفس الرتبة اللي شلناها بالغلط (هذا كان أصل المشكلة).
+            if (!safeRole) {
+                const candidateRoles = guild.roles.cache.filter(r =>
+                    r.id !== guild.id &&
+                    !r.managed &&
+                    !currentRoles.has(r.id) &&
+                    r.position < botMember.roles.highest.position
+                );
 
-                if (!safeRole) {
-                    const candidateRoles = guild.roles.cache.filter(r =>
-                        r.id !== guild.id &&
-                        !r.managed &&
-                        !currentRoles.has(r.id) &&
-                        r.position < botMember.roles.highest.position
-                    );
+                // المرحلة 1: رتبة آمنة تماماً (صفر صلاحيات خطرة)
+                safeRole = candidateRoles
+                    .filter(r => this.isRoleSafeForDemotion(r, roleSettings))
+                    .sort((a, b) => b.position - a.position)
+                    .first() || null;
 
-                    // المرحلة 1: رتبة آمنة تماماً (صفر صلاحيات خطرة وليست ميوت/عزل)
-                    safeRole = candidateRoles
-                        .filter(r => this.isRoleSafeForDemotion(r, roleSettings))
-                        .sort((a, b) => b.position - a.position)
-                        .first() || null;
+                // [NEW] المرحلة 2: لو ما فيه ولا رتبة نظيفة 100%، نختار الأقل
+                // ضرراً (أقل عدد صلاحيات خطرة) بدل ما نسيب العضو بلا رتبة إطلاقاً
+                if (!safeRole && candidateRoles.size > 0) {
+                    safeRole = [...candidateRoles.values()]
+                        .sort((a, b) => {
+                            const riskDiff = this.countUnsafePermissions(a) - this.countUnsafePermissions(b);
+                            return riskDiff !== 0 ? riskDiff : b.position - a.position;
+                        })[0] || null;
 
-                    // المرحلة 2: لو ما فيه ولا رتبة نظيفة 100%، نختار الأقل ضرراً
-                    if (!safeRole && candidateRoles.size > 0) {
-                        safeRole = [...candidateRoles.values()]
-                            .sort((a, b) => {
-                                const riskDiff = this.countUnsafePermissions(a) - this.countUnsafePermissions(b);
-                                return riskDiff !== 0 ? riskDiff : b.position - a.position;
-                            })[0] || null;
-
-                        if (safeRole) {
-                            console.warn(`[AutoMod] No fully safe role found in guild ${guild.id} - using least-risky role "${safeRole.name}" instead.`);
-                        }
+                    if (safeRole) {
+                        console.warn(`[AutoMod] No fully safe role found in guild ${guild.id} - using least-risky role "${safeRole.name}" instead.`);
                     }
                 }
             }
