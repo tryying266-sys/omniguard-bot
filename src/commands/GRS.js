@@ -125,14 +125,60 @@ function isChannelAllowed(guildSettings, channelId) {
 }
 
 /**
- * CHECK: هل العضو (الهدف) معفى تماماً من أوامر البوت - يدوياً وتلقائياً؟
- * عمود roles_exempt_commands بجدول setting_guild.
+ * CHECK: هل العضو معفى من أمر معيّن (أو من كل الأوامر)؟
+ * يفحص مصدرين مع بعض:
+ *
+ * 1) إعفاء دائم على مستوى الرتبة (roles_exempt_commands بـ setting_guild) -
+ *    يغطي كل الأوامر بلا استثناء. نفس السلوك القديم بالضبط، بدون تغيير.
+ *
+ * 2) [NEW v5.3] إعفاء مؤقت (أو دائم) على مستوى العضو الفرد من جدول
+ *    user_command_exemption - يُدار من كرت Command Exceptions بالداشبورد.
+ *    يتحقق من كون commandName ضمن القائمة المخزّنة، ومن عدم انتهاء مدة
+ *    الصلاحية (expires_at) - لو منتهية فعلياً (حتى لو السكجولر لسه ما
+ *    نظّفها من القاعدة) يُعتبر الإعفاء غير ساري.
+ *
+ * ⚠️ أصبحت async بسبب فحص (2) - أي نقطة استدعاء حالية أو مستقبلية لازم
+ * تستخدم await من الآن فصاعداً (commandhandler.js و apiRouter.js يحتاجون
+ * تعديل مطابق - لم يُطبّق بعد، مذكور بنهاية الرد).
+ *
+ * @param {Object} guildSettings - صف setting_guild (لفحص الرتبة)
+ * @param {import('discord.js').GuildMember} member
+ * @param {string} [commandName] - اسم الأمر المطلوب فحصه (kick/ban/mute/warn/roleadd...).
+ *        لو ما انمرر، يتم تجاهل فحص (2) بالكامل ويكتفى بفحص الرتبة فقط
+ *        (Backward Compatible مع أي استدعاء قديم ما مرّر اسم أمر).
  */
-function isMemberCommandExempt(guildSettings, member) {
+async function isMemberCommandExempt(guildSettings, member, commandName = null) {
     if (!guildSettings || !member) return false;
+
+    // 1) فحص الرتبة (سلوك قديم، بدون أي تغيير)
     const exemptRoles = guildSettings.roles_exempt_commands || [];
-    if (exemptRoles.length === 0) return false;
-    return member.roles.cache.some(role => exemptRoles.includes(role.id));
+    if (exemptRoles.length > 0 && member.roles.cache.some(role => exemptRoles.includes(role.id))) {
+        return true;
+    }
+
+    // 2) فحص إعفاء العضو الفرد (v5.3) - يحتاج اسم أمر محدد عشان يفحصه
+    if (!commandName) return false;
+
+    try {
+        const supabase = require('../supabase/db');
+        const { data, error } = await supabase
+            .from('user_command_exemption')
+            .select('commands, expires_at')
+            .eq('id_guild', member.guild.id)
+            .eq('id_user', member.id)
+            .maybeSingle();
+
+        if (error || !data) return false;
+
+        const isExpired = data.expires_at && new Date(data.expires_at).getTime() <= Date.now();
+        if (isExpired) return false;
+
+        return (data.commands || []).includes(commandName);
+    } catch (err) {
+        // لا نرمي (throw) - نفس فلسفة بقية الملف - خطأ هنا ما يوقف تنفيذ الأمر
+        console.error('[GRS Error] isMemberCommandExempt (per-user check) failed:', err.message);
+        return false;
+    }
 }
 
 module.exports = {

@@ -200,7 +200,7 @@ async function handleMessage(message, dbUtils, guildSettings) {
         const targetMember = message.mentions.members?.first()
             || message.guild.members.cache.get(firstWordArgs[0]);
 
-        if (targetMember && isMemberCommandExempt(guildSettings, targetMember)) {
+        if (targetMember && await isMemberCommandExempt(guildSettings, targetMember, commandName)) {
             return await message.reply({
                 content: "❌ This member's role is exempt from bot commands."
             });

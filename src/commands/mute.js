@@ -64,7 +64,10 @@ async function executeMute(guild, targetId, moderator, durationStr, reason, dbUt
         if (target.id === moderator.id) return { success: false, error: "You cannot mute yourself." };
         if (!target.moderatable) return { success: false, error: "I cannot mute this member (Role hierarchy)." };
 
-        const durationMs = parseDuration(durationStr);
+        // [NEW] لو المشرف ما حدد مدة (فاضي/null من الداشبورد)، نطبّق أقصى
+        // مدة يسمح فيها ديسكورد (28 يوم) بدل ما نرفض الطلب - الميوت أصلاً
+        // ما عنده مفهوم "دائم" حقيقي بديسكورد، فهذا أقرب بديل منطقي.
+        const durationMs = durationStr ? parseDuration(durationStr) : MAX_TIMEOUT_MS;
         if (!durationMs) return { success: false, error: "Invalid duration format (e.g., 30s, 10m, 1h, 1d)." };
 
         await target.timeout(durationMs, `${reason} | By: ${moderator.tag}`);

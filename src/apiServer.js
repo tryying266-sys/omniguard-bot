@@ -8,12 +8,18 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
+const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 // استيراد الـ Router المطور (الذي سيقبل مسارات التزامن الشاملة)
 const apiRouter = require('./supabase/apiRouter');
 const dbUtils = require('./supabase/dbUtils');
 const DISCORD_API = 'https://discord.com/api/v10';
 const botHeaders = { Authorization: `Bot ${process.env.DISCORD_TOKEN}` };
+
+// إعداد عميل Supabase Admin للتحقق من توكنات تسجيل الدخول
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
+const supabaseAdmin = (supabaseUrl && supabaseServiceKey) ? createClient(supabaseUrl, supabaseServiceKey) : null;
 
 /**
  * Utility function to fetch data from Discord API
@@ -39,16 +45,46 @@ app.use(cors());
 // ============================================
 // 1. Security Middleware (Authentication)
 // ============================================
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
     const authHeader = req.headers.authorization;
-    const secretKey = process.env.DASHBOARD_API_KEY;
 
-    if (!authHeader || authHeader !== `Bearer ${secretKey}`) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
         console.warn(`[Security Alert] Unauthorized access attempt from IP: ${req.ip}`);
-        return res.status(401).json({ error: 'Unauthorized: Invalid or missing API Key' });
+        return res.status(401).json({ error: 'Unauthorized: Missing or invalid token format' });
     }
-    next();
+
+    const token = authHeader.split(' ')[1];
+
+    // 1. دعم المفتاح السري الداخلي القديم (DASHBOARD_API_KEY)
+    if (process.env.DASHBOARD_API_KEY && token === process.env.DASHBOARD_API_KEY) {
+        return next();
+    }
+
+    // 2. التحقق من توكن المستخدم عبر Supabase OAuth
+    if (supabaseAdmin) {
+        const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+        if (!error && user) {
+            req.user = user; // حفظ بيانات المستخدم للاستخدام في المسارات
+            return next();
+        }
+    }
+
+    console.warn(`[Security Alert] Invalid token attempt from IP: ${req.ip}`);
+    return res.status(401).json({ error: 'Unauthorized: Invalid or expired token' });
 };
+
+// مسار إضافي لجلب معلومات المستخدم الحالي المسجل دخوله بالداشبورد
+app.get('/api/user-info', authMiddleware, (req, res) => {
+    if (!req.user) {
+        return res.json({ message: 'Authenticated via system API Key' });
+    }
+    res.json({
+        id: req.user.id,
+        discordId: req.user.user_metadata?.provider_id,
+        username: req.user.user_metadata?.full_name || req.user.user_metadata?.name,
+        avatar: req.user.user_metadata?.avatar_url
+    });
+});
 
 // ============================================
 // 2. Live Discord Data Endpoints

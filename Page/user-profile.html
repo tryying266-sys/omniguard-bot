@@ -93,16 +93,10 @@
         }
         .user-id-badge:hover { color: var(--text-primary); border-color: var(--text-secondary); }
         .user-status-badges { display: flex; align-items: center; gap: 12px; }
-        .highest-role-badge {
-            background-color: rgba(255, 51, 68, 0.15);
-            color: var(--accent-red);
-            padding: 6px 14px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 600;
-            border: 1px solid rgba(255, 51, 68, 0.3);
-            width: fit-content;
-        }
+        /* Status Badge Variants - populated dynamically by userprofile.js based on live mute/ban state */
+        .user-status-badge.status-active { color: var(--accent-green); border-color: rgba(59, 165, 93, 0.3); background-color: rgba(59, 165, 93, 0.1); }
+        .user-status-badge.status-muted { color: var(--accent-red); border-color: rgba(255, 51, 68, 0.3); background-color: rgba(255, 51, 68, 0.1); }
+        .user-status-badge.status-banned { color: var(--accent-red); border-color: rgba(255, 51, 68, 0.3); background-color: rgba(255, 51, 68, 0.1); }
         .user-status-badge {
             background-color: var(--bg-tertiary);
             color: var(--text-secondary);
@@ -210,8 +204,9 @@
         .selector-box:hover { border-color: var(--accent-red); }
         .selector-placeholder { color: var(--text-secondary); font-size: 13px; margin-left: 5px; }
 
-        /* Tag Styling */
+        /* Tag Styling - X sits as a small circular badge on the tag's top-right corner */
         .tag-item {
+            position: relative;
             background-color: rgba(255, 51, 68, 0.15);
             color: var(--accent-red);
             padding: 4px 10px;
@@ -220,11 +215,27 @@
             font-weight: 600;
             display: flex;
             align-items: center;
-            gap: 8px;
             border: 1px solid rgba(255, 51, 68, 0.3);
         }
-        .tag-item .remove-btn { cursor: pointer; font-size: 12px; line-height: 1; transition: color 0.2s; }
-        .tag-item .remove-btn:hover { color: white; }
+        .tag-item .remove-btn {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            width: 16px;
+            height: 16px;
+            background-color: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            line-height: 1;
+            cursor: pointer;
+            transition: color 0.2s, border-color 0.2s;
+        }
+        .tag-item .remove-btn:hover { color: var(--text-primary); border-color: var(--text-secondary); }
 
         .dropdown-list {
             position: absolute;
@@ -391,11 +402,8 @@
                 </div>
 
                 <div class="user-status-badges">
-                    <div class="highest-role-badge">
-                        <span id="user_highest_role">Highest Role: --</span>
-                    </div>
-                    <div class="user-status-badge">
-                        <span id="user_status">Status: --</span>
+                    <div class="user-status-badge" id="user_status_badge">
+                        <span id="user_status">--</span>
                     </div>
                 </div>
             </div>
@@ -410,6 +418,9 @@
                 </button>
                 <button class="tab-btn" onclick="switchTab('tab-logs', this)">
                     <i class="fa-solid fa-clock-rotate-left"></i> Logs
+                </button>
+                <button class="tab-btn" onclick="switchTab('tab-mod-log', this)">
+                    <i class="fa-solid fa-user-shield"></i> Moderator Log
                 </button>
             </div>
 
@@ -428,19 +439,7 @@
                             <label class="form-label">Reason</label>
                             <input id="kick_reason" type="text" class="form-input" placeholder="Enter reason for kicking user...">
                         </div>
-                        <div class="form-group">
-                            <label class="toggle-option">
-                                <span class="form-label" style="margin: 0;">Send DM Notification</span>
-                                <span class="toggle-switch">
-                                    <input type="checkbox" id="kick_send_dm">
-                                    <span class="toggle-slider"></span>
-                                </span>
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">DM Notification Message</label>
-                            <input id="kick_dm_message" type="text" class="form-input" placeholder="Custom DM notification message...">
-                        </div>
+                        
                         <div class="card-actions-group">
                             <button class="btn-action btn-danger" onclick="executeKick()">
                                 <i class="fa-solid fa-boot"></i> Execute Kick
@@ -462,19 +461,7 @@
                             <label class="form-label">Delete Message History (e.g. 1s, 1min, 1h, 1d, 1w, 1mo, 1y)</label>
                             <input id="ban_delete_duration" type="text" class="form-input" placeholder="7d">
                         </div>
-                        <div class="form-group">
-                            <label class="toggle-option">
-                                <span class="form-label" style="margin: 0;">Send DM Notification</span>
-                                <span class="toggle-switch">
-                                    <input type="checkbox" id="ban_send_dm">
-                                    <span class="toggle-slider"></span>
-                                </span>
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">DM Notification Message</label>
-                            <input id="ban_dm_message" type="text" class="form-input" placeholder="Custom DM notification message...">
-                        </div>
+                        
                         <div class="card-actions-group">
                             <button class="btn-action btn-danger" onclick="executeBan()">
                                 <i class="fa-solid fa-gavel"></i> Execute Ban
@@ -495,19 +482,7 @@
                             <label class="form-label">Reason</label>
                             <input id="warn_reason" type="text" class="form-input" placeholder="Specify warning details...">
                         </div>
-                        <div class="form-group">
-                            <label class="toggle-option">
-                                <span class="form-label" style="margin: 0;">Send DM Notification</span>
-                                <span class="toggle-switch">
-                                    <input type="checkbox" id="warn_send_dm">
-                                    <span class="toggle-slider"></span>
-                                </span>
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">DM Notification Message</label>
-                            <input id="warn_dm_message" type="text" class="form-input" placeholder="Custom DM notification message...">
-                        </div>
+                        
                         <div class="card-actions-group">
                             <button class="btn-action btn-danger" onclick="executeWarn()">
                                 <i class="fa-solid fa-paper-plane"></i> Submit Warning
@@ -532,19 +507,7 @@
                             <label class="form-label">Reason</label>
                             <input id="mute_reason" type="text" class="form-input" placeholder="Reason for muting user...">
                         </div>
-                        <div class="form-group">
-                            <label class="toggle-option">
-                                <span class="form-label" style="margin: 0;">Send DM Notification</span>
-                                <span class="toggle-switch">
-                                    <input type="checkbox" id="mute_send_dm">
-                                    <span class="toggle-slider"></span>
-                                </span>
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">DM Notification Message</label>
-                            <input id="mute_dm_message" type="text" class="form-input" placeholder="Custom DM notification message...">
-                        </div>
+                        
                         <div class="card-actions-group">
                             <button class="btn-action btn-danger" onclick="executeMute()">
                                 <i class="fa-solid fa-clock"></i> Apply Mute
@@ -576,25 +539,10 @@
                             <label class="form-label">Audit Log Reason</label>
                             <input id="roles_audit_reason" type="text" class="form-input" placeholder="Reason for updating user roles...">
                         </div>
-                        <div class="form-group">
-                            <label class="toggle-option">
-                                <span class="form-label" style="margin: 0;">Send DM Notification</span>
-                                <span class="toggle-switch">
-                                    <input type="checkbox" id="roles_send_dm">
-                                    <span class="toggle-slider"></span>
-                                </span>
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">DM Notification Message</label>
-                            <input id="roles_dm_message" type="text" class="form-input" placeholder="Custom DM notification message...">
-                        </div>
+                        
                         <div class="card-actions-group">
                             <button class="btn-action btn-danger" onclick="saveUserRoles()">
                                 <i class="fa-solid fa-floppy-disk"></i> Update Roles
-                            </button>
-                            <button class="btn-action btn-outline-danger" onclick="undoUserRoles()">
-                                <i class="fa-solid fa-rotate-left"></i> Revert Roles
                             </button>
                         </div>
                     </div>
@@ -624,25 +572,10 @@
                             <label class="form-label">Reason</label>
                             <input id="exemption_reason" type="text" class="form-input" placeholder="Reason for granting exemption...">
                         </div>
-                        <div class="form-group">
-                            <label class="toggle-option">
-                                <span class="form-label" style="margin: 0;">Send DM Notification</span>
-                                <span class="toggle-switch">
-                                    <input type="checkbox" id="exemption_send_dm">
-                                    <span class="toggle-slider"></span>
-                                </span>
-                            </label>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">DM Notification Message</label>
-                            <input id="exemption_dm_message" type="text" class="form-input" placeholder="Custom DM notification message...">
-                        </div>
+                        
                         <div class="card-actions-group">
                             <button class="btn-action btn-danger" onclick="saveCommandExceptions()">
-                                <i class="fa-solid fa-check-double"></i> Save Exceptions
-                            </button>
-                            <button class="btn-action btn-outline-danger" onclick="undoCommandExceptions()">
-                                <i class="fa-solid fa-trash-can"></i> Remove Exceptions
+                                <i class="fa-solid fa-check-double"></i> Update Exceptions
                             </button>
                         </div>
                     </div>
@@ -688,13 +621,41 @@
                                     <th>Action Type</th>
                                     <th>Moderator</th>
                                     <th>Reason</th>
+                                    <th>Duration</th>
                                 </tr>
                             </thead>
                             <tbody id="logs_table_body">
                                 <tr>
-                                    <td colspan="4" class="empty-state">
+                                    <td colspan="5" class="empty-state">
                                         <i class="fa-solid fa-clipboard-question" style="font-size: 24px; margin-bottom: 8px; display: block;"></i>
                                         No moderation history or action logs recorded for this user.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= TAB 4: MODERATOR LOG ================= -->
+            <div id="tab-mod-log" class="tab-content">
+                <div class="data-table-card">
+                    <div class="table-responsive">
+                        <table class="custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Action Type</th>
+                                    <th>Target Member</th>
+                                    <th>Reason</th>
+                                    <th>Duration</th>
+                                </tr>
+                            </thead>
+                            <tbody id="moderator_log_table_body">
+                                <tr>
+                                    <td colspan="5" class="empty-state">
+                                        <i class="fa-solid fa-user-shield" style="font-size: 24px; margin-bottom: 8px; display: block;"></i>
+                                        This member has not executed any moderation actions.
                                     </td>
                                 </tr>
                             </tbody>
@@ -710,81 +671,6 @@
     <script src="dashboard.js"></script>
 
     <!-- Page Specific Script -->
-    <script>
-        // Tab Switcher Logic
-        function switchTab(tabId, btnElement) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-
-            document.getElementById(tabId).classList.add('active');
-            btnElement.classList.add('active');
-        }
-
-        // Copy User ID Helper
-        function copyUserId() {
-            const idText = document.getElementById('user_id').textContent;
-            if (idText && idText !== '--') {
-                navigator.clipboard.writeText(idText);
-            }
-        }
-
-        // Action Execution Functions
-        function executeKick() {
-            const reason = document.getElementById('kick_reason').value;
-            const sendDm = document.getElementById('kick_send_dm').checked;
-            const dmMessage = document.getElementById('kick_dm_message').value;
-        }
-        function undoKick() {
-            // Cancel/Revoke Kick logic
-        }
-
-        function executeBan() {
-            const reason = document.getElementById('ban_reason').value;
-            const deleteDuration = document.getElementById('ban_delete_duration').value;
-            const sendDm = document.getElementById('ban_send_dm').checked;
-            const dmMessage = document.getElementById('ban_dm_message').value;
-        }
-        function undoBan() {
-            // Unban logic
-        }
-
-        function executeWarn() {
-            const reason = document.getElementById('warn_reason').value;
-            const sendDm = document.getElementById('warn_send_dm').checked;
-            const dmMessage = document.getElementById('warn_dm_message').value;
-        }
-        function undoWarn() {
-            // Clear Warnings logic
-        }
-
-        function executeMute() {
-            const duration = document.getElementById('mute_duration').value;
-            const reason = document.getElementById('mute_reason').value;
-            const sendDm = document.getElementById('mute_send_dm').checked;
-            const dmMessage = document.getElementById('mute_dm_message').value;
-        }
-        function undoMute() {
-            // Unmute / Remove Timeout logic
-        }
-
-        function saveUserRoles() {
-            const reason = document.getElementById('roles_audit_reason').value;
-            const sendDm = document.getElementById('roles_send_dm').checked;
-            const dmMessage = document.getElementById('roles_dm_message').value;
-        }
-        function undoUserRoles() {
-            // Revert Roles logic
-        }
-
-        function saveCommandExceptions() {
-            const duration = document.getElementById('exemption_duration').value;
-            const reason = document.getElementById('exemption_reason').value;
-            const sendDm = document.getElementById('exemption_send_dm').checked;
-            const dmMessage = document.getElementById('exemption_dm_message').value;
-        }
-        function undoCommandExceptions() {
-            // Remove Exemptions logic
-        }
-    </script>
+    <script src="userprofile.js"></script>
 </body>
 </html>

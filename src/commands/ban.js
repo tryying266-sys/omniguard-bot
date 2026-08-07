@@ -14,7 +14,9 @@ const MS_MAP = {
     min: 60000,
     h: 3600000,
     d: 86400000,
-    w: 604800000
+    w: 604800000,
+    mo: 2592000000, // 30 يوم تقريبي
+    y: 31536000000  // 365 يوم تقريبي
 };
 
 /**
@@ -226,7 +228,7 @@ function parseDuration(input) {
     const normalized = input.toLowerCase();
     if (normalized === 'perm' || normalized === 'permanent') return { ms: 0, permanent: true, text: 'permanently' };
 
-    const match = normalized.match(/^(\d+)(s|m|min|h|d|w)$/);
+    const match = normalized.match(/^(\d+)(s|m|min|h|d|w|mo|y)$/);
     if (!match) return null;
 
     const amount = parseInt(match[1]);

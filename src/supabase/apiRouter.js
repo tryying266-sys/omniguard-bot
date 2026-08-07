@@ -94,6 +94,25 @@ function requireGuildId(req, res, next) {
     next();
 }
 
+/**
+ * [NEW] Small local duration parser (نفس صيغة "Ns/Nm/Nh/Nd/Nw" المستخدمة
+ * بـ ban.js/mute.js) - يُستخدم فقط بـ endpoints الاستثناءات بالأسفل.
+ * يرجّع ISO timestamp، أو null لو المدخل فاضي/غير صالح (يعني دائم).
+ */
+function parseDurationToTimestamp(input) {
+    if (!input) return null;
+    const match = String(input).trim().toLowerCase().match(/^(\d+)\s*(s|min|m|h|d|w|mo|y)$/);
+    if (!match) return null;
+
+    const amount = parseInt(match[1], 10);
+    const unit = match[2];
+    const msMap = { s: 1000, m: 60000, min: 60000, h: 3600000, d: 86400000, w: 604800000, mo: 2592000000, y: 31536000000 };
+    const ms = amount * (msMap[unit] || 0);
+    if (!ms) return null;
+
+    return new Date(Date.now() + ms).toISOString();
+}
+
 // Apply Security Middleware to all routes
 router.use(requireDashboardApiKey);
 
@@ -947,11 +966,92 @@ router.put('/guild/:guildId/member/:userId/roles', requireGuildId, async (req, r
     }
 });
 
-// ============================================================================
-// 5. UNIVERSAL SYNC ROUTES (Smart Binding - generic catch-all, MUST stay LAST)
+/**
+ * GET /api/guild/:guildId/member/:userId/exemptions
+ * يرجع استثناءات الأوامر الحالية لهذا العضو من user_command_exemption
+ * (v5.3 delta). لو ما فيه صف، أو الصف منتهي الصلاحية فعلياً، يرجع حالة
+ * فاضية افتراضية - مو خطأ.
+ */
+router.get('/guild/:guildId/member/:userId/exemptions', requireGuildId, async (req, res) => {
+    try {
+        const supabase = require('./db');
+        const { data, error } = await supabase
+            .from('user_command_exemption')
+            .select('*')
+            .eq('id_guild', req.guildId)
+            .eq('id_user', req.params.userId)
+            .maybeSingle();
+
+        if (error) throw error;
+
+        const isExpired = data?.expires_at && new Date(data.expires_at).getTime() <= Date.now();
+
+        res.json({
+            commands: (data && !isExpired) ? (data.commands || []) : [],
+            reason: (data && !isExpired) ? (data.reason || '') : '',
+            expiresAt: (data && !isExpired) ? data.expires_at : null
+        });
+    } catch (err) {
+        console.error(`[API Router Error] GET /member/${req.params.userId}/exemptions:`, err.message);
+        res.status(500).json({ error: 'Failed to load command exemptions' });
+    }
+});
+
+/**
+ * PUT /api/guild/:guildId/member/:userId/exemptions
+ * Expected body: { commands: string[], reason, duration }
+ * duration بنفس صيغة ban.js/mute.js (مثل "7d"، "1h") - فاضي/غير صالح =
+ * بدون انتهاء تلقائي (دائم). قائمة commands فاضية = حذف الصف بالكامل
+ * (المشرف شال كل التاغات).
+ */
+router.put('/guild/:guildId/member/:userId/exemptions', requireGuildId, async (req, res) => {
+    try {
+        const { commands, reason, duration } = req.body;
+        if (!Array.isArray(commands)) {
+            return res.status(400).json({ error: 'Invalid Payload: "commands" must be an array' });
+        }
+
+        const supabase = require('./db');
+
+        if (commands.length === 0) {
+            const { error: delError } = await supabase
+                .from('user_command_exemption')
+                .delete()
+                .eq('id_guild', req.guildId)
+                .eq('id_user', req.params.userId);
+
+            if (delError) throw delError;
+            return res.json({ success: true, commands: [], expiresAt: null });
+        }
+
+        const expiresAt = parseDurationToTimestamp(duration);
+
+        const { data, error } = await supabase
+            .from('user_command_exemption')
+            .upsert({
+                id_guild: req.guildId,
+                id_user: req.params.userId,
+                commands,
+                reason: reason || null,
+                granted_by: null, // TEMP - يُستبدل بهوية المشرف الحقيقية بعد OAuth2
+                expires_at: expiresAt,
+                processed: false,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'id_guild,id_user' })
+            .select()
+            .single();
+
+        if (error) throw error;
+
+        res.json({ success: true, commands: data.commands, expiresAt: data.expires_at });
+    } catch (err) {
+        console.error(`[API Router Error] PUT /member/${req.params.userId}/exemptions:`, err.message);
+        res.status(500).json({ error: 'Failed to update command exemptions' });
+    }
+});
 
 // ============================================================================
-// 4. UNIVERSAL SYNC ROUTES (Smart Binding - generic catch-all, MUST stay LAST)
+// 5. UNIVERSAL SYNC ROUTES (Smart Binding - generic catch-all, MUST stay LAST)
 // ============================================================================
 // ⚠️ Any new specific/literal-path route must be added ABOVE this block, not
 // below it. These two routes match ANY single extra path segment after
