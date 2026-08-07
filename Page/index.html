@@ -518,37 +518,69 @@
             </div>
         </div>
     </main>
-
 <!-- Supabase JS CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
-        // 1. Supabase Client Setup (تم وضع المفتاح الحقيقي)
+        // 1. Supabase Client Setup (مع تفعيل حفظ الجلسة في LocalStorage)
         const SUPABASE_URL = 'https://lcnjswibemyenakwojkz.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxjbmpzd2liZW15ZW5ha3dvamt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4ODQ0ODEsImV4cCI6MjA5OTQ2MDQ4MX0.AfbKJsd6sOK1FPz2w-rH3XT28m4eneB1uNJEyETJ9ug'; 
 
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: {
+                persistSession: true,
+                autoRefreshToken: true,
+                detectSessionInUrl: true
+            }
+        });
 
-        // 2. Auth Guard & Main Dashboard Initialization (محسّن لتفادي طرد المستخدم)
+        // 2. Auth Guard & Main Dashboard Initialization
         async function initDashboard() {
-            // الحصول على الجلسة المباشرة
-            const { data: { session } } = await supabaseClient.auth.getSession();
+            try {
+                // محاولة جلب الجلسة الحالية
+                const { data: { session }, error } = await supabaseClient.auth.getSession();
 
-            if (session) {
-                // المستخدم مسجل دخوله بالفعل
+                if (error) {
+                    console.error("Auth session error:", error);
+                }
+
+                if (session) {
+                    // الجلسة موجودة بنجاح
+                    setupDashboardUI(session);
+                } else {
+                    // الاستماع للتغيرات فقط في حال كان التوكن يقرأ من الـ URL لحظة التحويل
+                    supabaseClient.auth.onAuthStateChange((event, newSession) => {
+                        if (newSession) {
+                            setupDashboardUI(newSession);
+                        } else if (event === 'SIGNED_OUT') {
+                            window.location.href = 'Login.html';
+                        } else {
+                            // إعطاء مهلة قصيرة جداً قبل تحويل المستخدم للتحقق من وجود الـ Hash بالرابط
+                            if (!window.location.hash.includes('access_token')) {
+                                window.location.href = 'Login.html';
+                            }
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error("Unexpected Auth Error:", err);
+            }
+        }
+
+        // تشغيل عناصر الواجهة بعد تأكيد الجلسة
+        function setupDashboardUI(session) {
+            if (session.user) {
                 loadUserProfile(session.user);
+            }
+            
+            // جلب السيرفرات بحذر بدون تعطيل تسجيل الدخول
+            if (session.provider_token) {
                 loadUserGuilds(session.provider_token);
             } else {
-                // في حال العودة من تسجيل الدخول وقراءة التوكن من الـ URL
-                supabaseClient.auth.onAuthStateChange((event, session) => {
-                    if (session) {
-                        loadUserProfile(session.user);
-                        loadUserGuilds(session.provider_token);
-                    } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
-                        // إعادة التوجيه فقط عند التأكد التام من عدم وجود جلسة
-                        window.location.href = 'Login.html';
-                    }
-                });
+                const guildSelector = document.getElementById('guild-selector');
+                if (guildSelector) {
+                    guildSelector.innerHTML = '<option value="" disabled selected>Relogin to refresh servers</option>';
+                }
             }
         }
 
@@ -572,24 +604,23 @@
             }
         }
 
-        // 4. Fetch & Populate Discord Guilds
+        // 4. Fetch & Populate Discord Guilds (مع حماية حلقة Try/Catch)
         async function loadUserGuilds(providerToken) {
             const guildSelector = document.getElementById('guild-selector');
             if (!guildSelector) return;
 
             try {
-                let guilds = [];
+                const response = await fetch('https://discord.com/api/v10/users/@me/guilds', {
+                    headers: { Authorization: `Bearer ${providerToken}` }
+                });
 
-                if (providerToken) {
-                    const response = await fetch('https://discord.com/api/v10/users/@me/guilds', {
-                        headers: { Authorization: `Bearer ${providerToken}` }
-                    });
-                    if (response.ok) {
-                        const allGuilds = await response.json();
-                        // Filter guilds where user has Administrator (0x8) or Manage Guild (0x20) permissions
-                        guilds = allGuilds.filter(g => (parseInt(g.permissions) & 0x20) === 0x20 || (parseInt(g.permissions) & 0x8) === 0x8);
-                    }
+                if (!response.ok) {
+                    throw new Error(`Discord API returned status: ${response.status}`);
                 }
+
+                const allGuilds = await response.json();
+                // فلترة السيرفرات للصلاحيات الإدارية (Administrator أو Manage Guild)
+                const guilds = allGuilds.filter(g => (parseInt(g.permissions) & 0x20) === 0x20 || (parseInt(g.permissions) & 0x8) === 0x8);
 
                 guildSelector.innerHTML = '';
 
@@ -606,7 +637,6 @@
                     guildSelector.appendChild(option);
                 });
 
-                // Save selected guild ID to localStorage for sub-pages (/api/...)
                 if (guilds.length > 0) {
                     localStorage.setItem('selected_guild_id', guilds[0].id);
                 }
@@ -616,7 +646,7 @@
                 });
 
             } catch (err) {
-                console.error('Error fetching guilds:', err);
+                console.warn('Could not fetch Discord guilds:', err);
                 guildSelector.innerHTML = '<option value="" disabled selected>Select Server</option>';
             }
         }
@@ -626,6 +656,7 @@
         if (logoutBtn) {
             logoutBtn.addEventListener('click', async () => {
                 await supabaseClient.auth.signOut();
+                localStorage.removeItem('selected_guild_id');
                 window.location.href = 'Login.html';
             });
         }
