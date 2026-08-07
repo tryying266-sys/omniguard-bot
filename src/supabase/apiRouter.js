@@ -113,8 +113,7 @@ function parseDurationToTimestamp(input) {
     return new Date(Date.now() + ms).toISOString();
 }
 
-// Apply Security Middleware to all routes
-router.use(requireDashboardApiKey);
+
 
 // ============================================================================
 // 1. LOGS & ACTIVITY (Specialized Endpoints)
