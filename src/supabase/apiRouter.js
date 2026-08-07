@@ -61,6 +61,9 @@ const queries = require('./databaseQueries');
 // in index.js - there is no AutoMod subfolder). apiRouter.js lives under
 // src/supabase/, so one level up ('../') reaches src/.
 const customEmbed = require('../commands/custom.js');
+const dbUtils = require('./dbUtils');
+const { isMemberCommandExempt } = require('../commands/GRS');
+const { syncMemberRoles } = require('../commands/roleSync');
 
 const router = express.Router();
 
@@ -555,6 +558,397 @@ router.delete('/guild/:guildId/auto-mod-rules/:ruleId', requireGuildId, async (r
         res.status(500).json({ error: 'Failed to delete rule' });
     }
 });
+
+/**
+ * DELETE /api/guild/:guildId/auto-mod-rules/:ruleId
+ */
+router.delete('/guild/:guildId/auto-mod-rules/:ruleId', requireGuildId, async (req, res) => {
+    try {
+        await queries.deleteAutoModRule(req.params.ruleId, req.guildId);
+        res.json({ success: true });
+    } catch (err) {
+        console.error(`[API Router Error] DELETE /guild/${req.params.guildId}/auto-mod-rules/${req.params.ruleId}:`, err.message);
+        res.status(500).json({ error: 'Failed to delete rule' });
+    }
+});
+
+// ============================================================================
+// 4. MEMBER PROFILE & MODERATION (Dashboard Page: user-profile.html)
+// ============================================================================
+// [NEW] كل الـ endpoints هنا تخص صفحة بحث الأعضاء وصفحة البروفايل. مسجلة
+// فوق Section 5 (Universal Sync) لنفس سبب custom-embed-draft بالأعلى -
+// بعض هالمسارات (زي /member/:userId/roles) لها نفس عدد الأجزاء اللي ممكن
+// تتصادم مستقبلاً لو أي route عام جديد انضاف.
+//
+// [TEMP - قبل OAuth2] ما فيه لسا هوية مشرف حقيقية جاية من تسجيل دخول
+// الداشبورد. الحل المؤقت المستخدم بكل نقاط التنفيذ تحت: نمرر عضوية البوت
+// نفسه (guild.members.me) كـ "منفذ" placeholder لملفات الأوامر (ban.js/
+// kick.js/warn.js/mute.js تتوقع كائن moderator بخصائص .id/.tag/.roles).
+// هذا يخلي فحص التسلسل الهرمي المطبق أصلاً بكل ملف يشتغل بمنطقية (البوت
+// غالباً أعلى من أغلب الأعضاء)، لكن يعني id_moderator باللوق هيسجل آيدي
+// البوت مؤقتاً بدل المشرف الحقيقي. ⚠️ يُستبدل هذا فوراً بهوية المشرف
+// الحقيقية بمجرد تفعيل OAuth2 - علامة واضحة بكل مكان يُستخدم فيه.
+
+/**
+ * Shared helper: يجهز guild + moderator placeholder، ويطبق فحص الاستثناء
+ * (Command Exceptions) على العضو المستهدف قبل أي تنفيذ - نفس الفحص
+ * الموجود أصلاً بـ commandhandler.js لمسار الشات، مطبق هنا يدوياً لأن
+ * الداشبورد لا يمر عبر commandhandler إطلاقاً.
+ */
+async function resolveDashboardContext(guildId, targetId, res) {
+    const client = require('../index');
+    if (!client.isReady()) {
+        res.status(503).json({ error: 'Bot is not ready yet. Please try again in a moment.' });
+        return null;
+    }
+
+    const guild = await client.guilds.fetch(guildId).catch(() => null);
+    if (!guild) {
+        res.status(404).json({ error: 'Bot is not in this guild' });
+        return null;
+    }
+
+    const moderator = guild.members.me; // TEMP - see note above
+
+    const targetMember = await guild.members.fetch(targetId).catch(() => null);
+    if (targetMember) {
+        const guildSettings = await dbUtils.getGuildSettings(guildId);
+        if (isMemberCommandExempt(guildSettings, targetMember)) {
+            res.status(403).json({ error: "This member's role is exempt from bot commands." });
+            return null;
+        }
+    }
+
+    return { guild, moderator };
+}
+
+/**
+ * GET /api/guild/:guildId/members/search?q=...
+ * يستخدمها search.html/search.js للبحث الحي (Autocomplete). أقصى 10 نتائج.
+ *
+ * ⚠️ قيد معروف: بحث ديسكورد الأصلي (members.fetch({query})) يطابق فقط
+ * "يبدأ بـ" (Prefix) على اليوزرنيم/النك، وما يدعم مطابقة أي جزء من الآيدي
+ * إطلاقاً. لتغطية طلبك (يطابق أي جزء بأي مكان، بالاسم أو الآيدي)، هذا
+ * الـ endpoint يجمع 3 مصادر: (1) مطابقة آيدي تام لو النص كامل رقمي،
+ * (2) بحث Prefix الرسمي من ديسكورد، (3) فحص محلي على كاش الأعضاء
+ * الموجودين فعلياً بذاكرة البوت وقت الطلب (best-effort - دقيق فقط للأعضاء
+ * اللي البوت شافهم/كاشهم مسبقاً، مو كل أعضاء السيرفر بالضرورة على السيرفرات
+ * الكبيرة). لو احتجنا دقة كاملة 100% لاحقاً، الحل هو جدول كاش أعضاء دائم
+ * بالقاعدة (خيار "ب" اللي ناقشناه بالخطة) - مو مطلوب الآن.
+ */
+router.get('/guild/:guildId/members/search', requireGuildId, async (req, res) => {
+    try {
+        const query = String(req.query.q || '').trim();
+        if (!query) return res.json([]);
+
+        const client = require('../index');
+        if (!client.isReady()) {
+            return res.status(503).json({ error: 'Bot is not ready yet. Please try again in a moment.' });
+        }
+
+        const guild = await client.guilds.fetch(req.guildId).catch(() => null);
+        if (!guild) return res.status(404).json({ error: 'Bot is not in this guild' });
+
+        const results = new Map();
+        const lowerQuery = query.toLowerCase();
+
+        // 1) مطابقة آيدي تامة (لو النص كله أرقام بطول آيدي ديسكورد)
+        if (/^\d{15,20}$/.test(query)) {
+            const exactMember = await guild.members.fetch(query).catch(() => null);
+            if (exactMember) {
+                results.set(exactMember.id, {
+                    id: exactMember.id,
+                    username: exactMember.user.username,
+                    avatarUrl: exactMember.user.displayAvatarURL({ size: 64 })
+                });
+            }
+        }
+
+        // 2) بحث ديسكورد الرسمي (Prefix على اليوزرنيم/النك)
+        try {
+            const prefixMatches = await guild.members.fetch({ query, limit: 10 });
+            for (const member of prefixMatches.values()) {
+                if (results.size >= 10) break;
+                results.set(member.id, {
+                    id: member.id,
+                    username: member.user.username,
+                    avatarUrl: member.user.displayAvatarURL({ size: 64 })
+                });
+            }
+        } catch (searchErr) {
+            console.error('[API Router] Member prefix search failed:', searchErr.message);
+        }
+
+        // 3) فحص محلي على الكاش الحالي (يغطي "أي جزء" بالاسم أو الآيدي)
+        if (results.size < 10) {
+            for (const member of guild.members.cache.values()) {
+                if (results.size >= 10) break;
+                if (results.has(member.id)) continue;
+                const matchesId = member.id.includes(query);
+                const matchesName = member.user.username.toLowerCase().includes(lowerQuery);
+                if (matchesId || matchesName) {
+                    results.set(member.id, {
+                        id: member.id,
+                        username: member.user.username,
+                        avatarUrl: member.user.displayAvatarURL({ size: 64 })
+                    });
+                }
+            }
+        }
+
+        res.json([...results.values()].slice(0, 10));
+    } catch (err) {
+        console.error(`[API Router Error] GET /guild/${req.params.guildId}/members/search:`, err.message);
+        res.status(500).json({ error: 'Member search failed' });
+    }
+});
+
+/**
+ * GET /api/guild/:guildId/member/:userId/profile
+ * يجمع كل بيانات صفحة user-profile.html بطلب واحد: بيانات حية من ديسكورد
+ * (رتب، حالة ميوت/بان) + كل الجداول ذات الصلة من القاعدة بالتوازي.
+ */
+router.get('/guild/:guildId/member/:userId/profile', requireGuildId, async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const client = require('../index');
+        if (!client.isReady()) {
+            return res.status(503).json({ error: 'Bot is not ready yet. Please try again in a moment.' });
+        }
+
+        const guild = await client.guilds.fetch(req.guildId).catch(() => null);
+        if (!guild) return res.status(404).json({ error: 'Bot is not in this guild' });
+
+        const member = await guild.members.fetch(userId).catch(() => null);
+        const banEntry = await guild.bans.fetch(userId).catch(() => null);
+
+        const supabase = require('./db');
+
+        const [
+            { data: logs },
+            { data: warnings },
+            { data: levelData },
+            { data: altsAsTarget },
+            { data: backupRoles },
+            { data: tempActions },
+            { data: moderatorLogs }
+        ] = await Promise.all([
+            supabase.from('log_moderation').select('*').eq('id_guild', req.guildId).eq('id_target', userId).order('created_at', { ascending: false }).limit(50),
+            supabase.from('warning_active').select('*').eq('id_guild', req.guildId).eq('id_user', userId).order('created_at', { ascending: false }),
+            supabase.from('user_level_data').select('*').eq('id_guild', req.guildId).eq('id_user', userId).maybeSingle(),
+            supabase.from('alt_suspected').select('*').eq('id_guild', req.guildId).eq('id_user', userId).order('at_detected', { ascending: false }),
+            supabase.from('backup_role_member').select('*').eq('id_guild', req.guildId).eq('id_user', userId).maybeSingle(),
+            supabase.from('temp_actions').select('*').eq('id_guild', req.guildId).eq('id_user', userId).eq('processed', false),
+            supabase.from('log_moderation').select('*').eq('id_guild', req.guildId).eq('id_moderator', userId).order('created_at', { ascending: false }).limit(50)
+        ]);
+
+        const isMuted = !!(member?.communicationDisabledUntilTimestamp && member.communicationDisabledUntilTimestamp > Date.now());
+
+        res.json({
+            profile: member ? {
+                id: member.id,
+                username: member.user.username,
+                tag: member.user.tag,
+                avatarUrl: member.user.displayAvatarURL({ size: 128 }),
+                roles: member.roles.cache.filter(r => r.id !== req.guildId).map(r => ({
+                    id: r.id,
+                    name: r.name,
+                    color: r.color ? `#${r.color.toString(16).padStart(6, '0')}` : null
+                })),
+                isMuted,
+                mutedUntil: isMuted ? member.communicationDisabledUntil : null,
+                isBanned: !!banEntry,
+                inServer: true
+            } : {
+                id: userId,
+                inServer: false,
+                isBanned: !!banEntry,
+                username: banEntry?.user?.username || null,
+                avatarUrl: banEntry?.user ? banEntry.user.displayAvatarURL({ size: 128 }) : null
+            },
+            logs: logs || [],
+            warnings: warnings || [],
+            levelData: levelData || null,
+            alts: altsAsTarget || [],
+            backupRoles: backupRoles?.roles || [],
+            activeTempActions: tempActions || [],
+            moderatorLogs: moderatorLogs || []
+        });
+    } catch (err) {
+        console.error(`[API Router Error] GET /guild/${req.params.guildId}/member/${req.params.userId}/profile:`, err.message);
+        res.status(500).json({ error: 'Failed to load member profile' });
+    }
+});
+
+/**
+ * POST /api/guild/:guildId/member/:userId/kick
+ * Expected body: { reason }
+ */
+router.post('/guild/:guildId/member/:userId/kick', requireGuildId, async (req, res) => {
+    try {
+        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res);
+        if (!ctx) return;
+
+        const { executeKick } = require('../commands/kick');
+        const result = await executeKick(ctx.guild, req.params.userId, ctx.moderator, req.body.reason || 'No reason provided', dbUtils);
+
+        if (!result.success) return res.status(400).json({ error: result.error });
+        res.json({ success: true, ...result });
+    } catch (err) {
+        console.error(`[API Router Error] POST /member/${req.params.userId}/kick:`, err.message);
+        res.status(500).json({ error: 'Failed to execute kick' });
+    }
+});
+
+/**
+ * POST /api/guild/:guildId/member/:userId/ban
+ * Expected body: { reason, duration } - duration مثل "1d"/"perm" (نفس صيغة ban.js)
+ */
+router.post('/guild/:guildId/member/:userId/ban', requireGuildId, async (req, res) => {
+    try {
+        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res);
+        if (!ctx) return;
+
+        const { executeBan } = require('../commands/ban');
+        const result = await executeBan(ctx.guild, req.params.userId, ctx.moderator, req.body.duration || 'permanent', req.body.reason || 'No reason provided', dbUtils);
+
+        if (!result.success) return res.status(400).json({ error: result.error });
+        res.json({ success: true, ...result });
+    } catch (err) {
+        console.error(`[API Router Error] POST /member/${req.params.userId}/ban:`, err.message);
+        res.status(500).json({ error: 'Failed to execute ban' });
+    }
+});
+
+/**
+ * POST /api/guild/:guildId/member/:userId/unban
+ * Expected body: { reason }
+ */
+router.post('/guild/:guildId/member/:userId/unban', requireGuildId, async (req, res) => {
+    try {
+        const client = require('../index');
+        if (!client.isReady()) return res.status(503).json({ error: 'Bot is not ready yet.' });
+        const guild = await client.guilds.fetch(req.guildId).catch(() => null);
+        if (!guild) return res.status(404).json({ error: 'Bot is not in this guild' });
+
+        const { executeUnban } = require('../commands/ban');
+        const result = await executeUnban(guild, req.params.userId, guild.members.me, req.body.reason || 'No reason provided', dbUtils);
+
+        if (!result.success) return res.status(400).json({ error: result.error });
+        res.json({ success: true });
+    } catch (err) {
+        console.error(`[API Router Error] POST /member/${req.params.userId}/unban:`, err.message);
+        res.status(500).json({ error: 'Failed to execute unban' });
+    }
+});
+
+/**
+ * POST /api/guild/:guildId/member/:userId/mute
+ * Expected body: { reason, duration } - duration مثل "1h"/"1d" (نفس صيغة mute.js)
+ */
+router.post('/guild/:guildId/member/:userId/mute', requireGuildId, async (req, res) => {
+    try {
+        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res);
+        if (!ctx) return;
+
+        const { executeMute } = require('../commands/mute');
+        const result = await executeMute(ctx.guild, req.params.userId, ctx.moderator, req.body.duration, req.body.reason || 'No reason provided', dbUtils);
+
+        if (!result.success) return res.status(400).json({ error: result.error });
+        res.json({ success: true, ...result });
+    } catch (err) {
+        console.error(`[API Router Error] POST /member/${req.params.userId}/mute:`, err.message);
+        res.status(500).json({ error: 'Failed to execute mute' });
+    }
+});
+
+/**
+ * POST /api/guild/:guildId/member/:userId/unmute
+ * Expected body: { reason }
+ */
+router.post('/guild/:guildId/member/:userId/unmute', requireGuildId, async (req, res) => {
+    try {
+        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res);
+        if (!ctx) return;
+
+        const { executeUnmute } = require('../commands/mute');
+        const result = await executeUnmute(ctx.guild, req.params.userId, ctx.moderator, req.body.reason || 'No reason provided', dbUtils);
+
+        if (!result.success) return res.status(400).json({ error: result.error });
+        res.json({ success: true });
+    } catch (err) {
+        console.error(`[API Router Error] POST /member/${req.params.userId}/unmute:`, err.message);
+        res.status(500).json({ error: 'Failed to execute unmute' });
+    }
+});
+
+/**
+ * POST /api/guild/:guildId/member/:userId/warn
+ * Expected body: { reason }
+ */
+router.post('/guild/:guildId/member/:userId/warn', requireGuildId, async (req, res) => {
+    try {
+        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res);
+        if (!ctx) return;
+
+        const { executeWarn } = require('../commands/warn');
+        const result = await executeWarn(ctx.guild, req.params.userId, ctx.moderator, req.body.reason || 'No reason provided', dbUtils);
+
+        if (!result.success) return res.status(400).json({ error: result.error });
+        res.json({ success: true, ...result });
+    } catch (err) {
+        console.error(`[API Router Error] POST /member/${req.params.userId}/warn:`, err.message);
+        res.status(500).json({ error: 'Failed to execute warn' });
+    }
+});
+
+/**
+ * POST /api/guild/:guildId/member/:userId/unwarn
+ * Expected body: { reason }
+ */
+router.post('/guild/:guildId/member/:userId/unwarn', requireGuildId, async (req, res) => {
+    try {
+        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res);
+        if (!ctx) return;
+
+        const { executeUnwarn } = require('../commands/warn');
+        const result = await executeUnwarn(ctx.guild, req.params.userId, ctx.moderator, req.body.reason || 'Warning removed by staff', dbUtils);
+
+        if (!result.success) return res.status(400).json({ error: result.error });
+        res.json({ success: true });
+    } catch (err) {
+        console.error(`[API Router Error] POST /member/${req.params.userId}/unwarn:`, err.message);
+        res.status(500).json({ error: 'Failed to execute unwarn' });
+    }
+});
+
+/**
+ * PUT /api/guild/:guildId/member/:userId/roles
+ * Expected body: { roleIds: string[] } - القائمة الكاملة للرتب المطلوبة
+ * بعد الحفظ (يعني state التاغات النهائي كامل، مو بس الفرق).
+ */
+router.put('/guild/:guildId/member/:userId/roles', requireGuildId, async (req, res) => {
+    try {
+        const { roleIds } = req.body;
+        if (!Array.isArray(roleIds)) {
+            return res.status(400).json({ error: 'Invalid Payload: "roleIds" must be an array' });
+        }
+
+        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res);
+        if (!ctx) return;
+
+        const result = await syncMemberRoles(ctx.guild, req.params.userId, roleIds, ctx.moderator, dbUtils);
+
+        if (!result.success) return res.status(400).json({ error: result.error });
+        res.json({ success: true, ...result });
+    } catch (err) {
+        console.error(`[API Router Error] PUT /member/${req.params.userId}/roles:`, err.message);
+        res.status(500).json({ error: 'Failed to update roles' });
+    }
+});
+
+// ============================================================================
+// 5. UNIVERSAL SYNC ROUTES (Smart Binding - generic catch-all, MUST stay LAST)
 
 // ============================================================================
 // 4. UNIVERSAL SYNC ROUTES (Smart Binding - generic catch-all, MUST stay LAST)

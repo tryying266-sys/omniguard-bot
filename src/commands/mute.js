@@ -52,6 +52,69 @@ async function resolveTargetMember(message, arg) {
 // ==========================================
 // CORE LOGIC: handleMute
 // ==========================================
+// ==========================================
+// CORE LOGIC: executeMute (message-independent)
+// ==========================================
+async function executeMute(guild, targetId, moderator, durationStr, reason, dbUtils, channel = null) {
+    try {
+        const target = await guild.members.fetch(targetId).catch(() => null);
+        if (!target) return { success: false, error: "Member not found." };
+
+        // Hierarchy Checks (same checks as before, unchanged)
+        if (target.id === moderator.id) return { success: false, error: "You cannot mute yourself." };
+        if (!target.moderatable) return { success: false, error: "I cannot mute this member (Role hierarchy)." };
+
+        const durationMs = parseDuration(durationStr);
+        if (!durationMs) return { success: false, error: "Invalid duration format (e.g., 30s, 10m, 1h, 1d)." };
+
+        await target.timeout(durationMs, `${reason} | By: ${moderator.tag}`);
+
+        // حفظ العقوبة المؤقتة لرفعها تلقائياً لاحقاً
+        const endsAt = new Date(Date.now() + durationMs).toISOString();
+        const supabase = require('../supabase/db');
+        await supabase.from('temp_actions').insert({
+            id_guild: guild.id,
+            id_user: target.id,
+            action_type: 'mute',
+            ends_at: endsAt,
+            processed: false
+        }).catch(err => console.error('[DB Error] Temp-mute insert failed:', err.message));
+
+        // Smart Binding: Log to SQL
+        if (dbUtils?.addInfraction) {
+            await dbUtils.addInfraction(guild.id, target.id, moderator.id, 'mute', reason, Math.round(durationMs / 60000));
+        }
+
+        // [Admin Protection] تتبع عدد إجراءات الميوت المتتالية من هذا المشرف
+        try {
+            const AutoMod = require('./AutoMod');
+            await AutoMod.trackAdminAction(guild, moderator, 'mute');
+        } catch (e) {
+            console.error('[Admin Protection] trackAdminAction failed:', e.message);
+        }
+
+        // إرسال الإشعار التلقائي بحسب إعدادات الداشبورد
+        const { notifyCommandExecution } = require('./commandNotifications');
+        await notifyCommandExecution({
+            guild,
+            targetMember: target,
+            moderator,
+            channel,
+            action: 'mute',
+            reason,
+            duration: formatDuration(durationMs)
+        });
+
+        return { success: true, targetTag: target.user.tag, durationText: formatDuration(durationMs) };
+    } catch (err) {
+        console.error('[Mute Engine Error]:', err);
+        return { success: false, error: "Internal error during mute execution." };
+    }
+}
+
+// ==========================================
+// PREFIX WRAPPER: handleMute
+// ==========================================
 async function handleMute(message, args, dbUtils) {
     if (!message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
         return message.reply('❌ You do not have permission to mute members.');
@@ -65,29 +128,9 @@ async function handleMute(message, args, dbUtils) {
     const target = await resolveTargetMember(message, targetArg);
     if (!target) return message.reply('❌ Member not found.');
 
-    // Hierarchy Checks
-    if (target.id === message.author.id) return message.reply('❌ You cannot mute yourself.');
-    if (!target.moderatable) return message.reply('❌ I cannot mute this member (Role hierarchy).');
+    const result = await executeMute(message.guild, target.id, message.author, durationArg, reason, dbUtils, message.channel);
 
-    const durationMs = parseDuration(durationArg);
-    if (!durationMs) return message.reply('⚠️ Invalid duration format (e.g., 30s, 10m, 1h, 1d).');
-
-    try {
-        await target.timeout(durationMs, `${reason} | By: ${message.author.tag}`);
-// حفظ العقوبة المؤقتة لرفعها تلقائياً لاحقاً
-        const endsAt = new Date(Date.now() + durationMs).toISOString();
-        const supabase = require('../supabase/db');
-        await supabase.from('temp_actions').insert({
-            id_guild: message.guild.id,
-            id_user: target.id,
-            action_type: 'mute',
-            ends_at: endsAt,
-            processed: false
-        });
-        // Smart Binding: Log to SQL
-        if (dbUtils?.addInfraction) {
-            await dbUtils.addInfraction(message.guild.id, target.id, message.author.id, 'mute', reason, Math.round(durationMs / 60000));
-        }
+    if (result.success) {
         if (dbUtils?.addLogIndex) {
             await dbUtils.addLogIndex(message.guild.id, message.id, message.channel.id, target.id, 'mute');
         }
@@ -101,36 +144,51 @@ async function handleMute(message, args, dbUtils) {
                 rawMessage: message.content
             });
         }
-
-        // [Admin Protection] تتبع عدد إجراءات الميوت المتتالية من هذا المشرف
-        try {
-            const AutoMod = require('./AutoMod');
-            await AutoMod.trackAdminAction(message.guild, message.author, 'mute');
-        } catch (e) {
-            console.error('[Admin Protection] trackAdminAction failed:', e.message);
-        }
-
-        // إرسال الإشعار التلقائي بحسب إعدادات الداشبورد
-        const { notifyCommandExecution } = require('./commandNotifications');
-        await notifyCommandExecution({
-            guild: message.guild,
-            targetMember: target,
-            moderator: message.author,
-            channel: message.channel,
-            action: 'mute',
-            reason,
-            duration: formatDuration(durationMs)
-        });
-
         return;
-    } catch (err) {
-        console.error('[Mute Error]', err);
-        return message.reply('❌ Failed to mute member.');
+    } else {
+        return message.reply(`❌ ${result.error}`);
     }
 }
 
 // ==========================================
 // CORE LOGIC: handleUnmute
+// ==========================================
+// ==========================================
+// CORE LOGIC: executeUnmute (message-independent)
+// ==========================================
+async function executeUnmute(guild, targetId, moderator, reason, dbUtils, channel = null) {
+    try {
+        const target = await guild.members.fetch(targetId).catch(() => null);
+        if (!target) return { success: false, error: "Member not found." };
+        if (!target.communicationDisabledUntil) return { success: false, error: "This member is not muted." };
+
+        await target.timeout(null, `Unmute | ${reason} | By: ${moderator.tag}`);
+
+        // Smart Binding: Log to SQL
+        if (dbUtils?.addInfraction) {
+            await dbUtils.addInfraction(guild.id, target.id, moderator.id, 'unmute', reason, null);
+        }
+
+        const { notifyCommandExecution } = require('./commandNotifications');
+        await notifyCommandExecution({
+            guild,
+            targetMember: target,
+            moderator,
+            channel,
+            action: 'unmute',
+            reason,
+            duration: null
+        });
+
+        return { success: true };
+    } catch (err) {
+        console.error('[Unmute Engine Error]:', err);
+        return { success: false, error: "Failed to unmute member." };
+    }
+}
+
+// ==========================================
+// PREFIX WRAPPER: handleUnmute
 // ==========================================
 async function handleUnmute(message, args, dbUtils) {
     if (!message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
@@ -144,15 +202,10 @@ async function handleUnmute(message, args, dbUtils) {
 
     const target = await resolveTargetMember(message, targetArg);
     if (!target) return message.reply('❌ Member not found.');
-    if (!target.communicationDisabledUntil) return message.reply('ℹ️ This member is not muted.');
 
-    try {
-        await target.timeout(null, `Unmute | ${reason} | By: ${message.author.tag}`);
+    const result = await executeUnmute(message.guild, target.id, message.author, reason, dbUtils, message.channel);
 
-        // Smart Binding: Log to SQL
-        if (dbUtils?.addInfraction) {
-            await dbUtils.addInfraction(message.guild.id, target.id, message.author.id, 'unmute', reason, null);
-        }
+    if (result.success) {
         if (dbUtils?.addLogIndex) {
             await dbUtils.addLogIndex(message.guild.id, message.id, message.channel.id, target.id, 'unmute');
         }
@@ -166,22 +219,9 @@ async function handleUnmute(message, args, dbUtils) {
                 rawMessage: message.content
             });
         }
-
-        const { notifyCommandExecution } = require('./commandNotifications');
-        await notifyCommandExecution({
-            guild: message.guild,
-            targetMember: target,
-            moderator: message.author,
-            channel: message.channel,
-            action: 'unmute',
-            reason,
-            duration: null
-        });
-
         return;
-    } catch (err) {
-        console.error('[Unmute Error]', err);
-        return message.reply('❌ Failed to unmute member.');
+    } else {
+        return message.reply(`❌ ${result.error}`);
     }
 }
 
@@ -198,5 +238,7 @@ module.exports = {
     aliases: ['unmute'], // <-- تضعها هنا داخل الكائن
     run, 
     handleMute, 
-    handleUnmute 
+    handleUnmute,
+    executeMute,
+    executeUnmute
 };

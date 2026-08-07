@@ -118,38 +118,47 @@
             color: var(--accent-red);
         }
 
-        /* Filter Categories / Tags Bar */
-        .filter-tags-group {
+        /* Search Result Item (صورة + يوزرنيم + آيدي) */
+        .search-result-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-top: 4px;
-        }
-
-        .filter-tag {
-            background-color: var(--bg-tertiary);
-            color: var(--text-secondary);
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            border: 1px solid var(--border-color);
+            gap: 12px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid transparent;
             cursor: pointer;
             transition: all 0.2s ease;
-            user-select: none;
         }
-        .filter-tag:hover {
+        .search-result-item:hover,
+        .search-result-item:focus {
+            background-color: var(--bg-tertiary);
+            border-color: var(--border-color);
+            outline: none;
+        }
+        .search-result-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            object-fit: cover;
+        }
+        .search-result-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            overflow: hidden;
+        }
+        .search-result-username {
+            font-size: 14px;
+            font-weight: 600;
             color: var(--text-primary);
-            border-color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .filter-tag.active {
-            background-color: rgba(255, 51, 68, 0.15);
-            color: var(--accent-red);
-            border-color: rgba(255, 51, 68, 0.3);
+        .search-result-id {
+            font-size: 12px;
+            color: var(--text-secondary);
         }
 
         /* Dynamic Results Area (مفرغ وجاهز للحقن البرمجي) */
@@ -281,29 +290,12 @@
                 <div class="form-group">
                     <label class="form-label">Search Query</label>
                     <div class="search-input-wrapper">
-                        <input id="global_search_input" type="text" class="form-input" placeholder="Search members by ID/name, audit logs, or settings..." autocomplete="off">
+                        <input id="global_search_input" type="text" class="form-input" placeholder="Search members by username or ID..." autocomplete="off">
                         <i class="fa-solid fa-magnifying-glass search-icon"></i>
                     </div>
                 </div>
 
-                <!-- Filter Categories Bar (مبنية بنفس ستايل .tag-item الأحمر الشفاف) -->
-                <div class="form-group">
-                    <label class="form-label">Filter Category</label>
-                    <div class="filter-tags-group">
-                        <div class="filter-tag active" data-filter="all">
-                            <i class="fa-solid fa-globe"></i> All
-                        </div>
-                        <div class="filter-tag" data-filter="members">
-                            <i class="fa-solid fa-users"></i> Members
-                        </div>
-                        <div class="filter-tag" data-filter="logs">
-                            <i class="fa-solid fa-clipboard-list"></i> Logs
-                        </div>
-                        <div class="filter-tag" data-filter="settings">
-                            <i class="fa-solid fa-sliders"></i> Settings
-                        </div>
-                    </div>
-                </div>
+                
 
                 <!-- Empty Dynamic Container for Results (تُحقن بواسطة JS بدون أي بيانات وهمية) -->
                 <div id="search_results_container" class="results-wrapper">
@@ -320,14 +312,6 @@
     <!-- الربط بالسكربت الرئيسي لتطبيق نفس المنطق -->
     <script src="dashboard.js"></script>
 
-    <script>
-        // سكريبت بسيط لإدارة التبديل البصري بين فلاتر البحث
-        document.querySelectorAll('.filter-tag').forEach(tag => {
-            tag.addEventListener('click', function() {
-                document.querySelectorAll('.filter-tag').forEach(t => t.classList.remove('active'));
-                this.classList.add('active');
-            });
-        });
-    </script>
+    <script src="search.js"></script>
 </body>
 </html>
