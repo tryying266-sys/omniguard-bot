@@ -531,21 +531,18 @@
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // 2. Auth Guard & Main Dashboard Initialization
-        async function initDashboard() {
-            // Check active session
-            const { data: { session }, error } = await supabaseClient.auth.getSession();
-
-            if (error || !session) {
-                // Redirect unauthenticated user to Login page
-                window.location.href = 'Login.html';
-                return;
-            }
-
-            // Load User Profile Data
-            loadUserProfile(session.user);
-
-            // Load User Guilds
-            loadUserGuilds(session.provider_token);
+        function initDashboard() {
+            // Listen to Auth State Changes (Handles initial load & OAuth tokens from URL)
+            supabaseClient.auth.onAuthStateChange((event, session) => {
+                if (session) {
+                    // User is authenticated
+                    loadUserProfile(session.user);
+                    loadUserGuilds(session.provider_token);
+                } else {
+                    // No active session found, redirect to Login
+                    window.location.href = 'Login.html';
+                }
+            });
         }
 
         // 3. Load & Render User Profile Data
