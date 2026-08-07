@@ -534,38 +534,37 @@
             }
         });
 
-        // 2. Auth Guard & Main Dashboard Initialization
-        async function initDashboard() {
-            try {
-                // محاولة جلب الجلسة الحالية
-                const { data: { session }, error } = await supabaseClient.auth.getSession();
+       async function initDashboard() {
+    try {
+        const { data: { session }, error } = await supabaseClient.auth.getSession();
 
-                if (error) {
-                    console.error("Auth session error:", error);
-                }
+        if (error) {
+            console.error("Auth session error:", error);
+        }
 
-                if (session) {
-                    // الجلسة موجودة بنجاح
-                    setupDashboardUI(session);
-                } else {
-                    // الاستماع للتغيرات فقط في حال كان التوكن يقرأ من الـ URL لحظة التحويل
-                    supabaseClient.auth.onAuthStateChange((event, newSession) => {
-                        if (newSession) {
-                            setupDashboardUI(newSession);
-                        } else if (event === 'SIGNED_OUT') {
-                            window.location.href = 'Login.html';
-                        } else {
-                            // إعطاء مهلة قصيرة جداً قبل تحويل المستخدم للتحقق من وجود الـ Hash بالرابط
-                            if (!window.location.hash.includes('access_token')) {
-                                window.location.href = 'Login.html';
-                            }
-                        }
-                    });
-                }
-            } catch (err) {
-                console.error("Unexpected Auth Error:", err);
+        if (session) {
+            setupDashboardUI(session);
+        } else {
+            // التحقق مما إذا كان الرابط يحتوي على كود مصادقة (PKCE) أو توكن
+            const hasAuthCode = window.location.search.includes('code=');
+            const hasTokenHash = window.location.hash.includes('access_token');
+
+            if (hasAuthCode || hasTokenHash) {
+                // الانتظار حتى يقوم عميل Supabase معالجة الرمز وإنشاء الجلسة
+                supabaseClient.auth.onAuthStateChange((event, newSession) => {
+                    if (newSession) {
+                        setupDashboardUI(newSession);
+                    }
+                });
+            } else {
+                window.location.href = 'Login.html';
             }
         }
+    } catch (err) {
+        console.error("Unexpected Auth Error:", err);
+        window.location.href = 'Login.html';
+    }
+}
 
         // تشغيل عناصر الواجهة بعد تأكيد الجلسة
         function setupDashboardUI(session) {
