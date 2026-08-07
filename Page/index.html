@@ -523,26 +523,33 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
-        // 1. Supabase Client Setup
+        // 1. Supabase Client Setup (تم وضع المفتاح الحقيقي)
         const SUPABASE_URL = 'https://lcnjswibemyenakwojkz.supabase.co';
-        // Replace with your project's anon public key
-        const SUPABASE_ANON_KEY = 'YOUR_ANON_PUBLIC_KEY_HERE'; 
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxjbmpzd2liZW15ZW5ha3dvamt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4ODQ0ODEsImV4cCI6MjA5OTQ2MDQ4MX0.AfbKJsd6sOK1FPz2w-rH3XT28m4eneB1uNJEyETJ9ug'; 
 
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // 2. Auth Guard & Main Dashboard Initialization
-        function initDashboard() {
-            // Listen to Auth State Changes (Handles initial load & OAuth tokens from URL)
-            supabaseClient.auth.onAuthStateChange((event, session) => {
-                if (session) {
-                    // User is authenticated
-                    loadUserProfile(session.user);
-                    loadUserGuilds(session.provider_token);
-                } else {
-                    // No active session found, redirect to Login
-                    window.location.href = 'Login.html';
-                }
-            });
+        // 2. Auth Guard & Main Dashboard Initialization (محسّن لتفادي طرد المستخدم)
+        async function initDashboard() {
+            // الحصول على الجلسة المباشرة
+            const { data: { session } } = await supabaseClient.auth.getSession();
+
+            if (session) {
+                // المستخدم مسجل دخوله بالفعل
+                loadUserProfile(session.user);
+                loadUserGuilds(session.provider_token);
+            } else {
+                // في حال العودة من تسجيل الدخول وقراءة التوكن من الـ URL
+                supabaseClient.auth.onAuthStateChange((event, session) => {
+                    if (session) {
+                        loadUserProfile(session.user);
+                        loadUserGuilds(session.provider_token);
+                    } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
+                        // إعادة التوجيه فقط عند التأكد التام من عدم وجود جلسة
+                        window.location.href = 'Login.html';
+                    }
+                });
+            }
         }
 
         // 3. Load & Render User Profile Data
@@ -554,18 +561,21 @@
             const displayName = metadata.full_name || metadata.name || metadata.custom_claims?.global_name || 'User';
             const avatarUrl = metadata.avatar_url || metadata.picture;
 
-            userNameElem.textContent = displayName;
+            if (userNameElem) userNameElem.textContent = displayName;
 
-            if (avatarUrl) {
-                userAvatarElem.innerHTML = `<img src="${avatarUrl}" alt="${displayName}">`;
-            } else {
-                userAvatarElem.textContent = displayName.charAt(0).toUpperCase();
+            if (userAvatarElem) {
+                if (avatarUrl) {
+                    userAvatarElem.innerHTML = `<img src="${avatarUrl}" alt="${displayName}">`;
+                } else {
+                    userAvatarElem.textContent = displayName.charAt(0).toUpperCase();
+                }
             }
         }
 
         // 4. Fetch & Populate Discord Guilds
         async function loadUserGuilds(providerToken) {
             const guildSelector = document.getElementById('guild-selector');
+            if (!guildSelector) return;
 
             try {
                 let guilds = [];
@@ -612,10 +622,13 @@
         }
 
         // 5. Logout Handler
-        document.getElementById('logout-btn').addEventListener('click', async () => {
-            await supabaseClient.auth.signOut();
-            window.location.href = 'Login.html';
-        });
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async () => {
+                await supabaseClient.auth.signOut();
+                window.location.href = 'Login.html';
+            });
+        }
 
         // Run setup on page load
         document.addEventListener('DOMContentLoaded', initDashboard);
