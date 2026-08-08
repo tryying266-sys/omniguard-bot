@@ -630,18 +630,12 @@
              المحفوظة فعلياً تبان مختارة صح.
          ================================================================ -->
     <script>
-    // 1. كود الحماية الفوري
-    (async () => {
-        try {
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (!session) {
-                window.location.href = 'Login.html';
-                return;
-            }
-            if (typeof setupDashboardUI === 'function') setupDashboardUI(session);
-        } catch (e) {
-            window.location.href = 'Login.html';
-        }
+        (async function () {
+              const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) { window.location.href = 'Login.html'; return; }
+            const guildId = getGuildId();
+            if (!guildId) return;
+
             const welcomeSelect = document.getElementById('channel_welcome');
             const leaveSelect = document.getElementById('channel_leave');
 

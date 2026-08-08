@@ -445,19 +445,9 @@
          العامة بأمان دون كسرها.
          ================================================================ -->
    <script>
-    // 1. كود الحماية الفوري (يشتغل قبل أي شيء)
-    (async () => {
-        try {
-            const { data: { session } } = await supabaseClient.auth.getSession();
-            if (!session) {
-                window.location.href = 'Login.html';
-                return;
-            }
-            // إذا وجد جلسة، نحدث الهيدر
-            if (typeof setupDashboardUI === 'function') setupDashboardUI(session);
-        } catch (e) {
-            window.location.href = 'Login.html';
-        }
+          (async function () {
+              const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) { window.location.href = 'Login.html'; return; }
             // ------------------------------------------------------------
             // [1] Bot Prefix: حرف واحد بس أو فاضي - بدون مسافات/تاب/سطر جديد.
             // maxlength="1" بالـ HTML يغطي أغلب الحالات، لكن بعض المتصفحات
