@@ -338,13 +338,26 @@
 </head>
 <body>
 
-    <!-- Left Sidebar Navigation - Perfectly matched with OmniGuard structure -->
+    <!-- Left Sidebar Navigation - Perfectly synchronized with index.html -->
     <aside class="sidebar">
         <div class="logo-section">
             <i class="fa-solid fa-shield-halved logo-icon"></i>
             <span class="logo-text">OmniGuard</span>
         </div>
-
+<!-- SEARCH CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Search</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="search.html">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    Search
+                </a>
+            </li>
+        </ul>
         <!-- HOME CATEGORY -->
         <div class="category-container">
             <div class="category-line"></div>
@@ -354,6 +367,7 @@
         <ul class="menu-list">
             <li class="menu-item">
                 <a href="index.html">
+                    <a href="search.html">
                     <i class="fa-solid fa-house"></i>
                     Home
                 </a>
@@ -373,7 +387,7 @@
                     General Settings
                 </a>
             </li>
-            <li class="menu-item">
+            <li class="menu-item active">
                 <a href="welcome-leave.html">
                     <i class="fa-solid fa-door-open"></i>
                     Welcome & Leave
@@ -394,12 +408,6 @@
             <div class="category-line"></div>
         </div>
         <ul class="menu-list">
-            <li class="menu-item active">
-                <a href="user-profile.html">
-                    <i class="fa-solid fa-user-shield"></i>
-                    User Management
-                </a>
-            </li>
             <li class="menu-item">
                 <a href="auto-mod.html">
                     <i class="fa-solid fa-robot"></i>
@@ -408,7 +416,7 @@
             </li>
             <li class="menu-item">
                 <a href="anti-alt.html">
-                    <i class="fa-solid fa-users-slash"></i>
+                    <i class="fa-solid fa-user-shield"></i>
                     Anti-Alt
                 </a>
             </li>
@@ -416,6 +424,27 @@
                 <a href="logging.html">
                     <i class="fa-solid fa-clipboard-list"></i>
                     Logging
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODULES & FEATURES CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Modules & Features</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="custom-messages.html">
+                    <i class="fa-solid fa-comment-dots"></i>
+                    Custom Messages
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="leveling-system.html">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    Leveling System
                 </a>
             </li>
         </ul>
