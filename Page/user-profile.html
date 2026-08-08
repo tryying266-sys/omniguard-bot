@@ -481,16 +481,29 @@
     <main class="main-content">
 
 
-    <!-- Main Content Area -->
+     <!-- Main Content Area -->
     <main class="main-content">
         <header>
-            <div class="header-title">User Profile & Moderation</div>
-            <div class="user-profile-header">
-                <span>Administrator</span>
-                <div class="header-avatar">OG</div>
+            <div class="header-title">General Settings</div>
+            <div class="header-controls">
+                <!-- Guild / Server Selector Dropdown -->
+                <select id="guild-selector" class="guild-select">
+                    <option value="" disabled selected>Loading Servers...</option>
+                </select>
+
+                <!-- Dynamic User Profile -->
+                <div class="user-profile" id="user-profile">
+                    <span id="user-name">Loading...</span>
+                    <div class="avatar" id="user-avatar">OG</div>
+                </div>
+
+                <!-- Logout Button -->
+                <button id="logout-btn" class="logout-btn">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>Logout</span>
+                </button>
             </div>
         </header>
-
         <div class="content-body">
 
             <!-- Top User Profile Banner -->
