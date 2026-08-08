@@ -123,25 +123,26 @@ const API_BASE = `${window.location.origin}/api`;
 const SUPABASE_URL = 'https://lcnjswibemyenakwojkz.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxjbmpzd2liZW15ZW5ha3dvamt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4ODQ0ODEsImV4cCI6MjA5OTQ2MDQ4MX0.AfbKJsd6sOK1FPz2w-rH3XT28m4eneB1uNJEyETJ9ug';
 
-let cachedUserToken = null;
+let bridgeClient = null; // تعريف العميل عالمياً
 
 function initSupabaseSessionBridge() {
     if (typeof supabase === 'undefined') {
-        console.warn('[OmniGuard Dashboard] Supabase JS SDK not loaded on this page - requests will be sent without user identity.');
+        console.warn('[OmniGuard Dashboard] Supabase JS SDK not loaded.');
         return;
     }
 
-    const bridgeClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+    bridgeClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
     });
 
     bridgeClient.auth.getSession().then(({ data }) => {
         cachedUserToken = data?.session?.access_token || null;
+        if (data?.session) initGlobalHeader(data.session); // تشغيل الهيدر فوراً
     });
 
-    // يحدّث الـ token تلقائياً عند تجديده بالخلفية أو تسجيل خروج/دخول جديد
     bridgeClient.auth.onAuthStateChange((event, session) => {
         cachedUserToken = session?.access_token || null;
+        if (session) initGlobalHeader(session);
     });
 }
 
@@ -151,12 +152,13 @@ initSupabaseSessionBridge();
 
 function getGuildId() {
     const searchParams = new URLSearchParams(window.location.search);
-    const fromQuery = searchParams.get('guildId');
-    if (fromQuery) return fromQuery;
+    let gid = searchParams.get('guildId') || searchParams.get('guild_id');
+    
+    if (gid) {
+        localStorage.setItem('selected_guild_id', gid);
+        return gid;
+    }
 
-    // [FIX] index.html (بعد تسجيل الدخول عبر OAuth2) يخزّن السيرفر المختار
-    // بـ localStorage تحت هذا المفتاح بالضبط - كان dashboard.js ما يعرف
-    // بوجوده إطلاقاً، فكل صفحة غير index.html تفقد الـ guildId فوراً.
     const fromStorage = localStorage.getItem('selected_guild_id');
     if (fromStorage) return fromStorage;
 
@@ -717,6 +719,75 @@ async function fetchAntiAltLogs() {
             logGrid.appendChild(card);
         });
     } catch (e) { console.error('Logs fetch error:', e); }
+}
+
+// --- [NEW] Global Header Logic (Profile & Guilds) ---
+
+async function initGlobalHeader(session) {
+    // 1. تحديث بيانات المستخدم
+    const user = session.user;
+    const userNameElem = document.getElementById('user-name');
+    const userAvatarElem = document.getElementById('user-avatar');
+    
+    if (user && user.user_metadata) {
+        const meta = user.user_metadata;
+        if (userNameElem) userNameElem.textContent = meta.full_name || meta.name || 'Admin';
+        if (userAvatarElem && meta.avatar_url) {
+            userAvatarElem.innerHTML = `<img src="${meta.avatar_url}" style="width:100%; height:100%; border-radius:50%;">`;
+        }
+    }
+
+    // 2. جلب السيرفرات
+    let discordToken = session.provider_token || sessionStorage.getItem('discord_access_token');
+    if (session.provider_token) sessionStorage.setItem('discord_access_token', session.provider_token);
+
+    if (discordToken) {
+        loadUserGuildsIntoSelector(discordToken);
+    }
+
+    // 3. تفعيل زر الخروج
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.onclick = async () => {
+            await bridgeClient.auth.signOut();
+            sessionStorage.removeItem('discord_access_token');
+            localStorage.removeItem('selected_guild_id');
+            window.location.href = 'Login.html';
+        };
+    }
+}
+
+async function loadUserGuildsIntoSelector(token) {
+    const selector = document.getElementById('guild-selector');
+    if (!selector) return;
+
+    try {
+        const res = await fetch('https://discord.com/api/v10/users/@me/guilds', {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const guilds = await res.json();
+        if (!Array.isArray(guilds)) return;
+
+        const adminGuilds = guilds.filter(g => {
+            const p = BigInt(g.permissions);
+            return (p & BigInt(0x8)) === BigInt(0x8) || (p & BigInt(0x20)) === BigInt(0x20);
+        });
+
+        selector.innerHTML = '';
+        adminGuilds.forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g.id;
+            opt.textContent = g.name;
+            if (g.id === getGuildId()) opt.selected = true;
+            selector.appendChild(opt);
+        });
+
+        selector.onchange = (e) => {
+            const gid = e.target.value;
+            localStorage.setItem('selected_guild_id', gid);
+            window.location.href = window.location.pathname + '?guildId=' + gid;
+        };
+    } catch (e) { console.error("Header Guilds Error:", e); }
 }
 
 // --- [7] حالة زر الحفظ (رمادي / أحمر / أخضر / خطأ) ---
