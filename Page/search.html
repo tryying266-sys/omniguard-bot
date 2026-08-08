@@ -406,11 +406,24 @@
     </main>
 
     <!-- الربط بالسكربت الرئيسي لتطبيق نفس المنطق -->
-     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="dashboard.js"></script>
+     <!-- JS Central Core Script -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="dashboard.js"></script>
+    <script src="dashboard.js"></script>
 
+    <!-- كود الحماية والتحقق من الجلسة (نفس الموجود في index) -->
+    <script>
+        (async function () {
+            // التحقق من وجود جلسة نشطة عبر Supabase
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) { 
+                // إذا لم تكن هناك جلسة، يتم التحويل لصفحة تسجيل الدخول فوراً
+                window.location.href = 'Login.html'; 
+                return; 
+            }
+        })();
+    </script>
+
+    <!-- Page Specific Script -->
     <script src="search.js"></script>
 </body>
 </html>

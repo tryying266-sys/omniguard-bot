@@ -478,9 +478,6 @@
         </ul>
     </aside>
 
-    <main class="main-content">
-
-
      <!-- Main Content Area -->
     <main class="main-content">
         <header>
@@ -790,10 +787,22 @@
     </main>
 
     <!-- JS Central Core Script -->
-     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+     <!-- JS Central Core Script -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="dashboard.js"></script>
-   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="dashboard.js"></script>
+
+    <!-- كود الحماية والتحقق من الجلسة -->
+    <script>
+        (async function () {
+            // التحقق من وجود جلسة نشطة
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) { 
+                // إذا لم يسجل دخول، ارسله لصفحة الدخول فوراً
+                window.location.href = 'Login.html'; 
+                return; 
+            }
+        })();
+    </script>
 
     <!-- Page Specific Script -->
     <script src="userprofile.js"></script>
