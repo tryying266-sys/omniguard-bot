@@ -788,3 +788,230 @@
     </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ <script>
+          (async function () {
+              const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) { window.location.href = 'Login.html'; return; }
+            // ------------------------------------------------------------
+            // [1] Bot Prefix: حرف واحد بس أو فاضي - بدون مسافات/تاب/سطر جديد.
+            // maxlength="1" بالـ HTML يغطي أغلب الحالات، لكن بعض المتصفحات
+            // تسمح باللصق (paste) بطول أكبر قبل ما تقصّه، فنضيف فلتر JS
+            // احتياطي على حدث input يشيل أي مسافة ويقص لحرف واحد فقط.
+            // ------------------------------------------------------------
+            const prefixInput = document.getElementById('prefix_bot');
+            if (prefixInput) {
+                prefixInput.addEventListener('input', () => {
+                    const cleaned = prefixInput.value.replace(/\s/g, '').slice(0, 1);
+                    if (cleaned !== prefixInput.value) prefixInput.value = cleaned;
+                });
+            }
+
+            // ------------------------------------------------------------
+            // [2] Server Nickname: يمنع محارف غريبة قد تكسر النيكنيم بديسكورد
+            // أو تُستخدم بشكل مو مقصود (منشن @ / # روم-منشن / باك-تيك تكسر
+            // التنسيق / محارف تحكم وخفية Zero-width) + حد 32 حرف (نفس حد
+            // ديسكورد الحقيقي، موجود أصلاً بـ maxlength بالـ HTML - هذا
+            // الفلتر يضمنه أيضاً حتى لو انلصق نص أطول).
+            // ------------------------------------------------------------
+            const nicknameInput = document.getElementById('nickname_server');
+            if (nicknameInput) {
+                const sanitizeNickname = (value) => value
+                    // محارف تحكم (ASCII 0-31 و 127) + محارف خفية/Zero-width
+                    .replace(/[\u0000-\u001F\u007F\u200B-\u200F\uFEFF]/g, '')
+                    // منع @ و # (منشن/إشارة قنوات) والباك-تيك (يكسر الكود/التنسيق)
+                    .replace(/[@#`]/g, '')
+                    // منع تكرار المسافات المتتالية
+                    .replace(/\s{2,}/g, ' ')
+                    .slice(0, 32);
+
+                nicknameInput.addEventListener('input', () => {
+                    const cleaned = sanitizeNickname(nicknameInput.value);
+                    if (cleaned !== nicknameInput.value) nicknameInput.value = cleaned;
+                });
+            }
+
+            // ------------------------------------------------------------
+            // [3] حد أقصى 50 تاق لكل صندوق اختيار (رتب/قنوات) بهذي الصفحة
+            // بس. نلف دالة addDiscordTag العامة (المعرّفة أصلاً بـ
+            // dashboard.js) بدل ما نعدّل الملف نفسه - لو صار فيها استدعاء
+            // من قائمة منسدلة وعدد التاقات الحالي وصل الحد، نوقف الإضافة
+            // ونعرض تنبيه بصري (نفس كلاس .limit-warning الموجود بالـ CSS)
+            // يختفي لحاله بعد ثانيتين.
+            // ------------------------------------------------------------
+            const MAX_TAGS_PER_BOX_PAGE = 50;
+            const originalAddDiscordTag = window.addDiscordTag;
+
+            if (typeof originalAddDiscordTag === 'function') {
+                window.addDiscordTag = function (boxId, id, displayName) {
+                    const box = document.getElementById(boxId);
+                    if (box && box.querySelectorAll('.tag-item').length >= MAX_TAGS_PER_BOX_PAGE) {
+                        showLimitWarning(box);
+                        return;
+                    }
+                    originalAddDiscordTag(boxId, id, displayName);
+                };
+            }
+
+            function showLimitWarning(box) {
+                // يمنع تكديس أكثر من تنبيه وحدة بنفس اللحظة لنفس الصندوق
+                if (box.parentElement.querySelector('.limit-warning')) return;
+
+                const warning = document.createElement('div');
+                warning.className = 'limit-warning';
+                warning.textContent = `Maximum ${MAX_TAGS_PER_BOX_PAGE} items reached`;
+                box.insertAdjacentElement('afterend', warning);
+
+                setTimeout(() => warning.remove(), 2000);
+            }
+        })();
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ <script>
+        (async function () {
+              const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) { window.location.href = 'Login.html'; return; }
+            const guildId = getGuildId();
+            if (!guildId) return;
+
+            const welcomeSelect = document.getElementById('channel_welcome');
+            const leaveSelect = document.getElementById('channel_leave');
+
+            // نفس أنواع القنوات النصية اللي dashboard.js يعتمدها (discord.js
+            // ChannelType: 0 = GuildText, 5 = GuildAnnouncement)
+            const TEXT_CHANNEL_TYPES = [0, 5];
+
+            function populateChannelSelect(selectEl, channelGroups) {
+                if (!selectEl) return;
+
+                selectEl.innerHTML = '';
+
+                const noneOption = document.createElement('option');
+                noneOption.value = '';
+                noneOption.textContent = '— None —';
+                selectEl.appendChild(noneOption);
+
+                const groupsWithChannels = (channelGroups || [])
+                    .map(group => ({
+                        ...group,
+                        channels: (group.channels || []).filter(c => TEXT_CHANNEL_TYPES.includes(c.type)),
+                    }))
+                    .filter(group => group.channels.length > 0);
+
+                if (groupsWithChannels.length === 0) {
+                    const empty = document.createElement('option');
+                    empty.value = '';
+                    empty.textContent = 'No text channels synced yet - try again shortly';
+                    empty.disabled = true;
+                    selectEl.appendChild(empty);
+                    return;
+                }
+
+                groupsWithChannels.forEach(group => {
+                    const optgroup = document.createElement('optgroup');
+                    optgroup.label = group.categoryName;
+                    group.channels.forEach(channel => {
+                        const opt = document.createElement('option');
+                        opt.value = channel.id;
+                        opt.textContent = `# ${channel.name}`;
+                        optgroup.appendChild(opt);
+                    });
+                    selectEl.appendChild(optgroup);
+                });
+            }
+
+            // [أ] جيب هيكل السيرفر (القنوات) وعبّي القائمتين
+            let channels = [];
+            try {
+                const structureRes = await fetch(`${API_BASE}/guild/${guildId}/guild_structure_cache`, { headers: getHeaders() });
+                const structureData = await structureRes.json();
+                channels = (structureRes.ok && Array.isArray(structureData?.channels)) ? structureData.channels : [];
+            } catch (err) {
+                console.error('[welcome-leave] Failed to fetch guild structure:', err);
+            }
+
+            populateChannelSelect(welcomeSelect, channels);
+            populateChannelSelect(leaveSelect, channels);
+
+            // [ب] أعد تطبيق القناة المحفوظة فعلياً بقاعدة البيانات (لو فيه)
+            // بعد ما صارت الخيارات موجودة بالـ <select>
+            try {
+                const settingsRes = await fetch(`${API_BASE}/guild/${guildId}/setting_leave_welcome`, { headers: getHeaders() });
+                const settingsData = await settingsRes.json();
+                if (settingsRes.ok && settingsData) {
+                    if (welcomeSelect && settingsData.channel_welcome) welcomeSelect.value = settingsData.channel_welcome;
+                    if (leaveSelect && settingsData.channel_leave) leaveSelect.value = settingsData.channel_leave;
+                }
+            } catch (err) {
+                console.error('[welcome-leave] Failed to re-apply saved channel selection:', err);
+            }
+            // ملاحظة: التعيين هنا برمجي (el.value = ...) فما يطلق حدث input/change
+            // ولا يحمّر زر الحفظ بالغلط - نفس سلوك populateUI() بـ dashboard.js.
+
+            // ------------------------------------------------------------
+            // فلاتر النصوص (custom_welcome_text / text_msg_leave) - بحرية
+            // واسعة زي ما طلبت: ما نمنع أي رمز مشروع بالرسالة (@ / # /
+            // باك-تيك كلها مستخدمة فعلياً بمنشن/تنسيق شرعي هنا، عكس حقل
+            // النيكنيم بصفحة general-settings.html). بس نشيل محارف التحكم/
+            // الخفية اللي ما إلها داعي (تحافظ على الأسطر الجديدة \n لأنها
+            // ضرورية لرسائل متعددة الأسطر)، ونثبّت حد الطول حتى لو انلصق
+            // نص أطول من maxlength (بعض المتصفحات ما تقص اللصق تلقائياً).
+            // ------------------------------------------------------------
+            function sanitizeMessageText(value, maxLen) {
+                return value
+                    // محارف تحكم (عدا \t \n \r) + محارف خفية Zero-width
+                    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200F\uFEFF]/g, '')
+                    .slice(0, maxLen);
+            }
+
+            ['custom_welcome_text', 'text_dm_welcome', 'text_msg_leave', 'text_dm_leave'].forEach((id) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('input', () => {
+                    const cleaned = sanitizeMessageText(el.value, 2000);
+                    if (cleaned !== el.value) el.value = cleaned;
+                });
+            });
+        })();
+    </script>
+</body>
+</html>

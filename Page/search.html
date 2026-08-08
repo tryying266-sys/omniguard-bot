@@ -408,11 +408,32 @@
     <!-- الربط بالسكربت الرئيسي لتطبيق نفس المنطق -->
      <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="dashboard.js"></script>
-    <script>
-    // كود حماية وسيط قبل تحميل ملف البحث
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="dashboard.js"></script>
+
+<script>
+    // كود حماية صارم: يمنع تحميل أي شيء آخر إذا لم تكن هناك جلسة
     (async () => {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (!session) window.location.href = 'Login.html';
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) {
+                window.location.href = 'Login.html';
+                return; // توقف كامل عن التنفيذ
+            }
+            
+            // إذا وجدت الجلسة، نقوم بتشغيل الهيدر
+            if (typeof setupDashboardUI === 'function') {
+                setupDashboardUI(session);
+            }
+
+            // الآن فقط نقوم بتحميل سكربت الصفحة الخاص
+            const script = document.createElement('script');
+            script.src = 'userprofile.js';
+            document.body.appendChild(script);
+
+        } catch (err) {
+            window.location.href = 'Login.html';
+        }
     })();
 </script>
 
