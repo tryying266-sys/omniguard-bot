@@ -411,57 +411,7 @@ function renderModeratorLogTable(logs) {
     `).join('');
 }
 
-// ============================================================================
-// ACTION BUTTONS (أسماء الدوال مطابقة تماماً لـ onclick="..." الموجودة
-// بالـ HTML أصلاً)
-// ============================================================================
-async function executeKick() {
-    const reason = getVal(CONFIG.kickReasonId);
-    await runAction(`/guild/${currentGuildId}/member/${currentUserId}/kick`, 'POST', { reason });
-}
 
-async function executeBan() {
-    const reason = getVal(CONFIG.banReasonId);
-    const duration = getVal(CONFIG.banDurationId);
-    await runAction(`/guild/${currentGuildId}/member/${currentUserId}/ban`, 'POST', { reason, duration });
-}
-
-async function undoBan() {
-    const reason = getVal(CONFIG.unbanReasonId) || 'Unbanned via Dashboard';
-    await runAction(`/guild/${currentGuildId}/member/${currentUserId}/unban`, 'POST', { reason });
-}
-
-async function executeWarn() {
-    const reason = getVal(CONFIG.warnReasonId);
-    await runAction(`/guild/${currentGuildId}/member/${currentUserId}/warn`, 'POST', { reason });
-}
-
-async function undoWarn() {
-    await runAction(`/guild/${currentGuildId}/member/${currentUserId}/unwarn`, 'POST', { reason: 'Cleared via Dashboard' });
-}
-
-async function executeMute() {
-    const duration = getVal(CONFIG.muteDurationId);
-    const reason = getVal(CONFIG.muteReasonId);
-    await runAction(`/guild/${currentGuildId}/member/${currentUserId}/mute`, 'POST', { duration, reason });
-}
-
-async function undoMute() {
-    await runAction(`/guild/${currentGuildId}/member/${currentUserId}/unmute`, 'POST', { reason: 'Removed via Dashboard' });
-}
-
-async function saveUserRoles() {
-    const reason = getVal(CONFIG.rolesReasonId);
-    const roleIds = collectTags(`#${CONFIG.rolesBoxId}`); // من dashboard.js
-    await runAction(`/guild/${currentGuildId}/member/${currentUserId}/roles`, 'PUT', { roleIds, reason });
-}
-
-async function saveCommandExceptions() {
-    const duration = getVal(CONFIG.exemptionDurationId);
-    const reason = getVal(CONFIG.exemptionReasonId);
-    const commands = collectTags(`#${CONFIG.exemptionBoxId}`); // من dashboard.js
-    await runAction(`/guild/${currentGuildId}/member/${currentUserId}/exemptions`, 'PUT', { commands, duration, reason });
-}
 
 // ============================================================================
 // TABS & MISC
