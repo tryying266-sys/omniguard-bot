@@ -101,18 +101,155 @@ function escapeHtml(str) {
 }
 
 /**
- * ينفذ أي أمر، يعرض "Saved" أو رسالة خطأ واضحة، ثم يعيد تحميل بيانات
- * الصفحة فوراً (بادج الحالة/اللوقات/التاغات تنعكس لحظياً بدون Refresh يدوي).
+ * [NEW] حالة كل زر تنفيذ مستقلة عن الثاني - بديل عن الإشعار الفوقي
+ * (alert القديم). idle=رمادي معطّل | dirty=أحمر قابل للضغط | saved=أخضر
+ * مؤقت | error=أحمر ثابت "Error - Retry" لحد إعادة المحاولة.
  */
-async function runAction(endpoint, method, payload) {
+const BUTTON_ORIGINAL_HTML = new Map();
+const savedStateTimers = new Map(); // زر لكل مؤقت مستقل (مش مؤقت عام واحد)
+
+function setButtonState(btn, state) {
+    if (!btn) return;
+    if (!BUTTON_ORIGINAL_HTML.has(btn)) BUTTON_ORIGINAL_HTML.set(btn, btn.innerHTML);
+
+    clearTimeout(savedStateTimers.get(btn));
+    btn.classList.remove('btn-idle', 'btn-saved', 'btn-error');
+
+    if (state === 'idle') {
+        btn.innerHTML = BUTTON_ORIGINAL_HTML.get(btn);
+        btn.classList.add('btn-idle');
+        btn.disabled = true;
+    } else if (state === 'dirty') {
+        btn.innerHTML = BUTTON_ORIGINAL_HTML.get(btn);
+        btn.disabled = false;
+    } else if (state === 'saved') {
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Saved';
+        btn.classList.add('btn-saved');
+        btn.disabled = true;
+        // يرجع لحالته الطبيعية (dirty، قابل للضغط مرة ثانية) بعد 2.5 ثانية
+        savedStateTimers.set(btn, setTimeout(() => setButtonState(btn, 'dirty'), 2500));
+    } else if (state === 'error') {
+        btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Error - Retry';
+        btn.classList.add('btn-error');
+        btn.disabled = false; // يبقى قابل للضغط لإعادة المحاولة، بدون رجوع تلقائي
+    }
+}
+
+/**
+ * ينفذ أي أمر: يحوّل الزر لأخضر "Saved" لمدة 2.5 ثانية عند النجاح، أو أحمر
+ * "Error - Retry" ثابت عند الفشل (بدون أي إشعار فوقي منبثق).
+ */
+async function runAction(btn, endpoint, method, payload) {
     try {
         await apiSend(method, endpoint, payload);
-        showNotification('Saved', 'success');
+        setButtonState(btn, 'saved');
         await Promise.all([loadProfile(), loadExemptions()]);
     } catch (err) {
         console.error(`[userprofile.js] Action failed (${endpoint}):`, err.message);
-        showNotification(`Error: ${err.message}. Please retry.`, 'error');
+        setButtonState(btn, 'error');
     }
+}
+
+/**
+ * [NEW] يربط كل زر بالحقول المرتبطة فيه: طالما كل الحقول فاضية، الزر رمادي
+ * معطّل (idle). بمجرد ما يُكتب أي شي بأي حقل مرتبط، الزر يصير أحمر قابل
+ * للضغط (dirty). أزرار بدون حقول مرتبطة (Unban/Unmute/Clear Warnings) تبقى
+ * قابلة للضغط دائماً - ما فيه شي نراقبه لتفعيلها.
+ *
+ * ⚠️ لأزرار الرتب/الاستثناءات: راقبت حقل السبب بس (roles_audit_reason /
+ * exemption_reason)، مو تغييرات التاغات نفسها - addDiscordTag() (من
+ * dashboard.js) ما تُطلق حدث input/change قياسي، فمراقبتها مباشرة تحتاج
+ * تعديل على dashboard.js نفسه. لو تبيها تتفعل بمجرد إضافة/حذف تاغ بدون
+ * كتابة بالسبب، قلي.
+ */
+function wireActionButton(buttonId, watchedInputIds) {
+    const btn = document.getElementById(buttonId);
+    if (!btn) {
+        console.error(`[userprofile.js] Button #${buttonId} not found.`);
+        return;
+    }
+
+    BUTTON_ORIGINAL_HTML.set(btn, btn.innerHTML);
+
+    if (!watchedInputIds || watchedInputIds.length === 0) {
+        setButtonState(btn, 'dirty'); // دائماً قابل للضغط
+        return;
+    }
+
+    setButtonState(btn, 'idle');
+
+    const checkDirty = () => {
+        const hasValue = watchedInputIds.some(id => getVal(id) !== '');
+        setButtonState(btn, hasValue ? 'dirty' : 'idle');
+    };
+
+    watchedInputIds.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) input.addEventListener('input', checkDirty);
+    });
+}
+
+function wireAllActionButtons() {
+    wireActionButton('kick_submit_btn', [CONFIG.kickReasonId]);
+    wireActionButton('ban_submit_btn', [CONFIG.banReasonId, CONFIG.banDurationId]);
+    wireActionButton('unban_submit_btn', []);
+    wireActionButton('warn_submit_btn', [CONFIG.warnReasonId]);
+    wireActionButton('unwarn_submit_btn', []);
+    wireActionButton('mute_submit_btn', [CONFIG.muteDurationId, CONFIG.muteReasonId]);
+    wireActionButton('unmute_submit_btn', []);
+    wireActionButton('roles_submit_btn', [CONFIG.rolesReasonId]);
+    wireActionButton('exemptions_submit_btn', [CONFIG.exemptionReasonId, CONFIG.exemptionDurationId]);
+}
+
+// ============================================================================
+// ACTION BUTTONS (كل دالة تستقبل الزر نفسه (btn) - ممرر عبر onclick="...(this)")
+// ============================================================================
+async function executeKick(btn) {
+    const reason = getVal(CONFIG.kickReasonId);
+    await runAction(btn, `/guild/${currentGuildId}/member/${currentUserId}/kick`, 'POST', { reason });
+}
+
+async function executeBan(btn) {
+    const reason = getVal(CONFIG.banReasonId);
+    const duration = getVal(CONFIG.banDurationId);
+    await runAction(btn, `/guild/${currentGuildId}/member/${currentUserId}/ban`, 'POST', { reason, duration });
+}
+
+async function undoBan(btn) {
+    const reason = getVal(CONFIG.unbanReasonId) || 'Unbanned via Dashboard';
+    await runAction(btn, `/guild/${currentGuildId}/member/${currentUserId}/unban`, 'POST', { reason });
+}
+
+async function executeWarn(btn) {
+    const reason = getVal(CONFIG.warnReasonId);
+    await runAction(btn, `/guild/${currentGuildId}/member/${currentUserId}/warn`, 'POST', { reason });
+}
+
+async function undoWarn(btn) {
+    await runAction(btn, `/guild/${currentGuildId}/member/${currentUserId}/unwarn`, 'POST', { reason: 'Cleared via Dashboard' });
+}
+
+async function executeMute(btn) {
+    const duration = getVal(CONFIG.muteDurationId);
+    const reason = getVal(CONFIG.muteReasonId);
+    await runAction(btn, `/guild/${currentGuildId}/member/${currentUserId}/mute`, 'POST', { duration, reason });
+}
+
+async function undoMute(btn) {
+    await runAction(btn, `/guild/${currentGuildId}/member/${currentUserId}/unmute`, 'POST', { reason: 'Removed via Dashboard' });
+}
+
+async function saveUserRoles(btn) {
+    const reason = getVal(CONFIG.rolesReasonId);
+    const roleIds = collectTags(`#${CONFIG.rolesBoxId}`); // من dashboard.js
+    await runAction(btn, `/guild/${currentGuildId}/member/${currentUserId}/roles`, 'PUT', { roleIds, reason });
+}
+
+async function saveCommandExceptions(btn) {
+    const duration = getVal(CONFIG.exemptionDurationId);
+    const reason = getVal(CONFIG.exemptionReasonId);
+    const commands = collectTags(`#${CONFIG.exemptionBoxId}`); // من dashboard.js
+    await runAction(btn, `/guild/${currentGuildId}/member/${currentUserId}/exemptions`, 'PUT', { commands, duration, reason });
 }
 
 // ============================================================================
@@ -186,7 +323,10 @@ function renderTopBanner(profile) {
     const badgeEl = document.getElementById(CONFIG.statusBadgeWrapperId);
     const statusTextEl = document.getElementById(CONFIG.statusTextId);
 
-    if (avatarEl && profile.avatarUrl) avatarEl.src = profile.avatarUrl;
+    if (avatarEl && profile.avatarUrl) {
+        avatarEl.src = profile.avatarUrl;
+        avatarEl.style.display = ''; // يلغي display:none اللي حطها onerror التلقائي وقت src="" الأولي
+    }
     if (usernameEl) usernameEl.textContent = profile.username || 'Unknown User';
     if (idEl) idEl.textContent = profile.id;
 
@@ -354,6 +494,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     populateExemptCommandsDropdown(); // ثابتة، بدون حاجة لانتظار أي طلب شبكة
+    wireAllActionButtons(); // [NEW] يهيئ حالة الأزرار (رمادي/أحمر) قبل أي تحميل بيانات
 
     // fetchGuildStructure() (من dashboard.js) لازم تخلص أول - تعبّي
     // guildStructure.roles اللي renderTags(..., 'roles') يعتمد عليها لعرض

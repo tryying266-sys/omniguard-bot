@@ -335,6 +335,31 @@
     font-weight: 500;
     color: var(--text-primary);
 }
+
+/* [NEW] حالات أزرار التنفيذ المستقلة (Kick/Ban/Warn/Mute/Roles/Exemptions) -
+   كل زر له حالته الخاصة، بعكس نظام .save-btn العام بـ dashboard.js اللي
+   مصمم لزر واحد فقط بالصفحة. موضوعة بعد تعريفات .btn-danger/.btn-outline-danger
+   عمداً عشان تطغى عليها بالـ cascade عند التعارض. */
+.btn-action.btn-idle {
+    background-color: var(--bg-tertiary) !important;
+    color: var(--text-secondary) !important;
+    border-color: var(--border-color) !important;
+    cursor: not-allowed !important;
+}
+.btn-action.btn-saved {
+    background-color: var(--accent-green) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--accent-green) !important;
+    cursor: default !important;
+}
+.btn-action.btn-error {
+    background-color: var(--accent-red) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--accent-red) !important;
+}
+.btn-action.btn-error:hover {
+    background-color: var(--accent-red-hover) !important;
+}
     </style>
 </head>
 <body>
@@ -523,7 +548,7 @@
                         </div>
                         
                         <div class="card-actions-group">
-                            <button class="btn-action btn-danger" onclick="executeKick()">
+                            <button id="kick_submit_btn" class="btn-action btn-danger" onclick="executeKick(this)">
                                 <i class="fa-solid fa-boot"></i> Execute Kick
                             </button>
                         </div>
@@ -545,10 +570,10 @@
                         </div>
                         
                         <div class="card-actions-group">
-                            <button class="btn-action btn-danger" onclick="executeBan()">
+                            <button id="ban_submit_btn" class="btn-action btn-danger" onclick="executeBan(this)">
                                 <i class="fa-solid fa-gavel"></i> Execute Ban
                             </button>
-                            <button class="btn-action btn-outline-danger" onclick="undoBan()">
+                            <button id="unban_submit_btn" class="btn-action btn-outline-danger" onclick="undoBan(this)">
                                 <i class="fa-solid fa-user-check"></i> Unban Member
                             </button>
                         </div>
@@ -566,10 +591,10 @@
                         </div>
                         
                         <div class="card-actions-group">
-                            <button class="btn-action btn-danger" onclick="executeWarn()">
+                            <button id="warn_submit_btn" class="btn-action btn-danger" onclick="executeWarn(this)">
                                 <i class="fa-solid fa-paper-plane"></i> Submit Warning
                             </button>
-                            <button class="btn-action btn-outline-danger" onclick="undoWarn()">
+                            <button id="unwarn_submit_btn" class="btn-action btn-outline-danger" onclick="undoWarn(this)">
                                 <i class="fa-solid fa-trash-can"></i> Clear Warnings
                             </button>
                         </div>
@@ -591,10 +616,10 @@
                         </div>
                         
                         <div class="card-actions-group">
-                            <button class="btn-action btn-danger" onclick="executeMute()">
+                            <button id="mute_submit_btn" class="btn-action btn-danger" onclick="executeMute(this)">
                                 <i class="fa-solid fa-clock"></i> Apply Mute
                             </button>
-                            <button class="btn-action btn-outline-danger" onclick="undoMute()">
+                            <button id="unmute_submit_btn" class="btn-action btn-outline-danger" onclick="undoMute(this)">
                                 <i class="fa-solid fa-microphone"></i> Remove Mute
                             </button>
                         </div>
@@ -623,7 +648,7 @@
                         </div>
                         
                         <div class="card-actions-group">
-                            <button class="btn-action btn-danger" onclick="saveUserRoles()">
+                            <button id="roles_submit_btn" class="btn-action btn-danger" onclick="saveUserRoles(this)">
                                 <i class="fa-solid fa-floppy-disk"></i> Update Roles
                             </button>
                         </div>
@@ -656,7 +681,7 @@
                         </div>
                         
                         <div class="card-actions-group">
-                            <button class="btn-action btn-danger" onclick="saveCommandExceptions()">
+                            <button id="exemptions_submit_btn" class="btn-action btn-danger" onclick="saveCommandExceptions(this)">
                                 <i class="fa-solid fa-check-double"></i> Update Exceptions
                             </button>
                         </div>
