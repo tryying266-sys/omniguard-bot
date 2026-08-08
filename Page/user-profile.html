@@ -779,6 +779,13 @@
     <!-- JS Central Core Script -->
      <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="dashboard.js"></script>
+    <script>
+    // كود حماية وسيط قبل تحميل ملف البروفايل
+    (async () => {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) window.location.href = 'Login.html';
+    })();
+</script>
 
     <!-- Page Specific Script -->
     <script src="userprofile.js"></script>

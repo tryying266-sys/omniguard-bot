@@ -445,7 +445,9 @@
          العامة بأمان دون كسرها.
          ================================================================ -->
     <script>
-        (function () {
+          (async function () {
+              const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) { window.location.href = 'Login.html'; return; }
             // ------------------------------------------------------------
             // [1] Bot Prefix: حرف واحد بس أو فاضي - بدون مسافات/تاب/سطر جديد.
             // maxlength="1" بالـ HTML يغطي أغلب الحالات، لكن بعض المتصفحات

@@ -472,7 +472,29 @@
     <script src="dashboard.js"></script>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
+         // لاحظ إضافة async هنا لكي نستطيع استخدام await بالداخل
+        document.addEventListener('DOMContentLoaded', async () => {
+
+            // --- [خطوة الحماية: التحقق من الجلسة فوراً] ---
+            // نستخدم supabaseClient المعرف مسبقاً في dashboard.js بدون إعادة تعريفه
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (!session) {
+                    window.location.href = 'Login.html';
+                    return; // توقف عن تنفيذ بقية السكربت إذا لم يكن مسجلاً
+                }
+                
+                // إذا كان هناك جلسة، نقوم بتحديث بيانات الهيدر (الاسم والصورة)
+                // هذه الدالة يفترض أنها موجودة في dashboard.js، إذا لم تكن موجودة سنستدعي منطقاً بسيطاً
+                if (typeof setupDashboardUI === 'function') {
+                    setupDashboardUI(session);
+                }
+            } catch (err) {
+                console.error("Auth check failed:", err);
+                window.location.href = 'Login.html';
+                return;
+            }
+
             // 1. تفعيل فتح القوائم المنسدلة تلقائياً عند الضغط على أي selector-box
             document.addEventListener('click', function (e) {
                 const box = e.target.closest('.selector-box');

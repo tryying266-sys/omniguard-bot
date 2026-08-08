@@ -242,13 +242,14 @@
             <span class="logo-text">OmniGuard</span>
         </div>
 
-        <!-- SEARCH CATEGORY (مستقل ومفعل) -->
+        <!-- SEARCH CATEGORY -->
         <div class="category-container">
             <div class="category-line"></div>
             <span class="category-header">Search</span>
             <div class="category-line"></div>
         </div>
         <ul class="menu-list">
+            <!-- هذه الصفحة هي Search لذا نضع active هنا -->
             <li class="menu-item active">
                 <a href="search.html">
                     <i class="fa-solid fa-magnifying-glass"></i>
@@ -266,12 +267,12 @@
         <ul class="menu-list">
             <li class="menu-item">
                 <a href="index.html">
-                    <a href="search.html">
                     <i class="fa-solid fa-house"></i>
                     Home
                 </a>
             </li>
         </ul>
+
 
         <!-- CORE SETTINGS CATEGORY -->
         <div class="category-container">
@@ -407,6 +408,13 @@
     <!-- الربط بالسكربت الرئيسي لتطبيق نفس المنطق -->
      <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="dashboard.js"></script>
+    <script>
+    // كود حماية وسيط قبل تحميل ملف البحث
+    (async () => {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) window.location.href = 'Login.html';
+    })();
+</script>
 
     <script src="search.js"></script>
 </body>
