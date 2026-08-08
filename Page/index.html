@@ -535,6 +535,16 @@
     });
 
     async function initDashboard() {
+        // --- التعديل الجديد: التقاط السيرفر من الرابط فوراً ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const guildIdFromUrl = urlParams.get('guild_id');
+       if (guildIdFromUrl) {
+    localStorage.setItem('selected_guild_id', guildIdFromUrl);
+    // This line cleans the URL immediately and removes guild_id from it without reloading the page
+    window.history.replaceState({}, document.title, window.location.pathname);
+    console.log("Server captured and URL cleaned.");
+}
+        // --------------------------------------------------
         try {
             // جلب الجلسة الحالية
             const { data: { session }, error } = await supabaseClient.auth.getSession();
@@ -652,9 +662,12 @@
             }
 
             guildSelector.addEventListener('change', (e) => {
-                localStorage.setItem('selected_guild_id', e.target.value);
-                // هنا يمكنك إضافة وظيفة لتحديث بيانات الصفحة بناءً على السيرفر الجديد
-                location.reload(); 
+                const newGuildId = e.target.value;
+                localStorage.setItem('selected_guild_id', newGuildId);
+                
+                // تحديث الرابط ليحتوي على السيرفر الجديد وإعادة التحميل
+                const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname + '?guild_id=' + newGuildId;
+                window.location.href = newUrl;
             });
 
         } catch (err) {

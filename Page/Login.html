@@ -272,28 +272,30 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
-        // 1. إعداد عميل Supabase
-        const SUPABASE_URL = 'https://lcnjswibemyenakwojkz.supabase.co';
-        // ضع هنا مفتاح الـ (anon / public) الخاص بمشروعك من لوحة تحكم Supabase (Project Settings -> API)
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxjbmpzd2liZW15ZW5ha3dvamt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4ODQ0ODEsImV4cCI6MjA5OTQ2MDQ4MX0.AfbKJsd6sOK1FPz2w-rH3XT28m4eneB1uNJEyETJ9ug'; 
+    const SUPABASE_URL = 'https://lcnjswibemyenakwojkz.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxjbmpzd2liZW15ZW5ha3dvamt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4ODQ0ODEsImV4cCI6MjA5OTQ2MDQ4MX0.AfbKJsd6sOK1FPz2w-rH3XT28m4eneB1uNJEyETJ9ug'; 
 
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // 2. ربط الضغط على الزر بتسجيل الدخول عبر ديسكورد مع تمرير الصلاحيات (Scopes)
-        document.getElementById('discord-login-btn').addEventListener('click', async () => {
-            const { error } = await supabaseClient.auth.signInWithOAuth({
-                provider: 'discord',
-                options: {
-                    redirectTo: window.location.origin + '/index.html',
-                  scopes: 'identify guilds guilds.join guilds.members.read bot applications.commands openid applications.commands.permissions.update'
+    document.getElementById('discord-login-btn').addEventListener('click', async () => {
+        const { error } = await supabaseClient.auth.signInWithOAuth({
+            provider: 'discord',
+            options: {
+                redirectTo: window.location.origin + '/index.html',
+                scopes: 'identify guilds guilds.join guilds.members.read bot applications.commands openid applications.commands.permissions.update',
+                // التعديل الجديد هنا:
+                queryParams: {
+                    permissions: '8', // لطلب صلاحية مسؤول للبوت
+                    prompt: 'consent' // لإجبار ديسكورد على إظهار شاشة اختيار السيرفر دائماً
                 }
-            });
-
-            if (error) {
-                console.error('Login Error:', error.message);
-                alert('حدث خطأ أثناء محاولة تسجيل الدخول: ' + error.message);
             }
         });
-    </script>
+
+        if (error) {
+    console.error('Login Error:', error.message);
+    alert('An error occurred during login attempt: ' + error.message);
+    }
+    });
+</script>
 </body>
 </html>

@@ -112,12 +112,54 @@
 const FALLBACK_API_KEY = 'REPLACE_WITH_YOUR_DASHBOARD_API_KEY';
 const API_BASE = `${window.location.origin}/api`;
 
+// --- [0] Supabase Session Bridge ---
+// ⚠️ يتطلب <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+// قبل dashboard.js بكل صفحة (index.html/Login.html عندهم هذا أصلاً - باقي
+// صفحات الداشبورد لسا ناقصينه - راجع الملاحظة بنهاية الرد).
+//
+// getHeaders() تبقى دالة متزامنة (Sync) بقصد - نخزّن الـ token بمتغير
+// بالذاكرة يتحدث تلقائياً بالخلفية، بدل ما نحول getHeaders() لـ async
+// ونضطر نعدل كل استدعاء لها بكل الملفات (search.js/userprofile.js).
+const SUPABASE_URL = 'https://lcnjswibemyenakwojkz.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxjbmpzd2liZW15ZW5ha3dvamt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4ODQ0ODEsImV4cCI6MjA5OTQ2MDQ4MX0.AfbKJsd6sOK1FPz2w-rH3XT28m4eneB1uNJEyETJ9ug';
+
+let cachedUserToken = null;
+
+function initSupabaseSessionBridge() {
+    if (typeof supabase === 'undefined') {
+        console.warn('[OmniGuard Dashboard] Supabase JS SDK not loaded on this page - requests will be sent without user identity.');
+        return;
+    }
+
+    const bridgeClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+    });
+
+    bridgeClient.auth.getSession().then(({ data }) => {
+        cachedUserToken = data?.session?.access_token || null;
+    });
+
+    // يحدّث الـ token تلقائياً عند تجديده بالخلفية أو تسجيل خروج/دخول جديد
+    bridgeClient.auth.onAuthStateChange((event, session) => {
+        cachedUserToken = session?.access_token || null;
+    });
+}
+
+initSupabaseSessionBridge();
+
 // --- [1] أدوات المساعدة الأساسية ---
 
 function getGuildId() {
     const searchParams = new URLSearchParams(window.location.search);
     const fromQuery = searchParams.get('guildId');
     if (fromQuery) return fromQuery;
+
+    // [FIX] index.html (بعد تسجيل الدخول عبر OAuth2) يخزّن السيرفر المختار
+    // بـ localStorage تحت هذا المفتاح بالضبط - كان dashboard.js ما يعرف
+    // بوجوده إطلاقاً، فكل صفحة غير index.html تفقد الـ guildId فوراً.
+    const fromStorage = localStorage.getItem('selected_guild_id');
+    if (fromStorage) return fromStorage;
+
     const meta = document.querySelector('meta[name="dashboard-guild-id"]');
     return meta?.content?.trim() || null;
 }
@@ -134,10 +176,19 @@ function getPageKey() {
 }
 
 function getHeaders() {
-    return {
+    const headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${getApiKey()}`
     };
+
+    // [NEW] لو عندنا Supabase user token محمّل (session بعد OAuth2)، نرفقه
+    // كهيدر منفصل - apiServer.js يقرأه (attachDashboardUser) بدون ما يأثر
+    // على الـ Authorization الأساسي (API key العام، يبقى كما هو).
+    if (cachedUserToken) {
+        headers['X-User-Token'] = cachedUserToken;
+    }
+
+    return headers;
 }
 
 // خريطة المسارات للـ API بناءً على الصفحة الحالية
@@ -817,5 +868,3 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
-
-

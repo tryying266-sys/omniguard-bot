@@ -8,18 +8,20 @@
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
-const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+const { createClient } = require('@supabase/supabase-js');
 // استيراد الـ Router المطور (الذي سيقبل مسارات التزامن الشاملة)
 const apiRouter = require('./supabase/apiRouter');
 const dbUtils = require('./supabase/dbUtils');
 const DISCORD_API = 'https://discord.com/api/v10';
 const botHeaders = { Authorization: `Bot ${process.env.DISCORD_TOKEN}` };
 
-// إعداد عميل Supabase Admin للتحقق من توكنات تسجيل الدخول
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
-const supabaseAdmin = (supabaseUrl && supabaseServiceKey) ? createClient(supabaseUrl, supabaseServiceKey) : null;
+// [NEW] عميل Supabase للتحقق من JWT المستخدم (Anon key كافي لـ auth.getUser() -
+// هذي عملية تحقق قراءة فقط، مو عملية تحتاج صلاحيات إدارية).
+const supabaseAuthClient = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_ANON_KEY
+);
 
 /**
  * Utility function to fetch data from Discord API
@@ -45,46 +47,16 @@ app.use(cors());
 // ============================================
 // 1. Security Middleware (Authentication)
 // ============================================
-const authMiddleware = async (req, res, next) => {
+const authMiddleware = (req, res, next) => {
     const authHeader = req.headers.authorization;
+    const secretKey = process.env.DASHBOARD_API_KEY;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader || authHeader !== `Bearer ${secretKey}`) {
         console.warn(`[Security Alert] Unauthorized access attempt from IP: ${req.ip}`);
-        return res.status(401).json({ error: 'Unauthorized: Missing or invalid token format' });
+        return res.status(401).json({ error: 'Unauthorized: Invalid or missing API Key' });
     }
-
-    const token = authHeader.split(' ')[1];
-
-    // 1. دعم المفتاح السري الداخلي القديم (DASHBOARD_API_KEY)
-    if (process.env.DASHBOARD_API_KEY && token === process.env.DASHBOARD_API_KEY) {
-        return next();
-    }
-
-    // 2. التحقق من توكن المستخدم عبر Supabase OAuth
-    if (supabaseAdmin) {
-        const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-        if (!error && user) {
-            req.user = user; // حفظ بيانات المستخدم للاستخدام في المسارات
-            return next();
-        }
-    }
-
-    console.warn(`[Security Alert] Invalid token attempt from IP: ${req.ip}`);
-    return res.status(401).json({ error: 'Unauthorized: Invalid or expired token' });
+    next();
 };
-
-// مسار إضافي لجلب معلومات المستخدم الحالي المسجل دخوله بالداشبورد
-app.get('/api/user-info', authMiddleware, (req, res) => {
-    if (!req.user) {
-        return res.json({ message: 'Authenticated via system API Key' });
-    }
-    res.json({
-        id: req.user.id,
-        discordId: req.user.user_metadata?.provider_id,
-        username: req.user.user_metadata?.full_name || req.user.user_metadata?.name,
-        avatar: req.user.user_metadata?.avatar_url
-    });
-});
 
 // ============================================
 // 2. Live Discord Data Endpoints
@@ -157,9 +129,50 @@ app.put('/api/guild/:guildId/nickname', authMiddleware, async (req, res) => {
     }
 });
 
+/**
+ * [NEW] Middleware: يحاول يتعرف على هوية المستخدم المسجل دخول (لو أرسل
+ * هيدر X-User-Token) ويحط النتيجة بـ req.dashboardUser. لا يرفض الطلب لو
+ * فشل أو ما فيه توكن - هذا فحص "تعريف هوية" بس، الرفض الفعلي (403) يصير
+ * لاحقاً على مستوى كل route حساس بـ apiRouter.js (عبر requireStaffRole)،
+ * حسب هل الـ route يحتاج هوية أصلاً أو لا.
+ */
+const attachDashboardUser = async (req, res, next) => {
+    const userToken = req.headers['x-user-token'];
+    if (!userToken) {
+        req.dashboardUser = null;
+        return next();
+    }
+
+    try {
+        const { data, error } = await supabaseAuthClient.auth.getUser(userToken);
+        if (error || !data?.user) {
+            req.dashboardUser = null;
+            return next();
+        }
+
+        // ⚠️ [يحتاج تأكيد فعلي بالتجربة] identities[].id هو أدق مصدر لآيدي
+        // ديسكورد الحقيقي من Supabase Auth عادةً - fallback لـ user_metadata
+        // لو ما كان موجوداً. اختبر فعلياً بعد أول تسجيل دخول وتأكد الآيدي
+        // صحيح (قارنه بآيديك الحقيقي بديسكورد).
+        const discordIdentity = data.user.identities?.find(i => i.provider === 'discord');
+        const discordId = discordIdentity?.id || data.user.user_metadata?.provider_id || null;
+
+        req.dashboardUser = {
+            supabaseUid: data.user.id,
+            discordId,
+            username: data.user.user_metadata?.full_name || data.user.user_metadata?.name || null
+        };
+    } catch (err) {
+        console.error('[Auth] Failed to verify user token:', err.message);
+        req.dashboardUser = null;
+    }
+
+    next();
+};
+
 // Route database requests to the Supabase API Router
-// تم الحفاظ على authMiddleware ليحمي جميع مسارات الـ Sync الشاملة
-app.use('/api', authMiddleware, apiRouter);
+// authMiddleware (API key) يبقى - طبقة حماية عامة، مو بديل عن هوية المستخدم
+app.use('/api', authMiddleware, attachDashboardUser, apiRouter);
 
 // ============================================
 // 4. Static File Hosting

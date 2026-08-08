@@ -613,7 +613,54 @@ router.delete('/guild/:guildId/auto-mod-rules/:ruleId', requireGuildId, async (r
  * الموجود أصلاً بـ commandhandler.js لمسار الشات، مطبق هنا يدوياً لأن
  * الداشبورد لا يمر عبر commandhandler إطلاقاً.
  */
-async function resolveDashboardContext(guildId, targetId, res) {
+// [NEW] ترتيب مستويات الصلاحية - يُستخدم بـ requireStaffRole بالأسفل
+const ROLE_RANK = { staff: 1, moderator: 2, admin: 3, owner: 4 };
+
+/**
+ * [NEW] Middleware factory: يتحقق إن المستخدم المسجل دخول (req.dashboardUser
+ * - من attachDashboardUser بـ apiServer.js) مسجّل فعلياً بجدول dashboard_staff
+ * لهذا السيرفر بالذات، وإن مستوى صلاحيته يكفي. لازم يجي بعد requireGuildId
+ * (يعتمد على req.guildId).
+ *
+ * ⚠️ الحدود الافتراضية بالأسفل (moderator لأغلب الأوامر، admin للحظر) قرار
+ * مبدئي مني - عدّلها حسب رؤيتك الفعلية لتوزيع الصلاحيات.
+ */
+function requireStaffRole(minRole) {
+    return async (req, res, next) => {
+        if (!req.dashboardUser) {
+            return res.status(401).json({ error: 'Unauthorized: No valid user session provided.' });
+        }
+
+        try {
+            const supabase = require('./db');
+            const { data, error } = await supabase
+                .from('dashboard_staff')
+                .select('role_level')
+                .eq('id_guild', req.guildId)
+                .eq('supabase_uid', req.dashboardUser.supabaseUid)
+                .maybeSingle();
+
+            if (error) throw error;
+            if (!data) {
+                return res.status(403).json({ error: 'You are not registered as staff for this server.' });
+            }
+
+            const userRank = ROLE_RANK[data.role_level] || 0;
+            const neededRank = ROLE_RANK[minRole] || 0;
+            if (userRank < neededRank) {
+                return res.status(403).json({ error: `This action requires at least "${minRole}" permission level.` });
+            }
+
+            req.dashboardUser.roleLevel = data.role_level;
+            next();
+        } catch (err) {
+            console.error('[API Router Error] requireStaffRole check failed:', err.message);
+            res.status(500).json({ error: 'Failed to verify staff permissions' });
+        }
+    };
+}
+
+async function resolveDashboardContext(guildId, targetId, res, commandName = null, dashboardUser = null) {
     const client = require('../index');
     if (!client.isReady()) {
         res.status(503).json({ error: 'Bot is not ready yet. Please try again in a moment.' });
@@ -626,12 +673,19 @@ async function resolveDashboardContext(guildId, targetId, res) {
         return null;
     }
 
-    const moderator = guild.members.me; // TEMP - see note above
+    // [FIXED] هوية المشرف الحقيقية بدل guild.members.me - مع fallback
+    // احترازي (لو ما قدرنا نجيب عضويته بالسيرفر لأي سبب) عشان core actions
+    // ما تطيح بخطأ غير متوقع.
+    let moderator = guild.members.me;
+    if (dashboardUser?.discordId) {
+        const moderatorMember = await guild.members.fetch(dashboardUser.discordId).catch(() => null);
+        if (moderatorMember) moderator = moderatorMember;
+    }
 
     const targetMember = await guild.members.fetch(targetId).catch(() => null);
     if (targetMember) {
         const guildSettings = await dbUtils.getGuildSettings(guildId);
-        if (isMemberCommandExempt(guildSettings, targetMember)) {
+        if (await isMemberCommandExempt(guildSettings, targetMember, commandName)) {
             res.status(403).json({ error: "This member's role is exempt from bot commands." });
             return null;
         }
@@ -802,9 +856,9 @@ router.get('/guild/:guildId/member/:userId/profile', requireGuildId, async (req,
  * POST /api/guild/:guildId/member/:userId/kick
  * Expected body: { reason }
  */
-router.post('/guild/:guildId/member/:userId/kick', requireGuildId, async (req, res) => {
+router.post('/guild/:guildId/member/:userId/kick', requireGuildId, requireStaffRole('moderator'), async (req, res) => {
     try {
-        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res);
+        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res, 'kick', req.dashboardUser);
         if (!ctx) return;
 
         const { executeKick } = require('../commands/kick');
@@ -822,9 +876,9 @@ router.post('/guild/:guildId/member/:userId/kick', requireGuildId, async (req, r
  * POST /api/guild/:guildId/member/:userId/ban
  * Expected body: { reason, duration } - duration مثل "1d"/"perm" (نفس صيغة ban.js)
  */
-router.post('/guild/:guildId/member/:userId/ban', requireGuildId, async (req, res) => {
+router.post('/guild/:guildId/member/:userId/ban', requireGuildId, requireStaffRole('admin'), async (req, res) => {
     try {
-        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res);
+        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res, 'ban', req.dashboardUser);
         if (!ctx) return;
 
         const { executeBan } = require('../commands/ban');
@@ -842,15 +896,21 @@ router.post('/guild/:guildId/member/:userId/ban', requireGuildId, async (req, re
  * POST /api/guild/:guildId/member/:userId/unban
  * Expected body: { reason }
  */
-router.post('/guild/:guildId/member/:userId/unban', requireGuildId, async (req, res) => {
+router.post('/guild/:guildId/member/:userId/unban', requireGuildId, requireStaffRole('admin'), async (req, res) => {
     try {
         const client = require('../index');
         if (!client.isReady()) return res.status(503).json({ error: 'Bot is not ready yet.' });
         const guild = await client.guilds.fetch(req.guildId).catch(() => null);
         if (!guild) return res.status(404).json({ error: 'Bot is not in this guild' });
 
+        let moderator = guild.members.me;
+        if (req.dashboardUser?.discordId) {
+            const moderatorMember = await guild.members.fetch(req.dashboardUser.discordId).catch(() => null);
+            if (moderatorMember) moderator = moderatorMember;
+        }
+
         const { executeUnban } = require('../commands/ban');
-        const result = await executeUnban(guild, req.params.userId, guild.members.me, req.body.reason || 'No reason provided', dbUtils);
+        const result = await executeUnban(guild, req.params.userId, moderator, req.body.reason || 'No reason provided', dbUtils);
 
         if (!result.success) return res.status(400).json({ error: result.error });
         res.json({ success: true });
@@ -864,9 +924,9 @@ router.post('/guild/:guildId/member/:userId/unban', requireGuildId, async (req, 
  * POST /api/guild/:guildId/member/:userId/mute
  * Expected body: { reason, duration } - duration مثل "1h"/"1d" (نفس صيغة mute.js)
  */
-router.post('/guild/:guildId/member/:userId/mute', requireGuildId, async (req, res) => {
+router.post('/guild/:guildId/member/:userId/mute', requireGuildId, requireStaffRole('moderator'), async (req, res) => {
     try {
-        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res);
+        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res, 'mute', req.dashboardUser);
         if (!ctx) return;
 
         const { executeMute } = require('../commands/mute');
@@ -884,9 +944,9 @@ router.post('/guild/:guildId/member/:userId/mute', requireGuildId, async (req, r
  * POST /api/guild/:guildId/member/:userId/unmute
  * Expected body: { reason }
  */
-router.post('/guild/:guildId/member/:userId/unmute', requireGuildId, async (req, res) => {
+router.post('/guild/:guildId/member/:userId/unmute', requireGuildId, requireStaffRole('moderator'), async (req, res) => {
     try {
-        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res);
+        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res, 'unmute', req.dashboardUser);
         if (!ctx) return;
 
         const { executeUnmute } = require('../commands/mute');
@@ -904,9 +964,9 @@ router.post('/guild/:guildId/member/:userId/unmute', requireGuildId, async (req,
  * POST /api/guild/:guildId/member/:userId/warn
  * Expected body: { reason }
  */
-router.post('/guild/:guildId/member/:userId/warn', requireGuildId, async (req, res) => {
+router.post('/guild/:guildId/member/:userId/warn', requireGuildId, requireStaffRole('moderator'), async (req, res) => {
     try {
-        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res);
+        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res, 'warn', req.dashboardUser);
         if (!ctx) return;
 
         const { executeWarn } = require('../commands/warn');
@@ -924,9 +984,9 @@ router.post('/guild/:guildId/member/:userId/warn', requireGuildId, async (req, r
  * POST /api/guild/:guildId/member/:userId/unwarn
  * Expected body: { reason }
  */
-router.post('/guild/:guildId/member/:userId/unwarn', requireGuildId, async (req, res) => {
+router.post('/guild/:guildId/member/:userId/unwarn', requireGuildId, requireStaffRole('moderator'), async (req, res) => {
     try {
-        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res);
+        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res, 'unwarn', req.dashboardUser);
         if (!ctx) return;
 
         const { executeUnwarn } = require('../commands/warn');
@@ -945,14 +1005,14 @@ router.post('/guild/:guildId/member/:userId/unwarn', requireGuildId, async (req,
  * Expected body: { roleIds: string[] } - القائمة الكاملة للرتب المطلوبة
  * بعد الحفظ (يعني state التاغات النهائي كامل، مو بس الفرق).
  */
-router.put('/guild/:guildId/member/:userId/roles', requireGuildId, async (req, res) => {
+router.put('/guild/:guildId/member/:userId/roles', requireGuildId, requireStaffRole('moderator'), async (req, res) => {
     try {
         const { roleIds } = req.body;
         if (!Array.isArray(roleIds)) {
             return res.status(400).json({ error: 'Invalid Payload: "roleIds" must be an array' });
         }
 
-        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res);
+        const ctx = await resolveDashboardContext(req.guildId, req.params.userId, res, 'roleadd', req.dashboardUser);
         if (!ctx) return;
 
         const result = await syncMemberRoles(ctx.guild, req.params.userId, roleIds, ctx.moderator, dbUtils);
@@ -1003,7 +1063,7 @@ router.get('/guild/:guildId/member/:userId/exemptions', requireGuildId, async (r
  * بدون انتهاء تلقائي (دائم). قائمة commands فاضية = حذف الصف بالكامل
  * (المشرف شال كل التاغات).
  */
-router.put('/guild/:guildId/member/:userId/exemptions', requireGuildId, async (req, res) => {
+router.put('/guild/:guildId/member/:userId/exemptions', requireGuildId, requireStaffRole('moderator'), async (req, res) => {
     try {
         const { commands, reason, duration } = req.body;
         if (!Array.isArray(commands)) {
