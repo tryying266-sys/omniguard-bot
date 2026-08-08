@@ -79,7 +79,8 @@ const EXCLUDED_FILES = [
     'welcome.js',
     'Rolemanagement.js',
     'getroles.js',
-    'roleSync.js'
+    'roleSync.js',
+    'search.js'
 ];
 
 const commandFiles = fs.readdirSync(commandsPath).filter(file =>

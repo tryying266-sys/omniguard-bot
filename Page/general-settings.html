@@ -49,6 +49,13 @@
         .header-title { font-size: 18px; font-weight: 600; }
         .user-profile { display: flex; align-items: center; gap: 10px; cursor: pointer; }
         .avatar { width: 32px; height: 32px; border-radius: 50%; background-color: var(--accent-red); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
+        /* Header Controls & Dynamic Elements */
+        .header-controls { display: flex; align-items: center; gap: 16px; }
+        .guild-select { background-color: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 14px; outline: none; cursor: pointer; transition: border-color 0.2s; }
+        .guild-select:focus { border-color: var(--accent-red); }
+        .avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+        .logout-btn { background-color: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease; }
+        .logout-btn:hover { color: var(--accent-red); border-color: var(--accent-red); background-color: rgba(255, 51, 68, 0.05); }
 
         .content-body { padding: 40px; max-width: 1200px; width: 100%; margin: 0 auto; }
 
@@ -278,9 +285,23 @@
     <main class="main-content">
         <header>
             <div class="header-title">General Settings</div>
-            <div class="user-profile">
-                <span>Administrator</span>
-                <div class="avatar">OG</div>
+            <div class="header-controls">
+                <!-- Guild / Server Selector Dropdown -->
+                <select id="guild-selector" class="guild-select">
+                    <option value="" disabled selected>Loading Servers...</option>
+                </select>
+
+                <!-- Dynamic User Profile -->
+                <div class="user-profile" id="user-profile">
+                    <span id="user-name">Loading...</span>
+                    <div class="avatar" id="user-avatar">OG</div>
+                </div>
+
+                <!-- Logout Button -->
+                <button id="logout-btn" class="logout-btn">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>Logout</span>
+                </button>
             </div>
         </header>
 

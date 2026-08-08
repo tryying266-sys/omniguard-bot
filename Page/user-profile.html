@@ -285,6 +285,55 @@
         .custom-table td { padding: 16px 24px; border-bottom: 1px solid var(--border-color); font-size: 14px; color: var(--text-primary); }
         .custom-table tr:last-child td { border-bottom: none; }
         .empty-state { text-align: center; padding: 48px 24px; color: var(--text-secondary); font-size: 14px; }
+        /* --- التنسيقات المفقودة للهيدر --- */
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.guild-select {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.guild-select:focus {
+    border-color: var(--accent-red);
+}
+
+.logout-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.logout-btn:hover {
+    color: var(--accent-red);
+    border-color: var(--accent-red);
+    background-color: rgba(255, 51, 68, 0.05);
+}
+
+#user-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
     </style>
 </head>
 <body>
@@ -371,6 +420,9 @@
             </li>
         </ul>
     </aside>
+
+    <main class="main-content">
+
 
     <!-- Main Content Area -->
     <main class="main-content">
