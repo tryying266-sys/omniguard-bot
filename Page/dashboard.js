@@ -338,6 +338,7 @@ function buildPayload() {
     // 1. جمع الحقول العادية (Text, Number, Select, Checkbox)
     document.querySelectorAll('input, select, textarea').forEach(el => {
         if (!el.id || el.id === '') return;
+         if (el.id === 'guild-selector') return; // FIX HERE: تجاهل قائمة اختيار السيرفر
         if (el.classList.contains('tag-input-ghost')) return; // مدخلات التاقات لها دالة خاصة
 
         if (getElementTargetTable(el, defaultTable) !== defaultTable) return; // يخص جدول ثاني
