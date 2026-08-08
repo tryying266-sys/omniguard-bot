@@ -1015,3 +1015,39 @@
     </script>
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+const SUPABASE_URL = 'https://lcnjswibemyenakwojkz.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxjbmpzd2liZW15ZW5ha3dvamt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4ODQ0ODEsImV4cCI6MjA5OTQ2MDQ4MX0.AfbKJsd6sOK1FPz2w-rH3XT28m4eneB1uNJEyETJ9ug';
+
+let bridgeClient = null; // تعريف العميل عالمياً
+
+function initSupabaseSessionBridge() {
+    if (typeof supabase === 'undefined') {
+        console.warn('[OmniGuard Dashboard] Supabase JS SDK not loaded.');
+        return;
+    }
+
+    bridgeClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    });
+
+    bridgeClient.auth.getSession().then(({ data }) => {
+        cachedUserToken = data?.session?.access_token || null;
+        if (data?.session) initGlobalHeader(data.session); // تشغيل الهيدر فوراً
+    });
+
+    bridgeClient.auth.onAuthStateChange((event, session) => {
+        cachedUserToken = session?.access_token || null;
+        if (session) initGlobalHeader(session);
+    });
+}
+
+initSupabaseSessionBridge();

@@ -120,32 +120,51 @@ const API_BASE = `${window.location.origin}/api`;
 // getHeaders() تبقى دالة متزامنة (Sync) بقصد - نخزّن الـ token بمتغير
 // بالذاكرة يتحدث تلقائياً بالخلفية، بدل ما نحول getHeaders() لـ async
 // ونضطر نعدل كل استدعاء لها بكل الملفات (search.js/userprofile.js).
+// --- [0] Supabase Session Bridge ---
 const SUPABASE_URL = 'https://lcnjswibemyenakwojkz.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxjbmpzd2liZW15ZW5ha3dvamt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4ODQ0ODEsImV4cCI6MjA5OTQ2MDQ4MX0.AfbKJsd6sOK1FPz2w-rH3XT28m4eneB1uNJEyETJ9ug';
 
-let bridgeClient = null; // تعريف العميل عالمياً
+// تعريف المتغيرات عالمياً لتكون متاحة لكل الصفحات بنفس الاسم
+let supabaseClient = null; 
+let cachedUserToken = null;
 
-function initSupabaseSessionBridge() {
+async function initSupabaseSessionBridge() {
     if (typeof supabase === 'undefined') {
         console.warn('[OmniGuard Dashboard] Supabase JS SDK not loaded.');
         return;
     }
 
-    bridgeClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    // إنشاء العميل باسم supabaseClient ليتوافق مع كل الصفحات
+    supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
         auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
     });
 
-    bridgeClient.auth.getSession().then(({ data }) => {
-        cachedUserToken = data?.session?.access_token || null;
-        if (data?.session) initGlobalHeader(data.session); // تشغيل الهيدر فوراً
-    });
+    // جلب الجلسة والتحقق من الحماية فوراً
+    const { data, error } = await supabaseClient.auth.getSession();
+    const session = data?.session;
+    
+    if (session) {
+        cachedUserToken = session.access_token;
+        initGlobalHeader(session);
+    } else {
+        // [الحماية المركزية] إذا لم تكن في صفحة تسجيل الدخول ولا توجد جلسة، اخرج فوراً
+        if (!window.location.pathname.includes('Login.html')) {
+            window.location.href = 'Login.html';
+        }
+    }
 
-    bridgeClient.auth.onAuthStateChange((event, session) => {
+    // مراقبة تغير حالة الدخول (مثلاً عند انتهاء التوكن)
+    supabaseClient.auth.onAuthStateChange((event, session) => {
         cachedUserToken = session?.access_token || null;
-        if (session) initGlobalHeader(session);
+        if (session) {
+            initGlobalHeader(session);
+        } else if (event === 'SIGNED_OUT' && !window.location.pathname.includes('Login.html')) {
+            window.location.href = 'Login.html';
+        }
     });
 }
 
+// تشغيل الجسر فوراً
 initSupabaseSessionBridge();
 
 // --- [1] أدوات المساعدة الأساسية ---
