@@ -911,7 +911,7 @@
             }
 
             try {
-                const response = await fetch(`${API_BASE}/guild/${guildId}/command-aliases`, { headers: getHeaders() });
+                const response = await fetch(`${API_BASE}/guild/${guildId}/command_alias_config`, { headers: getHeaders() });
                 const rows = await response.json();
 
                 if (!response.ok) {
@@ -969,7 +969,7 @@
                 const results = await Promise.all(ALL_COMMAND_IDS.map(async (cmdId) => {
                     const aliases = getAliasesFor(cmdId);
                     try {
-                        const response = await fetch(`${API_BASE}/guild/${guildId}/command-aliases/${cmdId}`, {
+                        const response = await fetch(`${API_BASE}/guild/${guildId}/command_alias_config/${cmdId}`, {
                             method: 'PUT',
                             headers: getHeaders(),
                             body: JSON.stringify({ aliases })
