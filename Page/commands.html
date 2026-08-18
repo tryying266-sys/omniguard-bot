@@ -163,13 +163,30 @@
 </head>
 <body>
 
-    <!-- Left Sidebar Navigation -->
+    <!-- Left Sidebar Navigation (Synced with index.html) -->
     <aside class="sidebar">
+        <!-- Bot Logo and Name -->
         <div class="logo-section">
             <i class="fa-solid fa-shield-halved logo-icon"></i>
             <span class="logo-text">OmniGuard</span>
         </div>
+        
+           <!-- SEARCH CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Search</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    Search
+                </a>
+            </li>
+        </ul>
 
+        <!-- HOME CATEGORY -->
         <div class="category-container">
             <div class="category-line"></div>
             <span class="category-header">Home</span>
@@ -177,13 +194,14 @@
         </div>
         <ul class="menu-list">
             <li class="menu-item">
-                <a href="index.html">
+                <a href="index">
                     <i class="fa-solid fa-house"></i>
                     Home
                 </a>
             </li>
         </ul>
 
+        <!-- CORE SETTINGS CATEGORY -->
         <div class="category-container">
             <div class="category-line"></div>
             <span class="category-header">Core Settings</span>
@@ -191,25 +209,26 @@
         </div>
         <ul class="menu-list">
             <li class="menu-item">
-                <a href="general-settings.html">
+                <a href="general-settings">
                     <i class="fa-solid fa-sliders"></i>
                     General Settings
                 </a>
             </li>
             <li class="menu-item">
-                <a href="welcome-leave.html">
+                <a href="welcome-leave">
                     <i class="fa-solid fa-door-open"></i>
                     Welcome & Leave
                 </a>
             </li>
             <li class="menu-item">
-                <a href="role-management.html">
+                <a href="role-management">
                     <i class="fa-solid fa-user-gear"></i>
                     Role Management
                 </a>
             </li>
         </ul>
 
+        <!-- MODERATION & SECURITY CATEGORY -->
         <div class="category-container">
             <div class="category-line"></div>
             <span class="category-header">Moderation & Security</span>
@@ -217,25 +236,56 @@
         </div>
         <ul class="menu-list">
             <li class="menu-item">
-                <a href="auto-mod.html">
+                <a href="auto-mod">
                     <i class="fa-solid fa-robot"></i>
                     Auto-Mod
                 </a>
             </li>
             <li class="menu-item">
-                <a href="anti-alt.html">
+                <a href="anti-alt">
                     <i class="fa-solid fa-user-shield"></i>
                     Anti-Alt
                 </a>
             </li>
             <li class="menu-item">
                 <a href="AutoRespond">
-                    <i class="fa-solid fa-clipboard-list"></i>
-                    AutoRespond
+                    <i class="fa-solid fa-reply-all"></i>
+                    Auto Respond
                 </a>
             </li>
         </ul>
 
+        <!-- TICKET SYSTEM CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Ticket System</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="category">
+                    <i class="fa-solid fa-ticket"></i>
+                    Ticket Category
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="AutoLog">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    Ticket Auto Log
+                </a>
+            </li>
+        </ul>
+
+        </li>
+            <li class="menu-item">
+                <a href="Permissionspanel">
+                    <i class="fa-solid fa-sliders"></i>
+                    Ticket Panel
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODULES & FEATURES CATEGORY -->
         <div class="category-container">
             <div class="category-line"></div>
             <span class="category-header">Modules & Features</span>
@@ -243,7 +293,7 @@
         </div>
         <ul class="menu-list">
             <li class="menu-item">
-                <a href="custom-messages.html">
+                <a href="custom-messages">
                     <i class="fa-solid fa-comment-dots"></i>
                     Custom Messages
                 </a>
@@ -255,7 +305,7 @@
                 </a>
             </li>
             <li class="menu-item active">
-                <a href="command-aliases.html">
+                <a href="commands">
                     <i class="fa-solid fa-terminal"></i>
                     Command Customization
                 </a>
@@ -263,15 +313,30 @@
         </ul>
     </aside>
 
+ <main class="main-content"> 
+    
     <!-- Main Content Area -->
-    <main class="main-content">
-        <header>
-            <div class="header-title">Command Customization</div>
-            <div class="user-profile">
-                <span>Administrator</span>
-                <div class="avatar">OG</div>
+    <header>
+            <div class="header-title">General Settings</div>
+            <div class="header-controls">
+                <!-- Guild / Server Selector Dropdown -->
+                <select id="guild-selector" class="guild-select">
+                    <option value="" disabled selected>Loading Servers...</option>
+                </select>
+
+                <!-- Dynamic User Profile -->
+                <div class="user-profile" id="user-profile">
+                    <span id="user-name">Loading...</span>
+                    <div class="avatar" id="user-avatar">OG</div>
+                </div>
+
+                <!-- Logout Button -->
+                <button id="logout-btn" class="logout-btn">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>Logout</span>
+                </button>
             </div>
-        </header>
+    </header>
 
         <div class="content-body">
             <div class="settings-grid">
