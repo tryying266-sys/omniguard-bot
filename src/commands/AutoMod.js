@@ -148,8 +148,10 @@ module.exports = {
         });
 
         if (hasBadWord) {
+            // [تعديل] هذي الميزة تحذف الرسالة فقط - بدون أي عقوبة إضافية
+            // (لا mute تلقائي ولا أي إجراء ثاني). طلب صريح من المطور: حظر
+            // الكلمات الممنوعة إجراؤه الوحيد هو حذف الرسالة.
             await message.delete().catch(() => {});
-            await this.applyPunishment(message, 'Bad Words Usage', settings.spam_default_action, settings.spam_action_duration);
             return true;
         }
         return false;
@@ -163,16 +165,18 @@ module.exports = {
         const inviteRegex = /(discord\.gg\/|discord\.com\/invite\/)/gi;
         const linkRegex = /https?:\/\/[^\s]+/gi;
 
+        // [تعديل] الميزات الثلاث هنا (Invites/Links/Mass Mentions) إجراؤها
+        // الوحيد هو حذف الرسالة - بدون أي عقوبة إضافية (لا mute تلقائي ولا
+        // أي رقم مدة). طلب صريح من المطور. راجع applyPunishment() و
+        // checkSpam() لباقي حالات السبام العادي اللي لسه تستخدم العقوبة
+        // حسب إعدادات spam_default_action/spam_action_duration بالداشبورد
+        // (لم تتأثر بهذا التعديل إطلاقاً).
         let triggered = false;
-        let reason = '';
-        let skipPunishment = false; // نعاقب مرة وحدة بس بكل نافذة Mass Mentions
 
         if (settings.invites_block && inviteRegex.test(message.content)) {
             triggered = true;
-            reason = 'Posting Discord Invites';
         } else if (settings.links_block && linkRegex.test(message.content)) {
             triggered = true;
-            reason = 'Posting Unauthorized Links';
         } else if (settings.block_mentions && message.mentions.users.size > 0) {
             const key = `${message.guild.id}:${message.author.id}`;
             const now = Date.now();
@@ -180,7 +184,7 @@ module.exports = {
 
             let tracker = mentionTracker.get(key);
             if (!tracker || now - tracker.windowStart > MENTION_WINDOW_MS) {
-                tracker = { total: 0, windowStart: now, flagged: false, punished: false };
+                tracker = { total: 0, windowStart: now, flagged: false };
                 mentionTracker.set(key, tracker);
             }
             tracker.total += mentionCount;
@@ -192,17 +196,11 @@ module.exports = {
 
             if (tracker.flagged) {
                 triggered = true;
-                reason = 'Mass Mentioning';
-                skipPunishment = tracker.punished;
-                tracker.punished = true;
             }
         }
 
         if (triggered) {
             await message.delete().catch(() => {});
-            if (!skipPunishment && settings.spam_default_action !== 'none') {
-                await this.applyPunishment(message, reason, settings.spam_default_action, settings.spam_action_duration);
-            }
             return true;
         }
         return false;
