@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">    
+    <title>OmniGuard - Auto Respond Configuration</title>
+    <!-- Google Fonts & FontAwesome Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Base Colors & Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #111115;
+            --bg-tertiary: #18181c;
+            --accent-red: #ff3344;
+            --accent-red-hover: #ff5566;
+            --text-primary: #ffffff;
+            --text-secondary: #8e9297;
+            --border-color: #2a2b30;
+            --warning-amber: #ffaa00;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 16px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding-left: 8px;
+            flex-shrink: 0;
+        }
+
+        .logo-icon {
+            color: var(--accent-red);
+            font-size: 24px;
+        }
+
+        .logo-text {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .category-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 18px;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+
+        .category-header {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .category-line {
+            flex-grow: 1;
+            height: 1px;
+            background-color: var(--border-color);
+        }
+
+        .menu-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .menu-item a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .menu-item a:hover {
+            color: var(--text-primary);
+            background-color: var(--bg-tertiary);
+        }
+
+        /* Highlight Active Item */
+        .menu-item.active a {
+            color: var(--text-primary);
+            background-color: rgba(255, 51, 68, 0.1);
+            border-left: 3px solid var(--accent-red);
+            padding-left: 11px;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex-grow: 1;
+            background-color: var(--bg-primary);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        header {
+            height: 70px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            background-color: var(--bg-secondary);
+            flex-shrink: 0;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .guild-select {
+            background-color: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .guild-select:focus {
+            border-color: var(--accent-red);
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--accent-red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        #user-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+
+        .logout-btn {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+            color: var(--accent-red);
+            border-color: var(--accent-red);
+            background-color: rgba(255, 51, 68, 0.05);
+        }
+
+        .content-body {
+            padding: 40px;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* Settings Grid Layout */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        @media (max-width: 992px) {
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .settings-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .full-width {
+            grid-column: span 2;
+        }
+
+        @media (max-width: 992px) {
+            .full-width {
+                grid-column: span 1;
+            }
+        }
+
+        .card-header-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 14px;
+        }
+
+        .card-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-header-icon {
+            color: var(--accent-red);
+            font-size: 20px;
+        }
+
+        .card-header-title {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        /* Form Controls */
+        .form-row {
+            display: flex;
+            gap: 16px;
+        }
+
+        @media (max-width: 600px) {
+            .form-row {
+                flex-direction: column;
+            }
+        }
+
+        .form-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            border-color: var(--accent-red);
+            box-shadow: 0 0 0 3px rgba(255, 51, 68, 0.15);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        /* Trigger Compact Input (AutoMod Style) */
+        .trigger-input-compact {
+            max-width: 320px;
+        }
+
+        /* Custom Switch Styling */
+        .switch-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            padding: 14px 18px;
+            border-radius: 8px;
+            transition: background-color 0.2s;
+        }
+
+        .switch-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .switch-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .switch-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            transition: .25s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 3px;
+            background-color: var(--text-secondary);
+            transition: .25s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: rgba(255, 51, 68, 0.2);
+            border-color: var(--accent-red);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+            background-color: var(--accent-red);
+        }
+
+        /* Tags and Multi-select Boxes */
+        .filter-tags-box {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            min-height: 52px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .tag-item {
+            background-color: rgba(255, 51, 68, 0.1);
+            border: 1px solid rgba(255, 51, 68, 0.25);
+            color: var(--text-primary);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tag-item .remove-btn {
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 13px;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .tag-item .remove-btn:hover {
+            color: var(--accent-red);
+        }
+
+        .tag-input-ghost {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            flex: 1;
+            min-width: 140px;
+            padding: 4px;
+        }
+
+        .tag-input-ghost::placeholder {
+            color: var(--text-secondary);
+        }
+
+        /* Buttons & Dynamic Row Systems */
+        .add-rule-btn {
+            background-color: transparent;
+            border: 1px dashed var(--border-color);
+            color: var(--text-primary);
+            padding: 12px 18px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            width: 100%;
+        }
+
+        .add-rule-btn:hover {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+            background-color: rgba(255, 51, 68, 0.05);
+        }
+
+        .btn-delete-rule {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 16px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            transition: color 0.2s, background-color 0.2s;
+        }
+
+        .btn-delete-rule:hover {
+            color: var(--accent-red);
+            background-color: rgba(255, 51, 68, 0.12);
+        }
+
+        /* Sticky Save Bar */
+        .save-changes-bar { 
+            background-color: var(--bg-secondary); 
+            border: 1px solid var(--border-color); 
+            border-radius: 12px; 
+            padding: 20px 32px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            position: sticky; 
+            bottom: 20px; 
+            z-index: 10; 
+        }
+
+        .save-info-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .save-btn {
+            background-color: var(--accent-red);
+            color: var(--text-primary);
+            border: none;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .save-btn:hover {
+            background-color: var(--accent-red-hover);
+        }
+
+        /* ============================================================
+         * [NEW] Auto Respond dynamic pieces: selector-box dropdowns
+         * (role/channel pickers - نفس نمط باقي صفحات الداشبورد اللي
+         * تستخدم .selector-box[data-source] من dashboard.js)، وحالة
+         * الكرت المعطّل (Enable Rule = off).
+         * ============================================================ */
+        .form-group { position: relative; }
+
+        .selector-box { cursor: pointer; }
+
+        .dropdown-list {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            max-height: 220px;
+            overflow-y: auto;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            z-index: 50;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        .dropdown-list.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 10px 14px;
+            font-size: 13px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: background-color 0.15s;
+        }
+
+        .dropdown-item:hover {
+            background-color: rgba(255, 51, 68, 0.1);
+        }
+
+        /* رأس كاتيغوري القنوات - غير قابل للضغط عمداً (محد يقدر يختار الكاتيغوري نفسها) */
+        .dropdown-category-header {
+            padding: 8px 14px 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            pointer-events: none;
+            user-select: none;
+        }
+
+        .dropdown-empty {
+            padding: 12px 14px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .settings-card.rule-disabled {
+            opacity: 0.55;
+        }
+
+        .disabled-badge {
+            background-color: rgba(142, 146, 151, 0.15);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            margin-left: 6px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Left Sidebar Navigation -->
+    <aside class="sidebar">
+        <!-- Bot Logo and Name -->
+        <div class="logo-section">
+            <i class="fa-solid fa-shield-halved logo-icon"></i>
+            <span class="logo-text">OmniGuard</span>
+        </div>
+
+        <!-- SEARCH CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Search</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    Search
+                </a>
+            </li>
+        </ul>
+
+        <!-- HOME CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Home</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="index">
+                    <i class="fa-solid fa-house"></i>
+                    Home
+                </a>
+            </li>
+        </ul>
+
+        <!-- CORE SETTINGS CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Core Settings</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="general-settings">
+                    <i class="fa-solid fa-sliders"></i>
+                    General Settings
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="welcome-leave">
+                    <i class="fa-solid fa-door-open"></i>
+                    Welcome & Leave
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="role-management">
+                    <i class="fa-solid fa-user-gear"></i>
+                    Role Management
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODERATION & SECURITY CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Moderation & Security</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="auto-mod">
+                    <i class="fa-solid fa-robot"></i>
+                    Auto-Mod
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="anti-alt">
+                    <i class="fa-solid fa-user-shield"></i>
+                    Anti-Alt
+                </a>
+           </li>
+            <li class="menu-item active">
+                <a href="AutoRespond">
+                    <i class="fa-solid fa-reply-all"></i>
+                    Auto Respond
+                </a>
+            </li>
+        </ul>
+
+        <!-- TICKET SYSTEM CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Ticket System</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="category">
+                    <i class="fa-solid fa-ticket"></i>
+                    Ticket Category
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="AutoLog">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    Ticket Auto Log
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="Permissionspanel">
+                    <i class="fa-solid fa-sliders"></i>
+                    Ticket Panel
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODULES & FEATURES CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Modules & Features</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="custom-messages">
+                    <i class="fa-solid fa-comment-dots"></i>
+                    Custom Messages
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="Level">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    Leveling System
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="commands">
+                    <i class="fa-solid fa-terminal"></i>
+                    Command Customization
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content"> 
+        
+        <header>
+            <div class="header-title">Auto Respond Settings</div>
+            <div class="header-controls">
+                <select id="guild-selector" class="guild-select">
+                    <option value="" disabled selected>Loading Servers...</option>
+                </select>
+
+                <div class="user-profile" id="user-profile">
+                    <span id="user-name">Loading...</span>
+                    <div class="avatar" id="user-avatar">OG</div>
+                </div>
+
+                <button id="logout-btn" class="logout-btn">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="content-body">
+            
+            <!-- [NEW] الكروت تُبنى ديناميكياً بالكامل من auto-respond.js
+                 (loadAutoRespondRules -> renderAutoRespondCards) - ما فيه
+                 أي بيانات وهمية ثابتة هنا. -->
+            <div id="auto_respond_list" style="display: flex; flex-direction: column; gap: 24px; margin-bottom: 24px;">
+                <p style="text-align:center; color: var(--text-secondary); padding: 24px 0;">Loading auto-respond rules...</p>
+            </div>
+
+            <!-- Add Response Button -->
+            <button type="button" class="add-rule-btn" style="margin-bottom: 32px;">
+                <i class="fa-solid fa-plus"></i> Add New Auto Response
+            </button>
+
+            <!-- Bottom Save Bar -->
+            <div class="save-changes-bar">
+                <span class="save-info-text">Careful — make sure to save changes to apply them to your server!</span>
+                <button class="save-btn">Save Changes</button>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="dashboard.js"></script>
+    <script>
+        // ============================================================
+        // Auto Respond - منطق خاص بهالصفحة بس (جدول auto_respond_rules
+        // متعدد الصفوف - نفس فلسفة auto-mod-rules بالضبط، راجع الشرح
+        // بأعلى apiRouter.js/databaseQueries.js). ما يمر على buildPayload/
+        // savePageSettings العامة (مبنية لجدول صف-واحد-لكل-سيرفر فقط) -
+        // بس يعيد استخدام الأدوات المشتركة الجاهزة من dashboard.js:
+        // getGuildId/getHeaders/API_BASE, fetchGuildStructure/
+        // populateDiscordSelectors/addDiscordTag/collectTags/renderTags/
+        // toggleDropdown, و markDirty/markClean/markSaved/markError.
+        //
+        // نموذج الحفظ: Add / Delete / Enable-Toggle كل وحدة تُنفَّذ فوراً
+        // (نفس نمط auto-mod-rules). باقي الحقول (Trigger/MatchType/
+        // Cooldown/Response/الأربع صناديق تاقات) تُجمع وتُحفظ دفعة وحدة
+        // بس عند الضغط على "Save Changes" بالأسفل.
+        // ============================================================
+
+        const AUTO_RESPOND_MATCH_LABELS = {
+            exact: 'Match Exact (Matches whole text)',
+            contains: 'Contains (Matches anywhere in text)',
+            starts: 'Starts With',
+            ends: 'Ends With',
+            regex: 'Regex Support (Advanced Patterns)',
+            fuzzy: 'Fuzzy Match / Smart Detection (typo-tolerant)'
+        };
+
+        let autoRespondRules = [];
+        let autoRespondStructureLoaded = false;
+
+        function arBoxId(prefix, ruleId) {
+            return `ar_${prefix}_${ruleId}`;
+        }
+
+        // يهرّب أي نص قبل حقنه بالـ HTML (قيمة attribute أو محتوى نصي) -
+        // يمنع أي trigger_keyword/response_message محفوظ بالغلط يكسر
+        // الماركب أو يفتح ثغرة XSS بسيطة.
+        function escapeHtml(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function buildAutoRespondCardHTML(rule, index) {
+            const id = rule.id;
+            const cwBox = arBoxId('cw', id), cwDD = arBoxId('cw_dd', id);
+            const cbBox = arBoxId('cb', id), cbDD = arBoxId('cb_dd', id);
+            const rwBox = arBoxId('rw', id), rwDD = arBoxId('rw_dd', id);
+            const rbBox = arBoxId('rb', id), rbDD = arBoxId('rb_dd', id);
+
+            const matchOptions = Object.entries(AUTO_RESPOND_MATCH_LABELS)
+                .map(([val, label]) => `<option value="${val}" ${rule.match_type === val ? 'selected' : ''}>${label}</option>`)
+                .join('');
+
+            const disabledClass = rule.enabled ? '' : ' rule-disabled';
+            const disabledBadge = rule.enabled ? '' : '<span class="disabled-badge">Disabled</span>';
+            const cooldown = Number.isInteger(rule.cooldown_seconds) ? rule.cooldown_seconds : 10;
+
+            return `
+            <div class="settings-card full-width auto-respond-card${disabledClass}" data-rule-id="${id}">
+                <div class="card-header-group">
+                    <div class="card-header-left">
+                        <i class="fa-solid fa-reply card-header-icon"></i>
+                        <h2 class="card-header-title">Auto Response #${index + 1}</h2>
+                        ${disabledBadge}
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <div class="switch-container" style="padding: 6px 12px; gap: 10px;">
+                            <span class="switch-title" style="font-size: 13px;">Enable Rule</span>
+                            <label class="switch">
+                                <input type="checkbox" class="ar-enable-toggle" ${rule.enabled ? 'checked' : ''}>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <button type="button" class="btn-delete-rule" title="Delete Rule">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group trigger-input-compact">
+                        <label class="form-label">Trigger Keyword</label>
+                        <input type="text" class="form-input ar-field" data-field="triggerKeyword" placeholder="e.g., !rules, support" value="${escapeHtml(rule.trigger_keyword)}">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Match Type</label>
+                        <select class="form-select ar-field" data-field="matchType">${matchOptions}</select>
+                    </div>
+
+                    <div class="form-group" style="max-width: 200px;">
+                        <label class="form-label">CD Per User</label>
+                        <input type="number" min="0" step="1" class="form-input ar-field" data-field="cooldownSeconds" value="${cooldown}">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Bot Response Message</label>
+                    <textarea class="form-textarea ar-field" data-field="responseMessage" placeholder="Type the automated response here... (Longer text supported)">${escapeHtml(rule.response_message)}</textarea>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Whitelist Channels</label>
+                        <div class="filter-tags-box selector-box" id="${cwBox}" data-source="channels" data-dropdown="${cwDD}" onclick="toggleDropdown('${cwDD}')">
+                            <input type="text" class="tag-input-ghost" placeholder="Click to select channels..." readonly>
+                        </div>
+                        <div class="dropdown-list" id="${cwDD}"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Blacklist Channels</label>
+                        <div class="filter-tags-box selector-box" id="${cbBox}" data-source="channels" data-dropdown="${cbDD}" onclick="toggleDropdown('${cbDD}')">
+                            <input type="text" class="tag-input-ghost" placeholder="Click to select channels..." readonly>
+                        </div>
+                        <div class="dropdown-list" id="${cbDD}"></div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Whitelist Roles</label>
+                        <div class="filter-tags-box selector-box" id="${rwBox}" data-source="roles" data-dropdown="${rwDD}" onclick="toggleDropdown('${rwDD}')">
+                            <input type="text" class="tag-input-ghost" placeholder="Click to select roles..." readonly>
+                        </div>
+                        <div class="dropdown-list" id="${rwDD}"></div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Blacklist Roles</label>
+                        <div class="filter-tags-box selector-box" id="${rbBox}" data-source="roles" data-dropdown="${rbDD}" onclick="toggleDropdown('${rbDD}')">
+                            <input type="text" class="tag-input-ghost" placeholder="Click to select roles..." readonly>
+                        </div>
+                        <div class="dropdown-list" id="${rbDD}"></div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        async function renderAutoRespondCards() {
+            const list = document.getElementById('auto_respond_list');
+            if (!list) return;
+
+            if (autoRespondRules.length === 0) {
+                list.innerHTML = '<p style="text-align:center; color: var(--text-secondary); padding: 24px 0;">No auto-respond rules yet — click "Add New Auto Response" below to create one.</p>';
+                return;
+            }
+
+            list.innerHTML = autoRespondRules.map((rule, i) => buildAutoRespondCardHTML(rule, i)).join('');
+
+            // يعبّي الأربعة دروب داون الجديدة بقوائم الرتب/القنوات الفعلية
+            // (دالة عامة جاهزة من dashboard.js - نفس آلية باقي الصفحات)
+            populateDiscordSelectors();
+
+            // يعبّي كل صندوق بالتاقات المحفوظة فعلياً (يحوّل ID -> اسم ظاهر)
+            autoRespondRules.forEach(rule => {
+                renderTags(`#${arBoxId('cw', rule.id)}`, rule.channel_whitelist || [], 'channels');
+                renderTags(`#${arBoxId('cb', rule.id)}`, rule.channel_blacklist || [], 'channels');
+                renderTags(`#${arBoxId('rw', rule.id)}`, rule.role_whitelist || [], 'roles');
+                renderTags(`#${arBoxId('rb', rule.id)}`, rule.role_blacklist || [], 'roles');
+            });
+        }
+
+        async function loadAutoRespondRules() {
+            const guildId = getGuildId();
+            if (!guildId) return;
+
+            if (!autoRespondStructureLoaded) {
+                await fetchGuildStructure();
+                autoRespondStructureLoaded = true;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/guild/${guildId}/auto-respond`, { headers: getHeaders() });
+                const data = await response.json();
+                autoRespondRules = (response.ok && Array.isArray(data)) ? data : [];
+            } catch (err) {
+                console.error('[Auto Respond] Load error:', err);
+                autoRespondRules = [];
+            }
+
+            await renderAutoRespondCards();
+            markClean(); // صفحة لسه بس فتحت = ما فيه تعديلات لسه
+        }
+
+        async function addAutoRespondRule() {
+            const guildId = getGuildId();
+            if (!guildId) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/guild/${guildId}/auto-respond`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({})
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    showNotification(data.error || 'Failed to create rule', 'error');
+                    return;
+                }
+                autoRespondRules.push(data.rule);
+                await renderAutoRespondCards();
+            } catch (err) {
+                console.error('[Auto Respond] Add error:', err);
+                showNotification('Network error while creating rule', 'error');
+            }
+        }
+
+        async function deleteAutoRespondRuleCard(ruleId) {
+            const guildId = getGuildId();
+            if (!guildId) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/guild/${guildId}/auto-respond/${ruleId}`, {
+                    method: 'DELETE',
+                    headers: getHeaders()
+                });
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    showNotification(data.error || 'Failed to delete rule', 'error');
+                    return;
+                }
+                autoRespondRules = autoRespondRules.filter(r => r.id !== ruleId);
+                await renderAutoRespondCards();
+            } catch (err) {
+                console.error('[Auto Respond] Delete error:', err);
+                showNotification('Network error while deleting rule', 'error');
+            }
+        }
+
+        // Enable/Disable فوري (مو جزء من Save Changes) - تحديث بصري
+        // تفاؤلي فوري، ورجوع الحالة القديمة لو فشل الطلب.
+        async function toggleAutoRespondEnabled(ruleId, enabled, checkboxEl) {
+            const guildId = getGuildId();
+            if (!guildId) return;
+
+            const card = checkboxEl.closest('.auto-respond-card');
+            card?.classList.toggle('rule-disabled', !enabled);
+
+            try {
+                const response = await fetch(`${API_BASE}/guild/${guildId}/auto-respond/${ruleId}`, {
+                    method: 'PUT',
+                    headers: getHeaders(),
+                    body: JSON.stringify({ enabled })
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    checkboxEl.checked = !enabled;
+                    card?.classList.toggle('rule-disabled', enabled);
+                    showNotification(data.error || 'Failed to update rule', 'error');
+                    return;
+                }
+                const idx = autoRespondRules.findIndex(r => r.id === ruleId);
+                if (idx !== -1) autoRespondRules[idx] = data.rule;
+            } catch (err) {
+                checkboxEl.checked = !enabled;
+                card?.classList.toggle('rule-disabled', enabled);
+                console.error('[Auto Respond] Toggle error:', err);
+                showNotification('Network error while updating rule', 'error');
+            }
+        }
+
+        function collectAutoRespondCardPayload(cardEl) {
+            const ruleId = cardEl.dataset.ruleId;
+            const payload = {};
+
+            cardEl.querySelectorAll('.ar-field').forEach(el => {
+                const field = el.dataset.field;
+                payload[field] = (field === 'cooldownSeconds') ? (parseInt(el.value, 10) || 0) : el.value;
+            });
+
+            payload.channelWhitelist = collectTags(`#${arBoxId('cw', ruleId)}`);
+            payload.channelBlacklist = collectTags(`#${arBoxId('cb', ruleId)}`);
+            payload.roleWhitelist = collectTags(`#${arBoxId('rw', ruleId)}`);
+            payload.roleBlacklist = collectTags(`#${arBoxId('rb', ruleId)}`);
+
+            return payload;
+        }
+
+        // يحفظ كل الكروت دفعة وحدة (PUT واحد لكل كرت بالتوازي) - يستخدم
+        // نفس حالات زر الحفظ الجاهزة (markSaved أخضر 2.5 ثانية / markError
+        // أحمر "⚠ Error - Retry") من dashboard.js بدون أي تعديل عليها.
+        async function saveAllAutoRespondRules() {
+            const guildId = getGuildId();
+            const cards = document.querySelectorAll('.auto-respond-card');
+            if (cards.length === 0) {
+                markClean();
+                return;
+            }
+
+            // فحص صيغة Regex قبل الإرسال - يمنع حفظ نمط مكسور بصمت لو
+            // المستخدم اختار Regex Support ونمطه غير صالح.
+            for (const card of cards) {
+                const matchType = card.querySelector('[data-field="matchType"]')?.value;
+                const triggerVal = card.querySelector('[data-field="triggerKeyword"]')?.value || '';
+                if (matchType === 'regex') {
+                    try {
+                        new RegExp(triggerVal);
+                    } catch (e) {
+                        markError();
+                        showNotification(`Invalid Regex pattern in "${triggerVal}": ${e.message}`, 'error');
+                        return;
+                    }
+                }
+            }
+
+            try {
+                const results = await Promise.all(Array.from(cards).map(async (card) => {
+                    const ruleId = card.dataset.ruleId;
+                    const payload = collectAutoRespondCardPayload(card);
+                    try {
+                        const response = await fetch(`${API_BASE}/guild/${guildId}/auto-respond/${ruleId}`, {
+                            method: 'PUT',
+                            headers: getHeaders(),
+                            body: JSON.stringify(payload)
+                        });
+                        const data = await response.json();
+                        return { ok: response.ok, ruleId, data };
+                    } catch (networkErr) {
+                        return { ok: false, ruleId, error: networkErr.message };
+                    }
+                }));
+
+                const failed = results.filter(r => !r.ok);
+                if (failed.length === 0) {
+                    results.forEach(r => {
+                        const idx = autoRespondRules.findIndex(x => x.id === r.ruleId);
+                        if (idx !== -1) autoRespondRules[idx] = r.data.rule;
+                    });
+                    markSaved();
+                } else {
+                    markError();
+                    failed.forEach(f => console.error('[Auto Respond] Save error:', f.ruleId, f.error || f.data?.error));
+                }
+            } catch (err) {
+                markError();
+                console.error('[Auto Respond] Save network error:', err);
+            }
+        }
+
+        // --- تفويض الأحداث (Event Delegation) للكروت الديناميكية ---
+
+        document.addEventListener('click', (e) => {
+            const delBtn = e.target.closest('.auto-respond-card .btn-delete-rule');
+            if (delBtn) {
+                const ruleId = delBtn.closest('.auto-respond-card')?.dataset.ruleId;
+                if (ruleId) deleteAutoRespondRuleCard(ruleId);
+            }
+        });
+
+        document.addEventListener('change', (e) => {
+            if (e.target.classList.contains('ar-enable-toggle')) {
+                const ruleId = e.target.closest('.auto-respond-card')?.dataset.ruleId;
+                if (ruleId) toggleAutoRespondEnabled(ruleId, e.target.checked, e.target);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Base auth check logic matching system setup
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (!session) {
+                    return;
+                }
+                if (typeof initGlobalHeader === 'function') {
+                    initGlobalHeader(session);
+                }
+            } catch (err) {
+                console.error("Auth check failed:", err);
+                return;
+            }
+
+            document.querySelector('.add-rule-btn')?.addEventListener('click', addAutoRespondRule);
+
+            // [ملاحظة] زر .save-btn أصلاً عليه مستمع عام من dashboard.js
+            // بينادي savePageSettings() - بما إن AutoRespond.html مو
+            // مسجّلة بـ endpointMap وما فيها data-target-table، هذا
+            // المستمع يطلع دالة فاضية عملياً (بس console.warn، بدون أي
+            // ضرر أو تعارض). هذا المستمع الثاني هو اللي فعلياً يحفظ.
+            document.querySelector('.save-btn')?.addEventListener('click', (e) => {
+                if (e.currentTarget.disabled) return;
+                saveAllAutoRespondRules();
+            });
+
+            await loadAutoRespondRules();
+        });
+    </script>
+</body>
+</html>

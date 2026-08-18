@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="dashboard-guild-id" content="REPLACE_WITH_YOUR_GUILD_ID">
+    <title>OmniGuard - Category Embed Setup</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* Base Colors & Reset */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #111115;
+            --bg-tertiary: #18181c;
+            --accent-red: #ff3344;
+            --accent-red-hover: #ff5566;
+            --accent-green: #3ba55d;
+            --accent-green-hover: #43b869;
+            --text-primary: #ffffff;
+            --text-secondary: #8e9297;
+            --border-color: #2a2b30;
+        }
+
+        body { background-color: var(--bg-primary); color: var(--text-primary); display: flex; height: 100vh; overflow: hidden; }
+
+        /* Sidebar Styles */
+        .sidebar { width: 280px; background-color: var(--bg-secondary); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 24px 16px; overflow-y: auto; flex-shrink: 0; }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        .logo-section { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-left: 8px; flex-shrink: 0; }
+        .logo-icon { color: var(--accent-red); font-size: 24px; }
+        .logo-text { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+        .category-container { display: flex; align-items: center; gap: 10px; margin-top: 18px; margin-bottom: 10px; width: 100%; }
+        .category-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-secondary); white-space: nowrap; }
+        .category-line { flex-grow: 1; height: 1px; background-color: var(--border-color); }
+        .menu-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+        .menu-item a { display: flex; align-items: center; gap: 12px; padding: 10px 14px; color: var(--text-secondary); text-decoration: none; border-radius: 8px; font-weight: 500; font-size: 14px; transition: all 0.2s ease; }
+        .menu-item a:hover { color: var(--text-primary); background-color: var(--bg-tertiary); }
+        .menu-item.active a { color: var(--text-primary); background-color: rgba(255, 51, 68, 0.1); border-left: 3px solid var(--accent-red); padding-left: 11px; }
+
+        /* Main Content Area */
+        .main-content { flex-grow: 1; background-color: var(--bg-primary); display: flex; flex-direction: column; overflow-y: auto; }
+        header { height: 70px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background-color: var(--bg-secondary); flex-shrink: 0; }
+        .header-title { font-size: 18px; font-weight: 600; }
+        .user-profile { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; background-color: var(--accent-red); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
+        .header-controls { display: flex; align-items: center; gap: 16px; }
+        .guild-select { background-color: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 14px; outline: none; cursor: pointer; transition: border-color 0.2s; }
+        .guild-select:focus { border-color: var(--accent-red); }
+        .avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+        .logout-btn { background-color: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease; }
+        .logout-btn:hover { color: var(--accent-red); border-color: var(--accent-red); background-color: rgba(255, 51, 68, 0.05); }
+
+        .content-body { padding: 40px; max-width: 1200px; width: 100%; margin: 0 auto; }
+
+        /* Category Selector Card - [MODIFIED] كانت شريط أفقي واحد (Label + Dropdown +
+           Add على اليسار، Delete على اليمين). صارت الحين عمودية: صف علوي
+           (عنوان + زر الإضافة) وتحته قائمة Chips قابلة للف (Wrap). */
+        .category-selector-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px 28px;
+            margin-bottom: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .category-selector-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .category-selector-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+        }
+
+        .btn-action-outline {
+            background-color: transparent;
+            border: 1px dashed var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .btn-action-outline:hover {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+            background-color: rgba(255, 51, 68, 0.05);
+        }
+
+        /* [NEW] خانة إدخال اسم التصنيف الجديد - تحل محل نافذة prompt() المنبثقة.
+           نفس مكان زر "+ Add Category" بالضبط (واحد يظهر والثاني يختفي). */
+        .add-category-input {
+            width: 220px;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--accent-red);
+            color: var(--text-primary);
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            outline: none;
+        }
+
+        /* [NEW] قائمة الـ Chips - كل تصنيف جديد ينضاف بالبداية (أعلى/يسار
+           القائمة)، وكل Chip يحمل علامة حذف (×) خاصة فيه بأقصى اليمين. */
+        .category-chip-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .category-chip {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 9px 10px 9px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s ease;
+        }
+
+        .category-chip:hover {
+            border-color: var(--accent-red);
+            color: var(--text-primary);
+        }
+
+        .category-chip.active {
+            background-color: rgba(255, 51, 68, 0.12);
+            border-color: var(--accent-red);
+            color: var(--text-primary);
+        }
+
+        .chip-delete {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 5px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            transition: all 0.2s ease;
+        }
+
+        .chip-delete:hover {
+            background-color: var(--accent-red);
+            color: #ffffff;
+        }
+
+        /* Settings Grid */
+        .settings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 32px; }
+        @media (max-width: 992px) {
+            .settings-grid { grid-template-columns: 1fr; }
+            .category-selector-header { flex-wrap: wrap; }
+        }
+
+        .settings-card { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 28px; display: flex; flex-direction: column; gap: 20px; position: relative; }
+        .full-width { grid-column: span 2; }
+
+        .card-header-group { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px; }
+        .card-header-icon { color: var(--accent-red); font-size: 20px; }
+        .card-header-title { font-size: 16px; font-weight: 600; }
+
+        .form-row { display: flex; gap: 16px; }
+        @media (max-width: 600px) { .form-row { flex-direction: column; } }
+
+        .form-group { flex: 1; display: flex; flex-direction: column; gap: 8px; position: relative; }
+        .form-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
+
+        .form-input, .form-textarea, .form-select { width: 100%; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 12px 16px; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; }
+        .form-input:focus, .form-textarea:focus, .form-select:focus { border-color: var(--accent-red); }
+        .form-textarea { resize: vertical; min-height: 100px; }
+
+        /* Custom Code block preview styling */
+        .code-preview-box { background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-left: 3px solid var(--text-secondary); border-radius: 6px; padding: 12px 16px; font-family: 'Courier New', Courier, monospace; font-size: 13px; color: #b9bbbe; white-space: pre-wrap; word-break: break-all; margin-top: 6px; }
+
+        /* Custom Tag Selector Box */
+        .selector-box { background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px; min-height: 45px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; cursor: pointer; transition: border-color 0.2s; }
+        .selector-box:hover { border-color: var(--accent-red); }
+        .selector-placeholder { color: var(--text-secondary); font-size: 13px; margin-left: 5px; }
+
+        .tag-item { background-color: rgba(255, 51, 68, 0.15); color: var(--accent-red); padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px; border: 1px solid rgba(255, 51, 68, 0.3); }
+        .tag-item .remove-btn { cursor: pointer; font-size: 12px; line-height: 1; transition: color 0.2s; }
+        .tag-item .remove-btn:hover { color: white; }
+
+        .dropdown-list { position: absolute; top: 100%; left: 0; right: 0; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; margin-top: 5px; max-height: 200px; overflow-y: auto; z-index: 100; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .dropdown-list.show { display: block; }
+        .dropdown-item { padding: 10px 16px; font-size: 14px; cursor: pointer; transition: background 0.2s; }
+        .dropdown-item:hover { background-color: var(--accent-red); color: white; }
+
+        .limit-warning { color: var(--accent-red); font-size: 12px; margin-top: 4px; display: inline-block; }
+
+        /* Save Bar */
+        /* [NOTE] حالات .state-saved و .state-error متعمّد ما تكررت هنا -
+           موجودة أصلاً كتنسيق احتياطي مشترك يُحقن تلقائيًا من dashboard.js
+           (injectFallbackStyles) بنفس الألوان (--accent-green/--accent-red)
+           لكل صفحات الداشبورد. تكرارها هنا بس كان يزيد فرصة تعارض مستقبلي
+           لو انغيّر تصميمها من مكان مركزي واحد. */
+        .save-changes-bar { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; bottom: 20px; z-index: 10; margin-top: 24px; }
+        .save-info-text { font-size: 14px; color: var(--text-secondary); }
+        .save-btn { border: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 0.2s, color 0.2s; }
+        .save-btn.state-default { background-color: var(--bg-tertiary); color: var(--text-secondary); cursor: not-allowed; }
+        .save-btn.state-dirty { background-color: var(--accent-red); color: var(--text-primary); }
+        .save-btn.state-dirty:hover { background-color: var(--accent-red-hover); }
+    </style>
+</head>
+<body>
+
+     <!-- Left Sidebar Navigation (Synced with index.html) -->
+    <aside class="sidebar">
+        <!-- Bot Logo and Name -->
+        <div class="logo-section">
+            <i class="fa-solid fa-shield-halved logo-icon"></i>
+            <span class="logo-text">OmniGuard</span>
+        </div>
+         <!-- SEARCH CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Search</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    Search
+                </a>
+            </li>
+        </ul>
+        <!-- HOME CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Home</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="index">
+                    <i class="fa-solid fa-house"></i>
+                    Home
+                </a>
+            </li>
+        </ul>
+
+        <!-- CORE SETTINGS CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Core Settings</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="general-settings">
+                    <i class="fa-solid fa-sliders"></i>
+                    General Settings
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="welcome-leave">
+                    <i class="fa-solid fa-door-open"></i>
+                    Welcome & Leave
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="role-management">
+                    <i class="fa-solid fa-user-gear"></i>
+                    Role Management
+                </a>
+            </li>
+        </ul>
+
+       
+         <!-- MODERATION & SECURITY CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Moderation & Security</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="auto-mod">
+                    <i class="fa-solid fa-robot"></i>
+                    Auto-Mod
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="anti-alt">
+                    <i class="fa-solid fa-user-shield"></i>
+                    Anti-Alt
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="AutoRespond">
+                    <i class="fa-solid fa-reply-all"></i>
+                    Auto Respond
+                </a>
+            </li>
+        </ul>
+
+        <!-- TICKET SYSTEM CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Ticket System</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item active">
+                <a href="category">
+                    <i class="fa-solid fa-ticket"></i>
+                    Ticket Category
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="AutoLog">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    Ticket Auto Log
+                </a>
+            </li>
+        </ul>
+
+        </ul>
+        </li>
+            <li class="menu-item">
+                <a href="Permissionspanel">
+                    <i class="fa-solid fa-sliders"></i>
+                    Ticket Panel
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODULES & FEATURES CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Modules & Features</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="custom-messages">
+                    <i class="fa-solid fa-comment-dots"></i>
+                    Custom Messages
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="Level">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    Leveling System
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="commands">
+                    <i class="fa-solid fa-terminal"></i>
+                    Command Customization
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+ <main class="main-content"> 
+    
+    <!-- Main Content Area -->
+    <header>
+            <div class="header-title">General Settings</div>
+            <div class="header-controls">
+                <!-- Guild / Server Selector Dropdown -->
+                <select id="guild-selector" class="guild-select">
+                    <option value="" disabled selected>Loading Servers...</option>
+                </select>
+
+                <!-- Dynamic User Profile -->
+                <div class="user-profile" id="user-profile">
+                    <span id="user-name">Loading...</span>
+                    <div class="avatar" id="user-avatar">OG</div>
+                </div>
+
+                <!-- Logout Button -->
+                <button id="logout-btn" class="logout-btn">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+    </header>
+
+
+        <div class="content-body">
+
+            <!-- Category Master Selector - [MODIFIED] حُذف "Active Category:" نهائياً،
+                 والـ Dropdown تحول لقائمة Chips (كل عنصر جديد ينضاف بالأعلى، وفيه
+                 علامة حذف (×) خاصة فيه). -->
+            <div class="category-selector-card">
+                <div class="category-selector-header">
+                    <span class="category-selector-title">Ticket Categories</span>
+                    <button type="button" class="btn-action-outline" id="add_category_btn" onclick="showAddCategoryInput()">
+                        <i class="fa-solid fa-plus"></i> Add Category
+                    </button>
+                    <input type="text" id="add_category_input" class="add-category-input" placeholder="Category name... (Enter to confirm)" style="display:none;">
+                </div>
+                <div class="category-chip-list" id="category_chip_list">
+                    <!-- Populated dynamically via JS - renderCategoryChips() -->
+                </div>
+            </div>
+
+            <div class="settings-grid">
+
+                <!-- Category Welcome Embed & Button Configuration -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-envelope-open-text card-header-icon"></i>
+                        <h2 class="card-header-title">Category Welcome Embed & Button Configuration</h2>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Welcome EMBED Title</label>
+                        <input id="cat_embed_title" type="text" class="form-input" placeholder="Title shown at top of opened ticket">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Welcome EMBED Message / Description</label>
+                        <textarea id="cat_embed_desc" class="form-textarea" placeholder="Detailed message shown inside the opened ticket embed..."></textarea>
+                    </div>
+
+                    <!-- [NEW] لون الإيمبيد اللي يظهر داخل قناة التكت وقت فتحها -->
+                    <div class="form-group">
+                        <label class="form-label">Welcome EMBED Color</label>
+                        <input id="cat_embed_color" type="color" class="form-input" value="#5865F2" style="height:42px; padding:4px; cursor:pointer;">
+                    </div>
+
+                    <!-- Roles Mention Only -->
+                    <div class="form-group">
+                        <label class="form-label">Roles to Mention</label>
+                        <div class="selector-box" id="cat_mention_roles" data-source="roles" data-dropdown="catMentionRolesDropdown" onclick="toggleDropdown('catMentionRolesDropdown')">
+                            <span class="selector-placeholder">+ Select Roles to Mention</span>
+                        </div>
+                        <div id="catMentionRolesDropdown" class="dropdown-list"></div>
+                    </div>
+                </div>
+
+                <!-- [FIX] كان فيه </div> زيادة هنا خلّى كل قسم الـ Panel تحت
+                     يطلع برا الـ settings-grid كامل (بدون بطاقة/Card تحيط
+                     فيه) - هذا سبب انكسار التصميم. الحين بطاقة مستقلة وسليمة
+                     البنية، نفس شكل باقي البطاقات بالضبط. -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-bullhorn card-header-icon"></i>
+                        <h2 class="card-header-title">Global Ticket Panel Settings</h2>
+                    </div>
+
+                    <!-- إيموجي التصنيف - يظهر بجانب اسمه بالقائمة المنسدلة
+                         بديسكورد. لسا خاص بهذا التصنيف تحديداً
+                         (ticket_type_config.button_emoji) بعكس كل الحقول
+                         تحت - موجود هنا بصرياً بس، مو وظيفياً. -->
+                    <div class="form-group">
+                        <label class="form-label">Category Emoji (shown next to this category's name in the ticket menu)</label>
+                        <input id="cat_button_emoji" type="text" class="form-input" placeholder="e.g. 📩 or :ticket:">
+                    </div>
+
+                    <!-- باقي الحقول تحت كلها setting_ticket_system - إعداد
+                         عام لكل السيرفر، مو خاص بأي تصنيف، يُحفظ عبر مساره
+                         المخصص /ticket-settings (مو المسار العام). -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Ticket Panel Channel (where members open tickets)</label>
+                            <select id="panel_channel_id" class="form-select" data-source="channels">
+                                <option value="">Select a channel...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Panel Embed Title</label>
+                        <input id="panel_embed_title" type="text" class="form-input" placeholder="Support Tickets">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Panel Embed Description</label>
+                        <textarea id="panel_embed_description" class="form-textarea" placeholder="Click the button below to open a ticket."></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Panel Embed Color</label>
+                            <input id="panel_embed_color" type="color" class="form-input" value="#5865F2" style="height:42px; padding:4px; cursor:pointer;">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Panel Button Label</label>
+                            <input id="panel_button_label" type="text" class="form-input" placeholder="Open Ticket">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Panel Button Emoji</label>
+                            <input id="panel_button_emoji" type="text" class="form-input" placeholder="📩">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Panel Button Color</label>
+                            <select id="panel_button_style" class="form-select">
+                                <option value="primary">Blurple (Primary)</option>
+                                <option value="secondary">Grey (Secondary)</option>
+                                <option value="success">Green (Success)</option>
+                                <option value="danger">Red (Danger)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Category Access & Permissions - [NEW] مدموجة من Permissionspanel.html:
+                     كانت 3 حقول عامة لكل السيرفر (Blacklisted Roles / Allowed Roles to
+                     View / Manager Roles). صارت هنا حقلين فقط، لكل تصنيف لحاله:
+                     - Staff Roles: دمج "رؤية" و"تحكم/طاقم" بمفهوم واحد (قرار السكيما:
+                       أي رتبة ترى التكت تقدر تتحكم فيه أيضاً - مافي فصل بينهم).
+                     - Restricted Roles: ممنوعة من فتح هذا التصنيف تحديداً - نظام
+                       منفصل تماماً عن ticket_blacklist العام (حظر أشخاص بالـ ID). -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-shield-halved card-header-icon"></i>
+                        <h2 class="card-header-title">Category Access & Permissions</h2>
+                    </div>
+                    <div class="form-row" style="flex-wrap: wrap;">
+                        <div class="form-group" style="min-width: 280px;">
+                            <label class="form-label">Staff Roles (View, Control & Claim)</label>
+                            <div class="selector-box" id="cat_staff_roles" data-source="roles" data-dropdown="catStaffRolesDropdown" onclick="toggleDropdown('catStaffRolesDropdown')">
+                                <span class="selector-placeholder">+ Select Staff Roles</span>
+                            </div>
+                            <div id="catStaffRolesDropdown" class="dropdown-list"></div>
+                        </div>
+                        <div class="form-group" style="min-width: 280px;">
+                            <label class="form-label">Restricted Roles (Cannot Open This Category)</label>
+                            <div class="selector-box" id="cat_restricted_roles" data-source="roles" data-dropdown="catRestrictedRolesDropdown" onclick="toggleDropdown('catRestrictedRolesDropdown')">
+                                <span class="selector-placeholder">+ Select Restricted Roles</span>
+                            </div>
+                            <div id="catRestrictedRolesDropdown" class="dropdown-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Copyable Template Block (Grey Monospace Format) -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-copy card-header-icon"></i>
+                        <h2 class="card-header-title">Copyable Template Block (Grey Monospace Format)</h2>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Admin Copyable Template Text</label>
+                        <textarea id="cat_copyable_template" class="form-textarea" placeholder="Enter text that will appear in a grey copyable box inside Discord&#10;e.g.&#10;USERNAME:&#10;REASON:&#10;PROOF:"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="color: var(--accent-red);">Discord Code Block Preview</label>
+                        <div class="code-preview-box" id="code_preview_display">USERNAME:
+REASON:
+PROOF:</div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Sticky Save Bar -->
+            <div class="save-changes-bar">
+                <span class="save-info-text">Careful — any unsaved modifications will be lost!</span>
+                <button id="save_btn" class="save-btn state-default" disabled onclick="saveCategoriesData()">Save Changes</button>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="dashboard.js"></script>
+    <script>
+        // [CHANGED] كان تصنيف وهمي ثابت مكتوب بالكود (general_support) -
+        // الحين يُحمَّل فعلياً من GET /ticket-categories بالـ IIFE بالأسفل.
+        let categoriesData = {};
+
+        // [NEW] ترتيب العرض. GET /ticket-categories أصلاً يرجّع الأحدث أولاً
+        // (نفس تعليق apiRouter.js) فنبنيه مباشرة بنفس ترتيب الرد.
+        let categoryOrder = [];
+
+        let activeCategoryId = null;
+
+        // [NEW] تحويل صف قاعدة البيانات (أسماء أعمدة SQL) لشكل الفورم المحلي
+        function normalizeCategory(dbRow) {
+            return {
+                id: dbRow.id,
+                name: dbRow.name,
+                embed_title: dbRow.opening_embed_title || '',
+                embed_desc: dbRow.opening_embed_description || '',
+                embed_color: dbRow.opening_embed_color || '#5865F2',
+                mention_roles: dbRow.mention_roles || [],
+                button_emoji: dbRow.button_emoji || '📩',
+                copyable_template: dbRow.opening_copyable_text || 'USERNAME:\nREASON:\nPROOF:',
+                staff_roles: dbRow.staff_roles || [],
+                restricted_roles: dbRow.restricted_roles || []
+            };
+        }
+
+        // العكس - من شكل الفورم المحلي لأسماء أعمدة SQL الحقيقية، لإرسالها
+        // بـ PUT /ticket-categories/:typeId
+        function buildCategoryUpdates(cat) {
+            return {
+                name: cat.name,
+                opening_embed_title: cat.embed_title,
+                opening_embed_description: cat.embed_desc,
+                opening_embed_color: cat.embed_color,
+                mention_roles: cat.mention_roles,
+                button_emoji: cat.button_emoji,
+                opening_copyable_text: cat.copyable_template,
+                staff_roles: cat.staff_roles,
+                restricted_roles: cat.restricted_roles
+            };
+        }
+
+        // Live Preview for Copyable Monospace Code Block
+        const templateInput = document.getElementById('cat_copyable_template');
+        const previewDisplay = document.getElementById('code_preview_display');
+
+        if (templateInput && previewDisplay) {
+            templateInput.addEventListener('input', () => {
+                previewDisplay.textContent = templateInput.value || 'USERNAME:\nREASON:\nPROOF:';
+            });
+        }
+
+        // [REMOVED] markFormDirty()/markFormClean() المحليتين انمسحوا نهائياً.
+        // كانوا نسخة مكررة وناقصة (حالتين بس: رمادي/أحمر) من نظام موجود
+        // أصلاً وأكمل بـ dashboard.js: markClean() / markDirty() / markSaved()
+        // / markError() (أربع حالات، ومربوط أصلاً بتنسيق CSS محقون تلقائياً
+        // بكل صفحات الداشبورد). كل الاستدعاءات تحت صارت تستخدم النسخة
+        // المشتركة من dashboard.js مباشرة - بدون أي تعريف محلي إضافي هنا.
+
+        function renderCategoryChips() {
+            const list = document.getElementById('category_chip_list');
+            list.innerHTML = '';
+
+            categoryOrder.forEach(catId => {
+                const cat = categoriesData[catId];
+                if (!cat) return;
+
+                const chip = document.createElement('div');
+                chip.className = 'category-chip' + (catId === activeCategoryId ? ' active' : '');
+                chip.title = cat.name;
+                chip.onclick = () => switchActiveCategory(catId);
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'chip-name';
+                nameSpan.textContent = cat.name;
+
+                const delSpan = document.createElement('span');
+                delSpan.className = 'chip-delete';
+                delSpan.title = 'Delete Category';
+                delSpan.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+                delSpan.onclick = (event) => {
+                    event.stopPropagation(); // يمنع تفعيل switchActiveCategory عند الضغط على الحذف
+                    deleteCategoryById(catId);
+                };
+
+                chip.appendChild(nameSpan);
+                chip.appendChild(delSpan);
+                list.appendChild(chip);
+            });
+        }
+
+        // دالة صغيرة لتجميع الـ ID's من أي صندوق تاجات - نفس منطق mention_roles
+        // القديم، بس صار يُستدعى الحين لثلاث صناديق بدل وحد بس.
+        function collectTagIds(boxId) {
+            const box = document.getElementById(boxId);
+            if (!box) return [];
+            return Array.from(box.querySelectorAll('.tag-item')).map(tag => tag.dataset.id || tag.textContent.trim());
+        }
+
+        function saveCurrentFormToState() {
+            if (!activeCategoryId || !categoriesData[activeCategoryId]) return;
+
+            categoriesData[activeCategoryId] = {
+                ...categoriesData[activeCategoryId],
+                embed_title: document.getElementById('cat_embed_title').value,
+                embed_desc: document.getElementById('cat_embed_desc').value,
+                embed_color: document.getElementById('cat_embed_color').value,
+                mention_roles: collectTagIds('cat_mention_roles'),
+                button_emoji: document.getElementById('cat_button_emoji').value,
+                copyable_template: document.getElementById('cat_copyable_template').value,
+                // [NEW] مدموجة من Permissionspanel.html
+                staff_roles: collectTagIds('cat_staff_roles'),
+                restricted_roles: collectTagIds('cat_restricted_roles')
+            };
+        }
+
+        function loadCategoryToForm(catId) {
+            const data = categoriesData[catId];
+            if (!data) return;
+
+            activeCategoryId = catId;
+            document.getElementById('cat_embed_title').value = data.embed_title || '';
+            document.getElementById('cat_embed_desc').value = data.embed_desc || '';
+            document.getElementById('cat_embed_color').value = data.embed_color || '#5865F2';
+            document.getElementById('cat_button_emoji').value = data.button_emoji || '';
+            document.getElementById('cat_copyable_template').value = data.copyable_template || '';
+
+            // Update code preview display
+            if (previewDisplay) {
+                previewDisplay.textContent = data.copyable_template || 'USERNAME:\nREASON:\nPROOF:';
+            }
+
+            // Populate role tags - نفس المنطق لكل صناديق التاجات الثلاثة
+            populateTagBox('cat_mention_roles', data.mention_roles);
+            populateTagBox('cat_staff_roles', data.staff_roles); // [NEW]
+            populateTagBox('cat_restricted_roles', data.restricted_roles); // [NEW]
+        }
+
+        // [FIX] كانت تمرر roleId كـ "اسم عرض" حرفياً (window.addDiscordTag(boxId,
+        // roleId, roleId)) بدل ما تدوّر على الاسم الفعلي - ولازم كل تحميل كان
+        // يحمّر Save فوراً (addDiscordTag تستدعي markDirty() بداخلها). الحين
+        // نستخدم renderTags() الجاهزة بـ dashboard.js - نفس آلية باقي صفحات
+        // الداشبورد بالضبط: تحلّ الاسم من guildStructure.roles، وما تلمس حالة
+        // Dirty/Clean إطلاقاً (تعبئة أولية، مو تعديل من المستخدم).
+        function populateTagBox(boxId, roleIds) {
+            renderTags(`#${boxId}`, Array.isArray(roleIds) ? roleIds : [], 'roles');
+        }
+
+        function switchActiveCategory(newCatId) {
+            if (newCatId === activeCategoryId) return; // نفس العنصر النشط - ما فيه داعي لأي شي
+
+            saveCurrentFormToState();
+            loadCategoryToForm(newCatId);
+            renderCategoryChips(); // [NEW] لتحديث تظليل الـ Chip النشط (active) بالقائمة
+        }
+
+        // [CHANGED] كان addNewCategory() يفتح نافذة prompt() منبثقة. الحين
+        // زر "+ Add Category" يختفي وتظهر مكانه خانة إدخال بنفس المكان
+        // بالضبط - المشرف يكتب الاسم ويضغط Enter، أو Escape/الضغط بمكان
+        // ثاني للإلغاء بدون إنشاء شي.
+
+        function showAddCategoryInput() {
+            const btn = document.getElementById('add_category_btn');
+            const input = document.getElementById('add_category_input');
+
+            btn.style.display = 'none';
+            input.style.display = 'block';
+            input.value = '';
+            input.focus();
+        }
+
+        function hideAddCategoryInput() {
+            const btn = document.getElementById('add_category_btn');
+            const input = document.getElementById('add_category_input');
+
+            input.style.display = 'none';
+            btn.style.display = 'inline-flex';
+        }
+
+        function confirmAddCategoryFromInput() {
+            const input = document.getElementById('add_category_input');
+            const catName = input.value.trim();
+
+            hideAddCategoryInput();
+            if (!catName) return; // خانة فاضية - إلغاء صامت، بدون أي رسالة خطأ
+
+            createNewCategory(catName);
+        }
+
+        // [CHANGED] كانت تضيف بالذاكرة بس (Placeholder). الحين POST حقيقي
+        // لـ /ticket-categories - نفس فلسفة apiRouter.js: الإنشاء فوري،
+        // مو جزء من "Save Changes" العام تحت.
+        async function createNewCategory(catName) {
+            const nameExists = Object.values(categoriesData).some(c => c.name === catName);
+            if (nameExists) {
+                alert("A category with this name already exists!");
+                return;
+            }
+
+            saveCurrentFormToState();
+
+            try {
+                const response = await fetch(`${API_BASE}/guild/${getGuildId()}/ticket-categories`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({ name: catName })
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || 'Failed to create category');
+
+                const newCat = normalizeCategory(result.category);
+                categoriesData[newCat.id] = newCat;
+                categoryOrder.unshift(newCat.id); // الجديد دايماً ينضاف بأعلى القائمة
+                activeCategoryId = newCat.id;
+
+                renderCategoryChips();
+                loadCategoryToForm(newCat.id);
+            } catch (err) {
+                console.error('[Category Embed] Failed to create category:', err);
+                alert('Failed to create the category. Please try again.');
+            }
+        }
+
+        // [CHANGED] كانت تحذف بالذاكرة بس (Placeholder). الحين DELETE حقيقي -
+        // فوري، نفس فلسفة apiRouter.js. ما نحذف محلياً إلا بعد نجاح الطلب.
+        async function deleteCategoryById(catId) {
+            const keys = Object.keys(categoriesData);
+            if (keys.length <= 1) {
+                alert("You must keep at least one category.");
+                return;
+            }
+
+            if (!categoriesData[catId]) return;
+            if (!confirm(`Are you sure you want to delete "${categoriesData[catId].name}"?`)) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/guild/${getGuildId()}/ticket-categories/${catId}`, {
+                    method: 'DELETE',
+                    headers: getHeaders()
+                });
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    throw new Error(err.error || 'Failed to delete category');
+                }
+            } catch (err) {
+                console.error('[Category Embed] Failed to delete category:', err);
+                alert('Failed to delete the category. Please try again.');
+                return;
+            }
+
+            const wasActive = (catId === activeCategoryId);
+
+            delete categoriesData[catId];
+            categoryOrder = categoryOrder.filter(id => id !== catId);
+
+            if (wasActive) {
+                activeCategoryId = categoryOrder[0];
+                loadCategoryToForm(activeCategoryId);
+            }
+
+            renderCategoryChips();
+        }
+
+         async function saveCategoriesData() {
+            saveCurrentFormToState();
+
+            try {
+                // [CHANGED] كان console.log Placeholder. الحين PUT حقيقي لكل
+                // تصنيف بـ categoriesData بالتوازي (نفس فلسفة Promise.all
+                // بـ dashboard.js's savePageSettings).
+                await Promise.all(categoryOrder.map(catId => {
+                    const cat = categoriesData[catId];
+                    if (!cat) return Promise.resolve();
+
+                    return fetch(`${API_BASE}/guild/${getGuildId()}/ticket-categories/${catId}`, {
+                        method: 'PUT',
+                        headers: getHeaders(),
+                        body: JSON.stringify({ updates: buildCategoryUpdates(cat) })
+                    }).then(async response => {
+                        if (!response.ok) {
+                            const err = await response.json().catch(() => ({}));
+                            throw new Error(err.error || `Failed to save category "${cat.name}"`);
+                        }
+                    });
+                }));
+
+                
+
+                // قناة الـ Panel - إعداد عام مستقل تماماً عن categoriesData
+                // أعلاه، يُحفظ عبر مساره المخصص /ticket-settings.
+                const panelChannelSelect = document.getElementById('panel_channel_id');
+                if (panelChannelSelect) {
+                    const response = await fetch(`${API_BASE}/guild/${getGuildId()}/ticket-settings`, {
+                        method: 'PUT',
+                        headers: getHeaders(),
+                        body: JSON.stringify({
+                            updates: {
+                                panel_channel_id: panelChannelSelect.value || null,
+                                panel_embed_title: document.getElementById('panel_embed_title').value,
+                                panel_embed_description: document.getElementById('panel_embed_description').value,
+                                panel_embed_color: document.getElementById('panel_embed_color').value,
+                                panel_button_label: document.getElementById('panel_button_label').value,
+                                panel_button_emoji: document.getElementById('panel_button_emoji').value || null,
+                                panel_button_style: document.getElementById('panel_button_style').value
+                            }
+                        })
+                    });
+                    if (!response.ok) {
+                        const err = await response.json().catch(() => ({}));
+                        throw new Error(err.error || 'Failed to save ticket panel settings');
+                    }
+                }
+
+                markSaved(); // [CHANGED] كانت alert() + markFormClean() - الحين من dashboard.js
+            } catch (err) {
+                console.error('[Category Embed] Save failed:', err);
+                markError(); // [NEW] من dashboard.js - ما كانت هالحالة موجودة إطلاقاً بالنسخة القديمة
+            }
+        }
+
+        (async function () {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) { window.location.href = 'Login.html'; return; }
+            if (typeof initGlobalHeader === 'function') initGlobalHeader(session);
+
+            // [CHANGED] كان يبدأ بتصنيف وهمي ثابت. الحين تحميل حقيقي.
+            try {
+                const categoriesRes = await fetch(`${API_BASE}/guild/${getGuildId()}/ticket-categories`, { headers: getHeaders() });
+                const categoriesList = await categoriesRes.json();
+                if (!categoriesRes.ok) throw new Error(categoriesList.error || 'Failed to load categories');
+
+                categoriesData = {};
+                categoryOrder = [];
+                categoriesList.forEach(row => {
+                    const cat = normalizeCategory(row);
+                    categoriesData[cat.id] = cat;
+                    categoryOrder.push(cat.id);
+                });
+                activeCategoryId = categoryOrder[0] || null;
+            } catch (err) {
+                console.error('[Category Embed] Failed to load ticket categories:', err);
+            }
+
+            // [CHANGED] كان يبدأ بتصنيف وهمي ثابت. الحين تحميل حقيقي من
+            // GET /ticket-categories قبل أي عرض للـ Chips.
+            try {
+                const categoriesRes = await fetch(`${API_BASE}/guild/${getGuildId()}/ticket-categories`, { headers: getHeaders() });
+                const categoriesList = await categoriesRes.json();
+                if (!categoriesRes.ok) throw new Error(categoriesList.error || 'Failed to load categories');
+
+                categoriesData = {};
+                categoryOrder = [];
+                categoriesList.forEach(row => {
+                    const cat = normalizeCategory(row);
+                    categoriesData[cat.id] = cat;
+                    categoryOrder.push(cat.id);
+                });
+                activeCategoryId = categoryOrder[0] || null;
+            } catch (err) {
+                console.error('[Category Embed] Failed to load ticket categories:', err);
+            }
+
+            renderCategoryChips(); // [CHANGED] كانت renderCategoryDropdown()
+            if (activeCategoryId) loadCategoryToForm(activeCategoryId); // [CHANGED] فارغ لو السيرفر ما فيه أي تصنيف بعد
+
+            // [NEW] تحميل قناة الـ Panel - نستدعي fetchGuildStructure() هنا بأنفسنا (حتى لو
+
+            // [NEW] تحميل قناة الـ Panel - إعداد عام مستقل عن categoriesData.
+            // نستدعي fetchGuildStructure() بأنفسنا (حتى لو dashboard.js
+            // استدعتها بالتوازي عبر DOMContentLoaded) لضمان جاهزية خيارات
+            // الـ <select> قبل تعبئة القيمة المحفوظة.
+            await fetchGuildStructure();
+            try {
+                const ticketSettingsRes = await fetch(`${API_BASE}/guild/${getGuildId()}/ticket-settings`, { headers: getHeaders() });
+                const ticketSettings = await ticketSettingsRes.json();
+                const panelChannelSelect = document.getElementById('panel_channel_id');
+                if (ticketSettingsRes.ok && panelChannelSelect && ticketSettings.panel_channel_id) {
+                    panelChannelSelect.value = ticketSettings.panel_channel_id;
+                }
+
+                // [NEW] باقي حقول الـ Panel العامة
+                if (ticketSettingsRes.ok) {
+                    document.getElementById('panel_embed_title').value = ticketSettings.panel_embed_title || '';
+                    document.getElementById('panel_embed_description').value = ticketSettings.panel_embed_description || '';
+                    document.getElementById('panel_embed_color').value = ticketSettings.panel_embed_color || '#5865F2';
+                    document.getElementById('panel_button_label').value = ticketSettings.panel_button_label || '';
+                    document.getElementById('panel_button_emoji').value = ticketSettings.panel_button_emoji || '';
+                    document.getElementById('panel_button_style').value = ticketSettings.panel_button_style || 'primary';
+                }
+
+                
+            } catch (err) {
+                console.error('[Category Embed] Failed to load ticket panel settings:', err);
+            }
+
+            // [NEW] ربط لوحة المفاتيح بخانة إضافة التصنيف الجديدة
+
+            // [NEW] تحميل قناة الـ Panel - نستدعي fetchGuildStructure() هنا
+            // بأنفسنا (حتى لو dashboard.js استدعتها بالتوازي عبر DOMContentLoaded)
+            // لضمان إن خيارات الـ <select> جاهزة فعلاً قبل ما نحاول نعبّي القيمة
+            // المحفوظة فيها - تفادي أي Race Condition بين الملفين.
+            await fetchGuildStructure();
+            try {
+                const ticketSettingsRes = await fetch(`${API_BASE}/guild/${getGuildId()}/ticket-settings`, { headers: getHeaders() });
+                const ticketSettings = await ticketSettingsRes.json();
+                const panelChannelSelect = document.getElementById('panel_channel_id');
+                if (ticketSettingsRes.ok && panelChannelSelect && ticketSettings.panel_channel_id) {
+                    panelChannelSelect.value = ticketSettings.panel_channel_id;
+                }
+            } catch (err) {
+                console.error('[Category Embed] Failed to load ticket panel settings:', err);
+            }
+
+            // [NEW] ربط لوحة المفاتيح بخانة إضافة التصنيف الجديدة
+            const addCategoryInput = document.getElementById('add_category_input');
+            addCategoryInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    confirmAddCategoryFromInput();
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    hideAddCategoryInput();
+                }
+            });
+            addCategoryInput.addEventListener('blur', () => {
+                // تأخير بسيط عشان لو الـ blur صار بسبب ضغطة Enter نفسها،
+                // ما نسوي إخفاء مزدوج يسبب أي وميض بالواجهة
+                setTimeout(hideAddCategoryInput, 100);
+            });
+
+            const MAX_TAGS_PER_BOX_PAGE = 50;
+            const originalAddDiscordTag = window.addDiscordTag;
+
+            if (typeof originalAddDiscordTag === 'function') {
+                window.addDiscordTag = function (boxId, id, displayName) {
+                    const box = document.getElementById(boxId);
+                    if (box && box.querySelectorAll('.tag-item').length >= MAX_TAGS_PER_BOX_PAGE) {
+                        showLimitWarning(box);
+                        return;
+                    }
+                    originalAddDiscordTag(boxId, id, displayName);
+                    markDirty(); // [CHANGED] كانت markFormDirty() - الحين من dashboard.js
+                };
+            }
+
+            function showLimitWarning(box) {
+                if (box.parentElement.querySelector('.limit-warning')) return;
+                const warning = document.createElement('div');
+                warning.className = 'limit-warning';
+                warning.textContent = `Maximum ${MAX_TAGS_PER_BOX_PAGE} items reached`;
+                box.insertAdjacentElement('afterend', warning);
+                setTimeout(() => warning.remove(), 2000);
+            }
+        })();
+    </script>
+</body>
+</html>

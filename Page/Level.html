@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="dashboard-api-key" content="REPLACE_WITH_YOUR_DASHBOARD_API_KEY">
+    <meta name="dashboard-guild-id" content="REPLACE_WITH_YOUR_GUILD_ID">
+    <title>OmniGuard - Leveling System</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #111115;
+            --bg-tertiary: #18181c;
+            --accent-red: #ff3344;
+            --accent-red-hover: #ff5566;
+            --accent-green: #3ba55d;
+            --text-primary: #ffffff;
+            --text-secondary: #8e9297;
+            --border-color: #2a2b30;
+        }
+
+        body { background-color: var(--bg-primary); color: var(--text-primary); display: flex; height: 100vh; overflow: hidden; }
+
+        .sidebar { width: 280px; background-color: var(--bg-secondary); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 24px 16px; overflow-y: auto; }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        .logo-section { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-left: 8px; flex-shrink: 0; }
+        .logo-icon { color: var(--accent-red); font-size: 24px; }
+        .logo-text { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+        .category-container { display: flex; align-items: center; gap: 10px; margin-top: 18px; margin-bottom: 10px; width: 100%; }
+        .category-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-secondary); white-space: nowrap; }
+        .category-line { flex-grow: 1; height: 1px; background-color: var(--border-color); }
+        .menu-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+        .menu-item a { display: flex; align-items: center; gap: 12px; padding: 10px 14px; color: var(--text-secondary); text-decoration: none; border-radius: 8px; font-weight: 500; font-size: 14px; transition: all 0.2s ease; }
+        .menu-item a:hover { color: var(--text-primary); background-color: var(--bg-tertiary); }
+        .menu-item.active a { color: var(--text-primary); background-color: rgba(255, 51, 68, 0.1); border-left: 3px solid var(--accent-red); padding-left: 11px; }
+
+        .main-content { flex-grow: 1; background-color: var(--bg-primary); display: flex; flex-direction: column; overflow-y: auto; }
+        header { height: 70px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background-color: var(--bg-secondary); flex-shrink: 0; }
+        .header-title { font-size: 18px; font-weight: 600; }
+        .user-profile { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; background-color: var(--accent-red); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
+          .header-controls { display: flex; align-items: center; gap: 24px; }
+        .guild-select { background-color: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 14px; outline: none; cursor: pointer; transition: border-color 0.2s; }
+        .guild-select:focus { border-color: var(--accent-red); }
+        .logout-btn { background: none; border: 1px solid var(--border-color); color: var(--text-secondary); padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s; }
+        .logout-btn:hover { color: var(--accent-red); border-color: var(--accent-red); background-color: rgba(255, 51, 68, 0.05); }
+        #user-name { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+        .content-body { padding: 40px; max-width: 1200px; width: 100%; margin: 0 auto; }
+
+        .tabs-container { display: flex; gap: 12px; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; }
+        .tab-btn {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s ease;
+        }
+        .tab-btn i { font-size: 15px; }
+        .tab-btn:hover { color: var(--text-primary); background-color: var(--bg-tertiary); }
+        .tab-btn.active {
+            background-color: rgba(255, 51, 68, 0.15);
+            color: var(--accent-red);
+            border-color: var(--accent-red);
+        }
+
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        .settings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 32px; }
+        @media (max-width: 992px) { .settings-grid { grid-template-columns: 1fr; } }
+
+        .settings-card { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 28px; display: flex; flex-direction: column; gap: 20px; position: relative; }
+        .full-width { grid-column: span 2; }
+
+        .card-header-group { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 14px; }
+        .card-header-left { display: flex; align-items: center; gap: 12px; }
+        .card-header-icon { color: var(--accent-red); font-size: 20px; }
+        .card-header-title { font-size: 16px; font-weight: 600; }
+
+        .form-row { display: flex; gap: 16px; }
+        .form-group { flex: 1; display: flex; flex-direction: column; gap: 8px; position: relative; }
+        .form-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
+
+        .form-input, .form-select, .form-textarea { width: 100%; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 12px 16px; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent-red); }
+        .form-textarea { resize: vertical; min-height: 90px; }
+        .form-hint { font-size: 12px; color: var(--text-secondary); }
+
+        .switch-container { display: flex; align-items: center; justify-content: space-between; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); padding: 14px 18px; border-radius: 8px; transition: background-color 0.2s; }
+        .switch-info { display: flex; flex-direction: column; gap: 4px; }
+        .switch-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+        .switch-desc { font-size: 12px; color: var(--text-secondary); }
+        .switch { position: relative; display: inline-block; width: 46px; height: 24px; flex-shrink: 0; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--bg-secondary); border: 1px solid var(--border-color); transition: .25s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 3px; background-color: var(--text-secondary); transition: .25s; border-radius: 50%; }
+        input:checked + .slider { background-color: rgba(255, 51, 68, 0.2); border-color: var(--accent-red); }
+        input:checked + .slider:before { transform: translateX(20px); background-color: var(--accent-red); }
+
+        .selector-box {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px;
+            min-height: 45px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .selector-box:hover { border-color: var(--accent-red); }
+
+        .tag-item {
+            background-color: rgba(255, 51, 68, 0.15);
+            color: var(--accent-red);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid rgba(255, 51, 68, 0.3);
+        }
+        .tag-item .remove-btn { cursor: pointer; font-size: 10px; transition: color 0.2s; }
+        .tag-item .remove-btn:hover { color: white; }
+
+        .tag-input-ghost { flex: 1; min-width: 100px; background: transparent; border: none; outline: none; color: var(--text-primary); font-size: 13px; }
+        .tag-input-ghost::placeholder { color: var(--text-secondary); }
+
+        .dropdown-list {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            max-height: 220px;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .dropdown-list.show { display: block; }
+        .dropdown-item { padding: 10px 16px; font-size: 14px; cursor: pointer; transition: background 0.2s; }
+        .dropdown-item:hover { background-color: var(--accent-red); color: white; }
+        .dropdown-category-header {
+            padding: 8px 16px 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            pointer-events: none;
+            user-select: none;
+        }
+        .dropdown-empty { padding: 12px 16px; font-size: 13px; color: var(--text-secondary); }
+
+        .list-rows-container { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+        .list-item-row {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+        }
+        .list-item-info { display: flex; align-items: center; gap: 12px; flex: 1; }
+        .list-item-tag { background-color: var(--bg-secondary); border: 1px solid var(--border-color); padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+
+        .btn-secondary { background-color: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-secondary:hover { border-color: var(--accent-red); color: var(--accent-red); }
+        .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-danger { background-color: rgba(255, 51, 68, 0.15); border: 1px solid var(--accent-red); color: var(--accent-red); padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-danger:hover { background-color: var(--accent-red); color: white; }
+
+        .member-preview-box {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin-top: 4px;
+        }
+        .member-preview-box.show { display: flex; }
+        .member-preview-box img { width: 32px; height: 32px; border-radius: 50%; }
+        .member-preview-box .mp-name { font-size: 13px; font-weight: 600; }
+        .member-preview-box .mp-stats { font-size: 12px; color: var(--text-secondary); }
+        .member-preview-box.mp-error { border-color: var(--accent-red); color: var(--accent-red); font-size: 13px; padding: 10px 14px; }
+
+        .apply-btn { background-color: var(--accent-red); color: var(--text-primary); border: none; padding: 12px 22px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; height: 45px; }
+        .apply-btn:hover { background-color: var(--accent-red-hover); }
+        .apply-btn:disabled { cursor: not-allowed; opacity: 0.7; }
+        .apply-btn.apply-saved { background-color: var(--accent-green); }
+        .apply-btn.apply-error { background-color: var(--accent-red); }
+
+        .save-changes-bar { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; bottom: 20px; z-index: 10; margin-top: 24px; }
+        .save-info-text { font-size: 14px; color: var(--text-secondary); }
+        .save-btn { background-color: var(--accent-red); color: var(--text-primary); border: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; }
+        .save-btn:hover { background-color: var(--accent-red-hover); }
+    </style>
+</head>
+<body>
+
+    <!-- Left Sidebar Navigation (Synced with index.html) -->
+    <aside class="sidebar">
+        <!-- Bot Logo and Name -->
+        <div class="logo-section">
+            <i class="fa-solid fa-shield-halved logo-icon"></i>
+            <span class="logo-text">OmniGuard</span>
+        </div>
+         <!-- SEARCH CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Search</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    Search
+                </a>
+            </li>
+        </ul>
+        <!-- HOME CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Home</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="index">
+                    <i class="fa-solid fa-house"></i>
+                    Home
+                </a>
+            </li>
+        </ul>
+
+        <!-- CORE SETTINGS CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Core Settings</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="general-settings">
+                    <i class="fa-solid fa-sliders"></i>
+                    General Settings
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="welcome-leave">
+                    <i class="fa-solid fa-door-open"></i>
+                    Welcome & Leave
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="role-management">
+                    <i class="fa-solid fa-user-gear"></i>
+                    Role Management
+                </a>
+            </li>
+        </ul>
+
+         <!-- MODERATION & SECURITY CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Moderation & Security</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="auto-mod">
+                    <i class="fa-solid fa-robot"></i>
+                    Auto-Mod
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="anti-alt">
+                    <i class="fa-solid fa-user-shield"></i>
+                    Anti-Alt
+                </a>
+           </li>
+            <li class="menu-item">
+                <a href="AutoRespond">
+                    <i class="fa-solid fa-reply-all"></i>
+                    Auto Respond
+                </a>
+            </li>
+        </ul>
+
+
+        <!-- TICKET SYSTEM CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Ticket System</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="category">
+                    <i class="fa-solid fa-ticket"></i>
+                    Ticket Category
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="AutoLog">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    Ticket Auto Log
+                </a>
+            </li>
+        </ul>
+          
+       </ul>
+        </li>
+            <li class="menu-item">
+                <a href="Permissionspanel">
+                    <i class="fa-solid fa-sliders"></i>
+                    Ticket Panel
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODULES & FEATURES CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Modules & Features</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="custom-messages">
+                    <i class="fa-solid fa-comment-dots"></i>
+                    Custom Messages
+                </a>
+            </li>
+            <li class="menu-item active">
+                <a href="Level">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    Leveling System
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="commands">
+                    <i class="fa-solid fa-terminal"></i>
+                    Command Customization
+                </a>
+            </li>
+        </ul>
+    </aside>
+   
+
+    <main class="main-content">
+        
+      <!-- Main Content Area -->
+    <header>
+            <div class="header-title">General Settings</div>
+            <div class="header-controls">
+                <!-- Guild / Server Selector Dropdown -->
+                <select id="guild-selector" class="guild-select">
+                    <option value="" disabled selected>Loading Servers...</option>
+                </select>
+
+                <!-- Dynamic User Profile -->
+                <div class="user-profile" id="user-profile">
+                    <span id="user-name">Loading...</span>
+                    <div class="avatar" id="user-avatar">OG</div>
+                </div>
+
+                <!-- Logout Button -->
+                <button id="logout-btn" class="logout-btn">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+    </header>
+
+        <div class="content-body">
+
+            <div class="tabs-container">
+                <button class="tab-btn active" onclick="switchTab('general', this)">
+                    <i class="fa-solid fa-sliders"></i> General
+                </button>
+                <button class="tab-btn" onclick="switchTab('admin-tools', this)">
+                    <i class="fa-solid fa-user-gear"></i> Admin Tools
+                </button>
+            </div>
+
+            <!-- TAB 1: GENERAL -->
+            <div id="tab-general" class="tab-pane active">
+                <div class="settings-grid">
+
+                    <div class="settings-card">
+                        <div class="card-header-group">
+                            <div class="card-header-left">
+                                <i class="fa-solid fa-bolt card-header-icon"></i>
+                                <h2 class="card-header-title">Global XP Rates</h2>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Global Multiplier</label>
+                                <input id="global_multiplier" type="number" step="0.1" min="0.1" class="form-input" placeholder="1.0">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Text Cooldown (Sec)</label>
+                                <input id="text_cooldown_seconds" type="number" min="0" class="form-input" placeholder="60">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Min XP per Message</label>
+                                <input id="xp_min" type="number" min="1" class="form-input" placeholder="15">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Max XP per Message</label>
+                                <input id="xp_max" type="number" min="1" class="form-input" placeholder="25">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">XP Growth System</label>
+                            <select id="xp_growth_system" class="form-select">
+                                <option value="quadratic">Quadratic Growth (High)</option>
+                                <option value="linear">Linear Growth (Low)</option>
+                                <option value="exponential">Exponential Growth (High)</option>
+                                <option value="tiered">Tiered Ranks (Medium)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="settings-card">
+                        <div class="card-header-group">
+                            <div class="card-header-left">
+                                <i class="fa-solid fa-bell card-header-icon"></i>
+                                <h2 class="card-header-title">Announcement Settings</h2>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Notification Destination</label>
+                            <select id="notify_destination" class="form-select">
+                                <option value="current">Same Channel</option>
+                                <option value="dm">Direct Message (DM)</option>
+                                <option value="off">Disabled / Off</option>
+                            </select>
+                        </div>
+
+                        <div class="switch-container">
+                            <div class="switch-info">
+                                <span class="switch-title">Mention User on Level Up</span>
+                                <span class="switch-desc">Ping the user when they reach a new level.</span>
+                            </div>
+                            <label class="switch">
+                                <input id="mention_on_levelup" type="checkbox">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="settings-card full-width">
+                        <div class="card-header-group">
+                            <div class="card-header-left">
+                                <i class="fa-solid fa-hashtag card-header-icon"></i>
+                                <h2 class="card-header-title">Channel XP Restrictions</h2>
+                            </div>
+                        </div>
+                        <div class="form-row" style="flex-wrap: wrap;">
+                            <div class="form-group" style="min-width: 280px;">
+                                <label class="form-label">Whitelist Channels</label>
+                                <div class="selector-box" id="channel_whitelist" data-source="channels" data-dropdown="channel_whitelist_dropdown" onclick="toggleDropdown('channel_whitelist_dropdown')">
+                                    <input type="text" class="tag-input-ghost" placeholder="Click to select channels..." readonly>
+                                </div>
+                                <div id="channel_whitelist_dropdown" class="dropdown-list"></div>
+                            </div>
+                            <div class="form-group" style="min-width: 280px;">
+                                <label class="form-label">Blacklist Channels</label>
+                                <div class="selector-box" id="channel_blacklist" data-source="channels" data-dropdown="channel_blacklist_dropdown" onclick="toggleDropdown('channel_blacklist_dropdown')">
+                                    <input type="text" class="tag-input-ghost" placeholder="Click to select channels..." readonly>
+                                </div>
+                                <div id="channel_blacklist_dropdown" class="dropdown-list"></div>
+                            </div>
+                        </div>
+                        <span class="form-hint">Leave Whitelist empty to allow XP in every channel except the ones in Blacklist. If Whitelist has channels, only those count and Blacklist is ignored.</span>
+                    </div>
+
+                    <div class="settings-card full-width">
+                        <div class="card-header-group">
+                            <div class="card-header-left">
+                                <i class="fa-solid fa-angles-up card-header-icon"></i>
+                                <h2 class="card-header-title">Role XP Multipliers</h2>
+                            </div>
+                        </div>
+                        <div class="form-row" style="align-items: flex-end;">
+                            <div class="form-group">
+                                <label class="form-label">Select Role</label>
+                                <div class="selector-box" id="multiplierRoleBox" data-transient="true" data-source="roles" data-dropdown="multiplierRoleDropdown" onclick="toggleDropdown('multiplierRoleDropdown')">
+                                    <input type="text" class="tag-input-ghost" placeholder="Click to select a role..." readonly>
+                                </div>
+                                <div id="multiplierRoleDropdown" class="dropdown-list"></div>
+                            </div>
+                            <div class="form-group" style="flex: 0.4;">
+                                <label class="form-label">Multiplier Rate</label>
+                                <input id="newMultiplierRate" type="number" data-transient="true" step="0.05" min="0.05" class="form-input" placeholder="e.g. 1.25">
+                            </div>
+                            <div>
+                                <button type="button" class="btn-secondary" id="addMultiplierBtn"><i class="fa-solid fa-plus"></i> Add Multiplier</button>
+                            </div>
+                        </div>
+
+                        <div id="multipliersListContainer" class="list-rows-container">
+                            <p style="text-align:center; color: var(--text-secondary); padding: 12px 0;">Loading role multipliers...</p>
+                        </div>
+                    </div>
+
+                    <!-- [NEW] Tiered Rank Brackets - يظهر بس لو XP Growth System = Tiered Ranks -->
+                    <div class="settings-card full-width" id="tieredBracketsCard" style="display: none;">
+                        <div class="card-header-group">
+                            <div class="card-header-left">
+                                <i class="fa-solid fa-layer-group card-header-icon"></i>
+                                <h2 class="card-header-title">Tiered Rank Brackets</h2>
+                            </div>
+                        </div>
+                        <span class="form-hint">Define each bracket by its ending level. Example: "ends at level 10, 150 XP per level" covers levels 1–10, the next bracket then covers what comes after it.</span>
+                        <div class="form-row" style="align-items: flex-end;">
+                            <div class="form-group">
+                                <label class="form-label">Ends at Level</label>
+                                <input id="newBracketMaxLevel" type="number" data-transient="true" min="1" class="form-input" placeholder="e.g. 10">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">XP per Level in this Bracket</label>
+                                <input id="newBracketXpPerLevel" type="number" data-transient="true" min="1" class="form-input" placeholder="e.g. 150">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Label (Optional)</label>
+                                <input id="newBracketLabel" type="text" data-transient="true" class="form-input" placeholder="e.g. Bronze">
+                            </div>
+                            <div>
+                                <button type="button" class="btn-secondary" id="addBracketBtn"><i class="fa-solid fa-plus"></i> Add Bracket</button>
+                            </div>
+                        </div>
+
+                        <div id="bracketsListContainer" class="list-rows-container">
+                            <p style="text-align:center; color: var(--text-secondary); padding: 12px 0;">Loading brackets...</p>
+                        </div>
+                    </div>
+
+                    <div class="settings-card full-width">
+                        <div class="card-header-group">
+                            <div class="card-header-left">
+                                <i class="fa-solid fa-message card-header-icon"></i>
+                                <h2 class="card-header-title">Custom Level-Up Message</h2>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Level Up Message / Embed Description</label>
+                            <textarea id="level_up_message" class="form-textarea" placeholder="Leave empty to use the default message..."></textarea>
+                            <span class="form-hint">Leave empty to use the default message. Available placeholders: {user}, {level}, {xp}, {next_level_xp}</span>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- TAB 2: ADMIN TOOLS -->
+            <div id="tab-admin-tools" class="tab-pane">
+                <div class="settings-grid">
+
+                    <div class="settings-card full-width">
+                        <div class="card-header-group">
+                            <div class="card-header-left">
+                                <i class="fa-solid fa-sliders card-header-icon"></i>
+                                <h2 class="card-header-title">Manual Member XP Override</h2>
+                            </div>
+                        </div>
+                        <div class="form-row" style="align-items: flex-end;">
+                            <div class="form-group">
+                                <label class="form-label">User ID</label>
+                                <input id="overrideUserId" type="text" data-transient="true" class="form-input" placeholder="e.g. 123456789012345678">
+                            </div>
+                            <div class="form-group" style="flex: 0.4;">
+                                <label class="form-label">Action</label>
+                                <select id="overrideAction" class="form-select" data-transient="true">
+                                    <option value="add">Add XP</option>
+                                    <option value="remove">Remove XP</option>
+                                    <option value="set">Set Total XP To</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex: 0.4;">
+                                <label class="form-label">Amount</label>
+                                <input id="overrideAmount" type="number" data-transient="true" min="0" class="form-input" placeholder="Amount">
+                            </div>
+                            <div>
+                                <button type="button" class="apply-btn" id="applyOverrideBtn"><i class="fa-solid fa-check"></i> Apply</button>
+                            </div>
+                        </div>
+
+                        <div id="memberPreviewBox" class="member-preview-box">
+                            <img id="memberPreviewAvatar" src="" alt="">
+                            <div>
+                                <div class="mp-name" id="memberPreviewName"></div>
+                                <div class="mp-stats" id="memberPreviewStats"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="save-changes-bar">
+                <span class="save-info-text">Careful — any unsaved modifications will be lost!</span>
+                <button class="save-btn">Save Changes</button>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="dashboard.js"></script>
+    <script>
+        // ============================================================
+        // Level.html - منطق خاص بهالصفحة بس (يكمل Smart Binding العام):
+        //
+        // - تاب General (Global Multiplier, Cooldown, Growth System,
+        //   Notification, Mention, Whitelist/Blacklist Channels, Level Up
+        //   Message) كله أعمدة setting_leveling (صف واحد لكل سيرفر) -
+        //   يُحمَّل ويُحفظ تلقائياً بالكامل عبر loadPageSettings/
+        //   savePageSettings العامة بـ dashboard.js (بما إن 'level.html'
+        //   مسجّلة بـ endpointMap -> setting_leveling). صفر كود إضافي
+        //   يلزمها هنا.
+        //
+        // - Role XP Multipliers (جدول متعدد الصفوف) ومنطق Manual Member
+        //   XP Override (يحتاج جلب بيانات عضو حي من ديسكورد) هما الجزءين
+        //   اللي يحتاجون منطق مخصص - بالأسفل.
+        // ============================================================
+
+        function switchTab(tabName, element) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+            element.classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+        }
+
+        function escapeHtml(str) {
+            return String(str ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        // ------------------------------------------------------------
+        // Role XP Multipliers
+        // ------------------------------------------------------------
+        let roleMultipliers = [];
+
+        function getRoleName(roleId) {
+            const role = (guildStructure?.roles || []).find(r => r.id === roleId);
+            return role ? role.name : roleId;
+        }
+
+        function renderMultipliersList() {
+            const container = document.getElementById('multipliersListContainer');
+            if (!container) return;
+
+            if (roleMultipliers.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color: var(--text-secondary); padding: 12px 0;">No role multipliers configured yet.</p>';
+                return;
+            }
+
+            container.innerHTML = roleMultipliers.map(row => `
+                <div class="list-item-row" data-role-id="${row.id_role}">
+                    <div class="list-item-info">
+                        <span class="list-item-tag">@${escapeHtml(getRoleName(row.id_role))}</span>
+                        <span style="color: var(--text-secondary); font-size: 13px;">&times;${row.multiplier}</span>
+                    </div>
+                    <button type="button" class="btn-secondary btn-delete-multiplier" title="Delete">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        async function loadRoleMultipliers() {
+            const guildId = getGuildId();
+            if (!guildId) return;
+            try {
+                const response = await fetch(`${API_BASE}/guild/${guildId}/role-xp-multipliers`, { headers: getHeaders() });
+                const data = await response.json();
+                roleMultipliers = (response.ok && Array.isArray(data)) ? data : [];
+            } catch (err) {
+                console.error('[Level] Failed to load role multipliers:', err);
+                roleMultipliers = [];
+            }
+            renderMultipliersList();
+        }
+
+        async function addRoleMultiplier() {
+            const guildId = getGuildId();
+            if (!guildId) return;
+
+            const roleIds = collectTags('#multiplierRoleBox');
+            const roleId = roleIds[0];
+            const rateInput = document.getElementById('newMultiplierRate');
+            const multiplier = parseFloat(rateInput.value);
+
+            if (!roleId) {
+                showNotification('Please select a role first', 'error');
+                return;
+            }
+            if (!Number.isFinite(multiplier) || multiplier <= 0) {
+                showNotification('Please enter a valid multiplier rate', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/guild/${guildId}/role-xp-multipliers`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({ roleId, multiplier })
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    showNotification(data.error || 'Failed to add multiplier', 'error');
+                    return;
+                }
+
+                await loadRoleMultipliers();
+                renderTags('#multiplierRoleBox', [], 'roles');
+                rateInput.value = '';
+            } catch (err) {
+                console.error('[Level] Add multiplier error:', err);
+                showNotification('Network error while adding multiplier', 'error');
+            }
+        }
+
+        async function deleteRoleMultiplier(roleId) {
+            const guildId = getGuildId();
+            if (!guildId) return;
+            try {
+                const response = await fetch(`${API_BASE}/guild/${guildId}/role-xp-multipliers/${roleId}`, {
+                    method: 'DELETE',
+                    headers: getHeaders()
+                });
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    showNotification(data.error || 'Failed to delete multiplier', 'error');
+                    return;
+                }
+                await loadRoleMultipliers();
+            } catch (err) {
+                console.error('[Level] Delete multiplier error:', err);
+                showNotification('Network error while deleting multiplier', 'error');
+            }
+        }
+
+        document.addEventListener('click', (e) => {
+            const delBtn = e.target.closest('.btn-delete-multiplier');
+            if (delBtn) {
+                const roleId = delBtn.closest('.list-item-row')?.dataset.roleId;
+                if (roleId) deleteRoleMultiplier(roleId);
+            }
+        });
+
+        // ------------------------------------------------------------
+        // Tiered Rank Brackets - يظهر/يختفي حسب xp_growth_system المختار
+        // ------------------------------------------------------------
+        let tieredBrackets = [];
+
+        function toggleTieredBracketsCardVisibility() {
+            const select = document.getElementById('xp_growth_system');
+            const card = document.getElementById('tieredBracketsCard');
+            if (!select || !card) return;
+            card.style.display = (select.value === 'tiered') ? 'flex' : 'none';
+        }
+
+        function renderBracketsList() {
+            const container = document.getElementById('bracketsListContainer');
+            if (!container) return;
+
+            if (tieredBrackets.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color: var(--text-secondary); padding: 12px 0;">No brackets configured yet — a safe built-in default is used until you add some.</p>';
+                return;
+            }
+
+            const sorted = [...tieredBrackets].sort((a, b) => a.max_level - b.max_level);
+            container.innerHTML = sorted.map(b => `
+                <div class="list-item-row" data-bracket-id="${b.id}">
+                    <div class="list-item-info">
+                        <span class="list-item-tag">${b.label ? escapeHtml(b.label) + ' • ' : ''}Up to Level ${b.max_level}</span>
+                        <span style="color: var(--text-secondary); font-size: 13px;">${b.xp_per_level} XP / level</span>
+                    </div>
+                    <button type="button" class="btn-secondary btn-delete-bracket" title="Delete">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        async function loadTieredBrackets() {
+            const guildId = getGuildId();
+            if (!guildId) return;
+            try {
+                const response = await fetch(`${API_BASE}/guild/${guildId}/tiered-xp-brackets`, { headers: getHeaders() });
+                const data = await response.json();
+                tieredBrackets = (response.ok && Array.isArray(data)) ? data : [];
+            } catch (err) {
+                console.error('[Level] Failed to load tiered brackets:', err);
+                tieredBrackets = [];
+            }
+            renderBracketsList();
+        }
+
+        async function addTieredBracket() {
+            const guildId = getGuildId();
+            if (!guildId) return;
+
+            const maxLevel = parseInt(document.getElementById('newBracketMaxLevel').value, 10);
+            const xpPerLevel = parseInt(document.getElementById('newBracketXpPerLevel').value, 10);
+            const label = document.getElementById('newBracketLabel').value.trim();
+
+            if (!Number.isInteger(maxLevel) || maxLevel <= 0) {
+                showNotification('Please enter a valid "Ends at Level" value', 'error');
+                return;
+            }
+            if (!Number.isInteger(xpPerLevel) || xpPerLevel <= 0) {
+                showNotification('Please enter a valid XP per level value', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/guild/${guildId}/tiered-xp-brackets`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({ maxLevel, xpPerLevel, label: label || undefined })
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    showNotification(data.error || 'Failed to add bracket', 'error');
+                    return;
+                }
+
+                await loadTieredBrackets();
+                document.getElementById('newBracketMaxLevel').value = '';
+                document.getElementById('newBracketXpPerLevel').value = '';
+                document.getElementById('newBracketLabel').value = '';
+            } catch (err) {
+                console.error('[Level] Add bracket error:', err);
+                showNotification('Network error while adding bracket', 'error');
+            }
+        }
+
+        async function deleteTieredBracketRow(bracketId) {
+            const guildId = getGuildId();
+            if (!guildId) return;
+            try {
+                const response = await fetch(`${API_BASE}/guild/${guildId}/tiered-xp-brackets/${bracketId}`, {
+                    method: 'DELETE',
+                    headers: getHeaders()
+                });
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    showNotification(data.error || 'Failed to delete bracket', 'error');
+                    return;
+                }
+                await loadTieredBrackets();
+            } catch (err) {
+                console.error('[Level] Delete bracket error:', err);
+                showNotification('Network error while deleting bracket', 'error');
+            }
+        }
+
+        document.addEventListener('click', (e) => {
+            const delBtn = e.target.closest('.btn-delete-bracket');
+            if (delBtn) {
+                const bracketId = delBtn.closest('.list-item-row')?.dataset.bracketId;
+                if (bracketId) deleteTieredBracketRow(bracketId);
+            }
+        });
+
+        document.getElementById('addBracketBtn')?.addEventListener('click', addTieredBracket);
+        document.getElementById('xp_growth_system')?.addEventListener('change', toggleTieredBracketsCardVisibility);
+
+        // ------------------------------------------------------------
+        // Manual Member XP Override
+        // ------------------------------------------------------------
+        let memberPreviewDebounceTimer = null;
+        let currentPreviewedMember = null;
+
+        function hideMemberPreview() {
+            const box = document.getElementById('memberPreviewBox');
+            box.classList.remove('show', 'mp-error');
+            currentPreviewedMember = null;
+        }
+
+        async function fetchMemberPreview(userId) {
+            const guildId = getGuildId();
+            const box = document.getElementById('memberPreviewBox');
+
+            if (!/^\d{15,25}$/.test(userId)) {
+                hideMemberPreview();
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/guild/${guildId}/leveling/member/${userId}`, { headers: getHeaders() });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    box.classList.add('show', 'mp-error');
+                    box.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i>&nbsp; ${escapeHtml(data.error || 'Member not found')}`;
+                    currentPreviewedMember = null;
+                    return;
+                }
+
+                box.classList.remove('mp-error');
+                box.innerHTML = `
+                    <img id="memberPreviewAvatar" src="${data.avatarUrl}" alt="">
+                    <div>
+                        <div class="mp-name" id="memberPreviewName">${escapeHtml(data.displayName)} (@${escapeHtml(data.username)})</div>
+                        <div class="mp-stats" id="memberPreviewStats">Level ${data.level} - ${data.xp} / ${data.xpForNextLevel} XP - ${data.totalXp} Total XP</div>
+                    </div>
+                `;
+                box.classList.add('show');
+                currentPreviewedMember = data;
+            } catch (err) {
+                console.error('[Level] Member preview error:', err);
+                box.classList.add('show', 'mp-error');
+                box.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i>&nbsp; Network error while fetching member`;
+                currentPreviewedMember = null;
+            }
+        }
+
+        document.getElementById('overrideUserId')?.addEventListener('input', (e) => {
+            clearTimeout(memberPreviewDebounceTimer);
+            const value = e.target.value.trim();
+            if (!value) { hideMemberPreview(); return; }
+            memberPreviewDebounceTimer = setTimeout(() => fetchMemberPreview(value), 500);
+        });
+
+        let applyBtnTimer = null;
+        function setApplyBtnState(cls, text, disabled) {
+            const btn = document.getElementById('applyOverrideBtn');
+            clearTimeout(applyBtnTimer);
+            btn.classList.remove('apply-saved', 'apply-error');
+            if (cls) btn.classList.add(cls);
+            btn.disabled = disabled;
+            btn.innerHTML = text;
+        }
+
+        async function applyManualOverride() {
+            const guildId = getGuildId();
+            const userId = document.getElementById('overrideUserId').value.trim();
+            const mode = document.getElementById('overrideAction').value;
+            const amount = parseInt(document.getElementById('overrideAmount').value, 10);
+
+            if (!currentPreviewedMember || currentPreviewedMember.userId !== userId) {
+                showNotification('Please enter a valid User ID and wait for the member preview to confirm', 'error');
+                return;
+            }
+            if (!Number.isInteger(amount) || amount < 0) {
+                showNotification('Please enter a valid amount', 'error');
+                return;
+            }
+
+            setApplyBtnState(null, 'Applying...', true);
+
+            try {
+                const response = await fetch(`${API_BASE}/guild/${guildId}/leveling/member/${userId}/override`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({ mode, amount })
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    setApplyBtnState('apply-error', '&#9888; Error - Retry', false);
+                    showNotification(data.error || 'Failed to apply XP change', 'error');
+                    return;
+                }
+
+                setApplyBtnState('apply-saved', '&#10003; Applied', true);
+                applyBtnTimer = setTimeout(() => setApplyBtnState(null, '<i class="fa-solid fa-check"></i> Apply', false), 2500);
+
+                await fetchMemberPreview(userId);
+            } catch (err) {
+                console.error('[Level] Apply override error:', err);
+                setApplyBtnState('apply-error', '&#9888; Error - Retry', false);
+                showNotification('Network error while applying XP change', 'error');
+            }
+        }
+
+        document.getElementById('applyOverrideBtn')?.addEventListener('click', applyManualOverride);
+        document.getElementById('addMultiplierBtn')?.addEventListener('click', addRoleMultiplier);
+
+        // guildStructure (أدوار/قنوات) يجهّزها fetchGuildStructure() العامة
+        // اللي تنادى تلقائياً من loadPageSettings() بما إن الصفحة فيها
+        // .selector-box[data-source] - بس Role XP Multipliers/Tiered
+        // Brackets قوائم منفصلة بمنطقها الخاص، فنحمّلها يدوياً بعد التأكد
+        // من جاهزية الصفحة. نفس الانتظار يُستخدم كمان عشان نتأكد إن
+        // populateUI() خلصت تعبئة xp_growth_system قبل أول تبديل ظهور
+        // لكرت Tiered Brackets (وإلا يبان بالخطأ لأول لحظة لو كان محفوظ
+        // Tiered فعلاً بالإعدادات).
+        document.addEventListener('DOMContentLoaded', () => {
+            const checkReady = setInterval(() => {
+                if (typeof getGuildId === 'function' && getGuildId()) {
+                    clearInterval(checkReady);
+                    loadRoleMultipliers();
+                    loadTieredBrackets();
+
+                    // ننتظر لحظة إضافية بسيطة عشان loadPageSettings() (اللي
+                    // تشتغل بالتوازي من dashboard.js) تخلص تعبئة xp_growth_system
+                    // قبل ما نقرر ظهور/إخفاء كرت Tiered Brackets.
+                    setTimeout(toggleTieredBracketsCardVisibility, 600);
+                }
+            }, 300);
+        });
+    </script>
+</body>
+</html>

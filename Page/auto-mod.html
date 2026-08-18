@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">    
+    <title>OmniGuard - Auto-Mod Configuration</title>
+    <!-- Google Fonts & FontAwesome Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Base Colors & Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #111115;
+            --bg-tertiary: #18181c;
+            --accent-red: #ff3344;
+            --accent-red-hover: #ff5566;
+            --text-primary: #ffffff;
+            --text-secondary: #8e9297;
+            --border-color: #2a2b30;
+            --warning-amber: #ffaa00;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 16px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding-left: 8px;
+            flex-shrink: 0;
+        }
+
+        .logo-icon {
+            color: var(--accent-red);
+            font-size: 24px;
+        }
+
+        .logo-text {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .category-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 18px;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+
+        .category-header {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .category-line {
+            flex-grow: 1;
+            height: 1px;
+            background-color: var(--border-color);
+        }
+
+        .menu-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .menu-item a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .menu-item a:hover {
+            color: var(--text-primary);
+            background-color: var(--bg-tertiary);
+        }
+
+        /* Highlight Active Item */
+        .menu-item.active a {
+            color: var(--text-primary);
+            background-color: rgba(255, 51, 68, 0.1);
+            border-left: 3px solid var(--accent-red);
+            padding-left: 11px;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex-grow: 1;
+            background-color: var(--bg-primary);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        header {
+            height: 70px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            background-color: var(--bg-secondary);
+            flex-shrink: 0;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--accent-red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .content-body {
+            padding: 40px;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* Settings Grid Layout */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        @media (max-width: 992px) {
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .settings-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .full-width {
+            grid-column: span 2;
+        }
+
+        @media (max-width: 992px) {
+            .full-width {
+                grid-column: span 1;
+            }
+        }
+
+        .card-header-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 14px;
+        }
+
+        .card-header-icon {
+            color: var(--accent-red);
+            font-size: 20px;
+        }
+
+        .card-header-title {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+
+        /* Form Controls */
+        .form-row {
+            display: flex;
+            gap: 16px;
+        }
+
+        @media (max-width: 600px) {
+            .form-row {
+                flex-direction: column;
+            }
+        }
+
+        .form-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.5px;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            border-color: var(--accent-red);
+            box-shadow: 0 0 0 3px rgba(255, 51, 68, 0.15);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 90px;
+        }
+
+        /* Action Row Builder */
+        .action-row-builder {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background-color: var(--bg-tertiary);
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            flex-wrap: wrap;
+        }
+
+        .action-row-builder span {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .action-row-builder .inline-input {
+            width: 70px;
+            text-align: center;
+            padding: 8px;
+        }
+
+        .action-row-builder .inline-select {
+            width: auto;
+            min-width: 180px;
+            padding: 8px 12px;
+        }
+
+        .action-row-builder .inline-time-input {
+            width: 110px;
+            padding: 8px 12px;
+        }
+
+        /* Custom Switch Styling */
+        .switch-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            padding: 14px 18px;
+            border-radius: 8px;
+            transition: background-color 0.2s;
+        }
+
+        .switch-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .switch-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .switch-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            transition: .25s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 3px;
+            background-color: var(--text-secondary);
+            transition: .25s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: rgba(255, 51, 68, 0.2);
+            border-color: var(--accent-red);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+            background-color: var(--accent-red);
+        }
+
+        /* Custom Word Filter and Tags Styles */
+        .filter-tags-box {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            min-height: 52px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .empty-tag-placeholder {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        /* Word Chip Style to fit design without alteration */
+        .word-badge-tag {
+            background-color: rgba(255, 51, 68, 0.1);
+            border: 1px solid rgba(255, 51, 68, 0.25);
+            color: var(--text-primary);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: tagFadeIn 0.15s ease-in-out;
+        }
+
+        @keyframes tagFadeIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .word-badge-tag i {
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 11px;
+            transition: color 0.2s;
+        }
+
+        .word-badge-tag i:hover {
+            color: var(--accent-red);
+        }
+
+        /* [تصحيح] العناصر اللي dashboard.js فعلياً ينشئها لأي صندوق تاقات
+           (.tag-item / .remove-btn) - نفس شكل .word-badge-tag تماماً بدون
+           أي تغيير بصري، بس بأسماء الكلاسات اللي الكود الفعلي يستهدفها. */
+        .tag-item {
+            background-color: rgba(255, 51, 68, 0.1);
+            border: 1px solid rgba(255, 51, 68, 0.25);
+            color: var(--text-primary);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: tagFadeIn 0.15s ease-in-out;
+        }
+
+        .tag-item .remove-btn {
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 13px;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .tag-item .remove-btn:hover {
+            color: var(--accent-red);
+        }
+
+        .tag-input-ghost {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            flex: 1;
+            min-width: 140px;
+            padding: 4px;
+        }
+
+        .tag-input-ghost::placeholder {
+            color: var(--text-secondary);
+        }
+
+        .tag-adder-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .tag-btn {
+            background-color: var(--accent-red);
+            color: var(--text-primary);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .tag-btn:hover {
+            background-color: var(--accent-red-hover);
+        }
+
+        .note-banner {
+            background-color: rgba(255, 170, 0, 0.07);
+            border: 1px dashed var(--warning-amber);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .note-banner i {
+            color: var(--warning-amber);
+            font-size: 16px;
+            margin-top: 2px;
+        }
+
+        .note-banner p {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* Bottom Fixed Save Bar */
+        /* Sticky Save Bar - Exact configuration from general-settings.html */
+.save-changes-bar { 
+    background-color: var(--bg-secondary); 
+    border: 1px solid var(--border-color); 
+    border-radius: 12px; 
+    padding: 20px 32px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    
+    /* Crucial lines that enable the sticky behavior at the bottom */
+    position: sticky; 
+    bottom: 20px; 
+    z-index: 10; 
+}
+
+        .save-info-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .save-btn {
+            background-color: var(--accent-red);
+            color: var(--text-primary);
+            border: none;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .save-btn:hover {
+            background-color: var(--accent-red-hover);
+        }
+
+        /* Dynamic Rules System Styling (v5.3 - Automated Infraction System) */
+        .rules-list-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .empty-rules-placeholder {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-style: italic;
+            padding: 4px 2px;
+        }
+
+        .btn-delete-rule, .btn-save-rule {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            padding: 8px 10px;
+            border-radius: 6px;
+            transition: color 0.2s, background-color 0.2s;
+        }
+
+        .btn-save-rule {
+            margin-left: auto;
+        }
+
+        .btn-save-rule:hover {
+            color: #3ba55d;
+            background-color: rgba(59, 165, 93, 0.12);
+        }
+
+        .btn-save-rule:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-delete-rule:hover {
+            color: var(--accent-red);
+            background-color: rgba(255, 51, 68, 0.12);
+        }
+
+        .add-rule-btn {
+            background-color: transparent;
+            border: 1px dashed var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            width: fit-content;
+        }
+
+        .add-rule-btn:hover {
+            border-color: var(--accent-red);
+            color: var(--accent-red);
+            background-color: rgba(255, 51, 68, 0.05);
+        }
+
+        .rule-arrow-icon {
+            color: var(--text-secondary);
+            font-size: 13px;
+            margin: 0 4px;
+            transition: color 0.2s;
+        }
+
+        .action-row-builder:hover .rule-arrow-icon {
+            color: var(--accent-red);
+        }
+
+        .inline-time-input:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-color: transparent;
+        }
+
+        /* صف بيحمل خطأ حفظ (عتبة مكررة، أكشن غير صالح، ...) */
+        .rule-row-error {
+            color: var(--accent-red);
+            font-size: 11px;
+            font-weight: 500;
+            width: 100%;
+            padding-top: 4px;
+        }
+
+        /* ومضة خضراء قصيرة بعد نجاح الحفظ - تأكيد بصري بدون Alert مزعج */
+        @keyframes ruleSavedFlash {
+            0% { border-color: #3ba55d; box-shadow: 0 0 0 2px rgba(59, 165, 93, 0.25); }
+            100% { border-color: var(--border-color); box-shadow: none; }
+        }
+
+        .rule-saved-flash {
+            animation: ruleSavedFlash 0.8s ease-out;
+        }
+        /* --- التنسيقات المفقودة للهيدر --- */
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.guild-select {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.guild-select:focus {
+    border-color: var(--accent-red);
+}
+
+.logout-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.logout-btn:hover {
+    color: var(--accent-red);
+    border-color: var(--accent-red);
+    background-color: rgba(255, 51, 68, 0.05);
+}
+
+#user-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+    </style>
+</head>
+<body>
+
+    <!-- Left Sidebar Navigation (Synced with index.html) -->
+    <aside class="sidebar">
+        <!-- Bot Logo and Name -->
+        <div class="logo-section">
+            <i class="fa-solid fa-shield-halved logo-icon"></i>
+            <span class="logo-text">OmniGuard</span>
+        </div>
+         <!-- SEARCH CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Search</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    Search
+                </a>
+            </li>
+        </ul>
+        <!-- HOME CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Home</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="index">
+                    <i class="fa-solid fa-house"></i>
+                    Home
+                </a>
+            </li>
+        </ul>
+
+        <!-- CORE SETTINGS CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Core Settings</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="general-settings">
+                    <i class="fa-solid fa-sliders"></i>
+                    General Settings
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="welcome-leave">
+                    <i class="fa-solid fa-door-open"></i>
+                    Welcome & Leave
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="role-management">
+                    <i class="fa-solid fa-user-gear"></i>
+                    Role Management
+                </a>
+            </li>
+        </ul>
+
+         <!-- MODERATION & SECURITY CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Moderation & Security</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list active">
+            <li class="menu-item">
+                <a href="auto-mod">
+                    <i class="fa-solid fa-robot"></i>
+                    Auto-Mod
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="anti-alt">
+                    <i class="fa-solid fa-user-shield"></i>
+                    Anti-Alt
+                </a>
+           </li>
+            <li class="menu-item">
+                <a href="AutoRespond">
+                    <i class="fa-solid fa-reply-all"></i>
+                    Auto Respond
+                </a>
+            </li>
+        </ul>
+
+
+        <!-- TICKET SYSTEM CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Ticket System</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="category">
+                    <i class="fa-solid fa-ticket"></i>
+                    Ticket Category
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="AutoLog">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    Ticket Auto Log
+                </a>
+            </li>
+        </ul>
+          
+       </ul>
+        </li>
+            <li class="menu-item">
+                <a href="Permissionspanel">
+                    <i class="fa-solid fa-sliders"></i>
+                    Ticket Panel
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODULES & FEATURES CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Modules & Features</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="custom-messages">
+                    <i class="fa-solid fa-comment-dots"></i>
+                    Custom Messages
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="Level">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    Leveling System
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="commands">
+                    <i class="fa-solid fa-terminal"></i>
+                    Command Customization
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+ <main class="main-content"> 
+    
+    <!-- Main Content Area -->
+    <header>
+            <div class="header-title">General Settings</div>
+            <div class="header-controls">
+                <!-- Guild / Server Selector Dropdown -->
+                <select id="guild-selector" class="guild-select">
+                    <option value="" disabled selected>Loading Servers...</option>
+                </select>
+
+                <!-- Dynamic User Profile -->
+                <div class="user-profile" id="user-profile">
+                    <span id="user-name">Loading...</span>
+                    <div class="avatar" id="user-avatar">OG</div>
+                </div>
+
+                <!-- Logout Button -->
+                <button id="logout-btn" class="logout-btn">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+    </header>
+
+        <div class="content-body">
+            <div class="settings-grid">
+                
+                <!-- SECTION 0: Command Spam Protection (v5.3 - NEW, actually command-specific)
+                     [swapped with Advanced Security below - same content, new position] -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-terminal card-header-icon"></i>
+                        <h2 class="card-header-title">Command Spam Protection</h2>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Max Commands Allowed</label>
+                            <input id="cmd_spam_max_commands" type="number" class="form-input" placeholder="e.g., 5" min="1" max="50">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Cooldown / Time Window</label>
+                            <input id="cmd_cooldown_spam" type="text" class="form-input duration-input" placeholder="e.g., 10s" maxlength="6">
+                            <small style="color: var(--text-secondary); font-size: 11px;">Format: number + s/m/h/d/w (e.g. 10s, 5m, 1h)</small>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Default Action on Spam</label>
+                            <select id="cmd_spam_default_action" class="form-select">
+                                <option value="" disabled selected>Select an action...</option>
+                                <option value="mute">Mute Member</option>
+                                <option value="kick">Kick Member</option>
+                                <option value="ban">Ban Member</option>
+                                <option value="demote">Demote (Demote to Safe Role)</option>
+                                <option value="none">None (Delete Message Only)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Action Duration</label>
+                            <input id="cmd_spam_action_duration" type="text" class="form-input duration-input" placeholder="e.g., 30m" maxlength="6">
+                            <small style="color: var(--text-secondary); font-size: 11px;">Format: number + s/m/h/d/w (e.g. 30m, 12h, 1w)</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 1a: Advanced Server Security
+                     [swapped with Command Spam Protection above - same content, new position] -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-user-shield card-header-icon"></i>
+                        <h2 class="card-header-title">Advanced Security</h2>
+                    </div>
+
+                    <div class="form-group" style="gap: 14px;">
+                        <!-- Role Restore Toggle -->
+                        <div class="switch-container">
+                            <div class="switch-info">
+                                <span class="switch-title">Role Restore on Rejoin</span>
+                                <span class="switch-desc">Reassign previous roles automatically when members rejoin to prevent Mute Evading.</span>
+                            </div>
+                            <label class="switch">
+                                <!-- [FIX] Smart Binding كان يشاور على عمود ميت
+                                     (setting_moderation_security.role_restore_on_rejoin).
+                                     الكود الفعلي بـ events/server.js (v3.1) يقرأ فقط
+                                     setting_guild.autorole_enabled - الزر القديم ما
+                                     كان يأثر على القيمة الحقيقية إطلاقاً بأي حال. -->
+                                <input id="autorole_enabled" data-target-table="setting_guild" type="checkbox">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 1b: Regular Chat Spam (renamed from "Command Spam Protection" -
+                     it actually checks EVERY message via AutoMod.js's checkSpam(), not
+                     commands specifically. Same fields/columns as before - v5.3 only
+                     relabeled it and removed the misleading Code Note below. -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-bolt card-header-icon"></i>
+                        <h2 class="card-header-title">Regular Chat Spam</h2>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Max Messages Allowed</label>
+                            <input id="spam_max_commands" type="number" class="form-input" placeholder="e.g., 5" min="1" max="50">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Cooldown / Time Window</label>
+                            <input id="cooldown_spam" type="text" class="form-input duration-input" placeholder="e.g., 10s" maxlength="6">
+                            <small style="color: var(--text-secondary); font-size: 11px;">Format: number + s/m/h/d/w (e.g. 10s, 5m, 1h)</small>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Default Action on Spam</label>
+                            <select id="spam_default_action" class="form-select">
+                                <option value="" disabled selected>Select an action...</option>
+                                <option value="mute">Mute Member</option>
+                                <option value="kick">Kick Member</option>
+                                <option value="ban">Ban Member</option>
+                                <option value="demote">Demote (Strip Roles)</option>
+                                <option value="none">None (Delete Message Only)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Action Duration</label>
+                            <input id="spam_action_duration" type="text" class="form-input duration-input" placeholder="e.g., 30m" maxlength="6">
+                            <small style="color: var(--text-secondary); font-size: 11px;">Format: number + s/m/h/d/w (e.g. 30m, 12h, 1w)</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 2: Command Execution Notifications (v5.3.1) -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-comment-dots card-header-icon"></i>
+                        <h2 class="card-header-title">Command Notifications</h2>
+                    </div>
+
+                    <div class="form-group" style="gap: 14px;">
+                        <!-- Toggle 1: DM the target user -->
+                        <div class="switch-container">
+                            <div class="switch-info">
+                                <span class="switch-title">Notify via DM</span>
+                                <span class="switch-desc">Send a private message to the affected member whenever a command is executed on them.</span>
+                            </div>
+                            <label class="switch">
+                                <input id="notify_command_dm" data-target-table="setting_guild" type="checkbox">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <!-- Toggle 2: Post confirmation in the channel -->
+                        <div class="switch-container">
+                            <div class="switch-info">
+                                <span class="switch-title">Notify in Channel</span>
+                                <span class="switch-desc">Post a confirmation message in the same channel whenever a command is executed.</span>
+                            </div>
+                            <label class="switch">
+                                <input id="notify_command_channel" data-target-table="setting_guild" type="checkbox">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 3: Automated Infraction System (v5.3 - Dynamic Rules)
+                     يستبدل نظام Tier1/Tier2 الثابت القديم (limit_trigger_warn/
+                     limit_trigger_severe وأعمدتهم - أصبحوا "متروكين" بالسكيما،
+                     راجع v5.3 delta). كل قاعدة (After X <Type> -> Action [for
+                     Duration]) صف مستقل بجدول auto_mod_rule_config، تُحفظ/تُحذف
+                     فوراً عبر مسارات /guild/:guildId/auto-mod-rules المخصصة -
+                     مو جزء من زر "Save Changes" العام بالأسفل. -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-triangle-exclamation card-header-icon"></i>
+                        <h2 class="card-header-title">Automated Infraction System</h2>
+                    </div>
+
+                    <div class="form-group" style="gap: 16px;">
+
+                        <!-- 1. Warn Accumulation Rules -->
+                        <label class="form-label" style="border-left: 3px solid var(--accent-red); padding-left: 8px;">Warn Accumulation Rules</label>
+                        <div id="warn_rules_container" class="rules-list-container">
+                            <span class="empty-rules-placeholder" data-empty-for="warn">No warn rules yet - click "Add Warn Rule" below.</span>
+                        </div>
+                        <button type="button" id="add_warn_rule_btn" class="add-rule-btn">
+                            <i class="fa-solid fa-plus"></i> Add Warn Rule
+                        </button>
+
+                        <!-- 2. Mute Accumulation Rules -->
+                        <label class="form-label" style="border-left: 3px solid var(--accent-red); padding-left: 8px; margin-top: 14px;">Mute Accumulation Rules</label>
+                        <div id="mute_rules_container" class="rules-list-container">
+                            <span class="empty-rules-placeholder" data-empty-for="mute">No mute rules yet - click "Add Mute Rule" below.</span>
+                        </div>
+                        <button type="button" id="add_mute_rule_btn" class="add-rule-btn">
+                            <i class="fa-solid fa-plus"></i> Add Mute Rule
+                        </button>
+
+                        <!-- 3. Kick Accumulation Rules -->
+                        <label class="form-label" style="border-left: 3px solid var(--accent-red); padding-left: 8px; margin-top: 14px;">Kick Accumulation Rules</label>
+                        <div id="kick_rules_container" class="rules-list-container">
+                            <span class="empty-rules-placeholder" data-empty-for="kick">No kick rules yet - click "Add Kick Rule" below.</span>
+                        </div>
+                        <button type="button" id="add_kick_rule_btn" class="add-rule-btn">
+                            <i class="fa-solid fa-plus"></i> Add Kick Rule
+                        </button>
+
+                    </div>
+                </div>
+
+                <!-- SECTION 4: Content Filter & Custom Alerts -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-filter card-header-icon"></i>
+                        <h2 class="card-header-title">Content Filter</h2>
+                    </div>
+
+                    <div class="form-row" style="flex-wrap: wrap;">
+                        <!-- Filter Toggles -->
+                        <div class="form-group" style="min-width: 280px; gap: 12px;">
+                            <label class="form-label">Automatic Text Filtering</label>
+                            
+                            <div class="switch-container">
+                                <div class="switch-info">
+                                    <span class="switch-title">Block Links</span>
+                                </div>
+                                <label class="switch">
+                                    <input id="links_block" type="checkbox">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="switch-container">
+                                <div class="switch-info">
+                                    <span class="switch-title">Block Server Invites</span>
+                                </div>
+                                <label class="switch">
+                                    <input id="invites_block" type="checkbox">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="switch-container">
+                                <div class="switch-info">
+                                    <span class="switch-title">Block Mass Mentions</span>
+                                </div>
+                                <label class="switch">
+                                    <input id="block_mentions" type="checkbox">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Custom Word Filter -->
+                        <div class="form-group" style="min-width: 280px;">
+                            <label class="form-label">Custom Bad Words Filter</label>
+
+                            <div class="filter-tags-box" id="words_bad_custom">
+                                <input type="text" class="tag-input-ghost" maxlength="50" placeholder="Type a word and press Enter...">
+                            </div>
+                            <small style="color: var(--text-secondary); font-size: 11px;">Up to 100 words, 50 characters each — press Enter to add.</small>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Bottom Save Bar -->
+            <div class="save-changes-bar">
+                <span class="save-info-text">Careful — make sure to save changes to apply them to your server!</span>
+                <button class="save-btn">Save Changes</button>
+            </div>
+        </div>
+    </main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="dashboard.js"></script>
+
+    <!-- ======================================================================
+         سكربت خاص بصفحة auto-mod.html فقط - مستقل تماماً عن dashboard.js
+         (ما يعدّل عليه ولا يتعارض مع منطقه العام، بس يضيف طبقة تحقق محلية
+         فوقه لحقلين نوعين حساسين موجودين بهالصفحة تحديداً):
+
+         [1] حقول المدة الزمنية (.duration-input): تصفية حية للكتابة تسمح
+             بس بـ "رقم (حتى 4 خانات) + حرف وحدة واحد" مطابقة لصيغة
+             parseDurationToMs() الفعلية بـ AutoMod.js حالياً (s/m/h/d/w
+             حرف واحد بس - بدون min/mo، لأن الباك-إند الحالي ما يفهمها).
+             لو الباك-إند تحدّث مستقبلاً ليدعم صيغ أطول، هذا الـ regex لازم
+             يتحدث معه بنفس الوقت.
+
+         [2] صندوق الكلمات الممنوعة (#words_bad_custom): حد أقصى 100 كلمة
+             (كافي وواسع عملياً، بس يمنع تضخم غير محدود يأثر على أداء فحص
+             كل رسالة بـ checkBadWords()). المستمع مرتبط مباشرة بعنصر
+             الإدخال نفسه (مو document) عشان يشتغل قبل مستمع dashboard.js
+             العام - stopPropagation() يمنع إضافة تاق زايد عن الحد فقط،
+             وباقي الحالات تكمل طبيعي لمنطق dashboard.js القياسي.
+
+         [3] حقول الأرقام العادية اللي فيها max: تثبيت القيمة عند الحد لو
+             المستخدم كتب رقم أكبر يدوياً (attribute max وحده ما يمنع الكتابة
+             الفعلية بكل المتصفحات).
+    ====================================================================== -->
+    <script>
+         // لاحظ إضافة async هنا لكي نستطيع استخدام await بالداخل
+        document.addEventListener('DOMContentLoaded', async () => {
+
+            // --- [خطوة الحماية: التحقق من الجلسة فوراً] ---
+            // نستخدم supabaseClient المعرف مسبقاً في dashboard.js بدون إعادة تعريفه
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (!session) {
+                    window.location.href = 'Login.html';
+                    return; // توقف عن تنفيذ بقية السكربت إذا لم يكن مسجلاً
+                }
+                
+                // إذا كان هناك جلسة، نقوم بتحديث بيانات الهيدر (الاسم والصورة)
+                // هذه الدالة يفترض أنها موجودة في dashboard.js، إذا لم تكن موجودة سنستدعي منطقاً بسيطاً
+                    if (typeof initGlobalHeader === 'function') {
+    initGlobalHeader(session);
+}
+            } catch (err) {
+                console.error("Auth check failed:", err);
+                window.location.href = 'Login.html';
+                return;
+            }
+            // --- [1] تنقية حقول المدة الزمنية ---
+            const DURATION_PATTERN = /^(\d{1,4})([smhdw]?)/i;
+
+            function sanitizeDurationField(el) {
+                const cleanedChars = el.value.toLowerCase().replace(/[^0-9smhdw]/g, '');
+                const match = cleanedChars.match(DURATION_PATTERN);
+                el.value = match ? (match[1] + match[2]) : '';
+            }
+
+            document.querySelectorAll('.duration-input').forEach(el => {
+                el.addEventListener('input', () => sanitizeDurationField(el));
+            });
+
+            // [NEW] Demote عقوبة نهائية بلا مدة - نعطّل حقل المدة تلقائياً
+            // بقسمي Regular Chat Spam و Command Spam Protection لما تُختار
+           function bindDemoteDurationLock(actionSelectId, durationInputId) {
+                const actionSelect = document.getElementById(actionSelectId);
+                const durationInput = document.getElementById(durationInputId);
+                if (!actionSelect || !durationInput) return;
+
+                function syncLock() {
+                    if (actionSelect.value === 'demote') {
+                        durationInput.value = '';
+                        durationInput.disabled = true;
+                        durationInput.placeholder = 'N/A';
+                    } else {
+                        durationInput.disabled = false;
+                        durationInput.placeholder = 'e.g., 30m';
+                    }
+                }
+
+                // [FIX] الإعدادات المحفوظة تتحمّل لاحقاً بطلب غير متزامن من
+                // dashboard.js وتضبط select.value برمجياً بدون إطلاق حدث
+                // 'change' - فـ syncLock ما كانت تنعاد إلا لو المستخدم لمس
+                // القائمة يدوياً. الحل: نعترض على الـ setter نفسه لـ .value
+                // عشان يلتقط أي تغيير (برمجي أو يدوي) بنفس اللحظة اللي يصير فيها.
+                const nativeDescriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+                Object.defineProperty(actionSelect, 'value', {
+                    configurable: true,
+                    get() { return nativeDescriptor.get.call(actionSelect); },
+                    set(v) {
+                        nativeDescriptor.set.call(actionSelect, v);
+                        syncLock();
+                    }
+                });
+
+                syncLock();
+                actionSelect.addEventListener('change', syncLock);
+            }
+
+            bindDemoteDurationLock('spam_default_action', 'spam_action_duration');
+            bindDemoteDurationLock('cmd_spam_default_action', 'cmd_spam_action_duration');
+            // --- [2] حد أقصى لعدد الكلمات الممنوعة ---
+            const MAX_BAD_WORDS = 100;
+            const wordsBox = document.getElementById('words_bad_custom');
+            const wordsInput = wordsBox ? wordsBox.querySelector('.tag-input-ghost') : null;
+
+            if (wordsBox && wordsInput) {
+                wordsInput.addEventListener('keypress', (e) => {
+                    if (e.key !== 'Enter') return;
+                    const currentCount = wordsBox.querySelectorAll('.tag-item').length;
+                    if (currentCount >= MAX_BAD_WORDS) {
+                        e.preventDefault();
+                        e.stopPropagation(); // يمنع مستمع dashboard.js العام من إضافة تاق زايد عن الحد
+                        const originalPlaceholder = wordsInput.placeholder;
+                        wordsInput.placeholder = `Limit reached (${MAX_BAD_WORDS} words max)`;
+                        setTimeout(() => { wordsInput.placeholder = originalPlaceholder; }, 2000);
+                    }
+                });
+            }
+
+            // --- [3] تثبيت الحقول الرقمية عند حدها الأقصى ---
+            document.querySelectorAll('input[type="number"][max]').forEach(el => {
+                el.addEventListener('input', () => {
+                    const maxVal = parseInt(el.max, 10);
+                    if (el.value !== '' && parseInt(el.value, 10) > maxVal) {
+                        el.value = maxVal;
+                    }
+                });
+            });
+
+            // ============================================================
+            // [4] Automated Infraction System - Dynamic Rules (v5.3)
+            // ============================================================
+            // كل قاعدة (warn/mute/kick) صف مستقل بجدول auto_mod_rule_config -
+            // تُحفظ/تُحذف فوراً عبر /guild/:guildId/auto-mod-rules (راجع
+            // apiRouter.js Section 3.5)، مو جزء من زر "Save Changes" العام
+            // بالأسفل (buildPayload() العام بـ dashboard.js لا يلمس هذا
+            // القسم إطلاقاً - ولا يحتاج، لأن ما فيه أي input بداخله بدون
+            // parent .rules-list-container له id مباشر يُقرأ تلقائياً).
+
+            const RULE_ACTION_OPTIONS = {
+                warn: [
+                    { value: 'mute', label: 'Mute' },
+                    { value: 'kick', label: 'Kick' },
+                    { value: 'ban', label: 'Ban' }
+                ],
+                // [FIX] كانت مطابقة لـ warn نسخ-لصق - القيد chk_auto_mod_rule_action
+                // بالسكيما ما يسمح بـ 'mute' لنوع mute (تفادي حلقة تصعيد لنفسها)،
+                // ويسمح بـ 'demote' اللي كان غائب تماماً عن القائمة القديمة.
+                mute: [
+                    { value: 'demote', label: 'Demote' },
+                    { value: 'kick', label: 'Kick' },
+                    { value: 'ban', label: 'Ban' }
+                ],
+                // [FIX] القيد يسمح بـ 'ban' فقط لنوع kick - أي خيار ثاني كان
+                // معروض بالواجهة (mute/kick) كان يترفض حتماً وقت الحفظ.
+                kick: [
+                    { value: 'ban', label: 'Ban' }
+                ]
+            };
+            const RULE_TRIGGER_LABEL = { warn: 'Warnings', mute: 'Mutes', kick: 'Kicks' };
+
+            /** يظهر/يخفي عبارة "لا توجد قواعد بعد" حسب عدد الصفوف الفعلي بالحاوية */
+            function updateEmptyPlaceholder(container) {
+                const placeholder = container.querySelector('.empty-rules-placeholder');
+                if (!placeholder) return;
+                const hasRows = container.querySelector('.action-row-builder') !== null;
+                placeholder.style.display = hasRows ? 'none' : 'block';
+            }
+
+            /** يعرض رسالة خطأ صغيرة أسفل الصف لمدة 3 ثواني (عتبة مكررة، حقل ناقص...) */
+            function showRuleRowError(row, msg) {
+                let errEl = row.querySelector('.rule-row-error');
+                if (!errEl) {
+                    errEl = document.createElement('small');
+                    errEl.className = 'rule-row-error';
+                    row.appendChild(errEl);
+                }
+                errEl.textContent = msg;
+                clearTimeout(errEl._hideTimer);
+                errEl._hideTimer = setTimeout(() => errEl.remove(), 3000);
+            }
+
+            /**
+             * ينشئ صف قاعدة واحد. existingRule (لو موجود) يعني الصف محمّل من
+             * قاعدة البيانات فعلاً (له data-rule-id) - وإلا فهو صف جديد فاضي
+             * (زر "Add Rule") ينحفظ لأول مرة بضغطة زر الحفظ بالصف نفسه.
+             */
+            function createRuleRow(type, existingRule = null) {
+                const row = document.createElement('div');
+                row.className = 'action-row-builder';
+                if (existingRule) row.dataset.ruleId = existingRule.id;
+
+                const optionsHtml = RULE_ACTION_OPTIONS[type]
+                    .map(opt => `<option value="${opt.value}">${opt.label}</option>`)
+                    .join('');
+
+                row.innerHTML = `
+                    <span>After</span>
+                    <input type="number" class="form-input inline-input rule-threshold" placeholder="1" min="1" max="50">
+                    <span>${RULE_TRIGGER_LABEL[type]}</span>
+                    <i class="fa-solid fa-arrow-right-long rule-arrow-icon"></i>
+                    <span>Apply Action</span>
+                    <select class="form-select inline-select rule-action">
+                        <option value="" disabled selected>Select action...</option>
+                        ${optionsHtml}
+                    </select>
+                    <span>for</span>
+                    <input type="text" class="form-input inline-time-input duration-input rule-duration" placeholder="e.g., 12h" maxlength="6">
+                    <button type="button" class="btn-save-rule" title="Save Rule"><i class="fa-solid fa-check"></i></button>
+                    <button type="button" class="btn-delete-rule" title="Delete Rule"><i class="fa-solid fa-trash-can"></i></button>
+                `;
+
+                const thresholdInput = row.querySelector('.rule-threshold');
+                const actionSelect = row.querySelector('.rule-action');
+                const durationInput = row.querySelector('.rule-duration');
+                const saveBtn = row.querySelector('.btn-save-rule');
+                const deleteBtn = row.querySelector('.btn-delete-rule');
+
+                if (existingRule) {
+                    thresholdInput.value = existingRule.threshold;
+                    actionSelect.value = existingRule.action;
+                    durationInput.value = existingRule.duration || '';
+                }
+
+                // Kick لا يقبل مدة إطلاقاً - نفس القيد الموجود بقاعدة البيانات
+                // (chk_auto_mod_rule_duration) مطبّق هنا بصرياً مسبقاً
+                function syncDurationDisabledState() {
+                    if (actionSelect.value === 'kick') {
+                        durationInput.value = '';
+                        durationInput.disabled = true;
+                        durationInput.placeholder = 'N/A';
+                    } else {
+                        durationInput.disabled = false;
+                        durationInput.placeholder = 'e.g., 12h';
+                    }
+                }
+                syncDurationDisabledState();
+                actionSelect.addEventListener('change', syncDurationDisabledState);
+
+                durationInput.addEventListener('input', () => sanitizeDurationField(durationInput));
+
+                saveBtn.addEventListener('click', () => saveRule(type, row));
+                deleteBtn.addEventListener('click', () => deleteRule(row));
+
+                return row;
+            }
+
+            /** يحفظ صف واحد (POST لو جديد، PUT لو له data-rule-id مسبقاً) */
+            async function saveRule(type, row) {
+                const guildId = getGuildId();
+                if (!guildId) return;
+
+                const threshold = parseInt(row.querySelector('.rule-threshold').value, 10);
+                const action = row.querySelector('.rule-action').value;
+                const durationInput = row.querySelector('.rule-duration');
+                const duration = durationInput.disabled ? null : (durationInput.value.trim() || null);
+                const ruleId = row.dataset.ruleId;
+
+                if (!Number.isInteger(threshold) || threshold < 1 || threshold > 50) {
+                    return showRuleRowError(row, 'Enter a valid threshold (1-50).');
+                }
+                if (!action) {
+                    return showRuleRowError(row, 'Select an action.');
+                }
+
+                const saveBtn = row.querySelector('.btn-save-rule');
+                saveBtn.disabled = true;
+
+                try {
+                    const response = await fetch(
+                        ruleId ? `${API_BASE}/guild/${guildId}/auto-mod-rules/${ruleId}` : `${API_BASE}/guild/${guildId}/auto-mod-rules`,
+                        {
+                            method: ruleId ? 'PUT' : 'POST',
+                            headers: getHeaders(),
+                            body: JSON.stringify(ruleId ? { threshold, action, duration } : { ruleType: type, threshold, action, duration })
+                        }
+                    );
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        return showRuleRowError(row, data.error || 'Failed to save rule.');
+                    }
+
+                    if (data.rule && data.rule.id) row.dataset.ruleId = data.rule.id;
+                    row.classList.remove('rule-saved-flash');
+                    void row.offsetWidth; // إعادة تشغيل الأنيميشن لو الصف اتحفظ أكثر من مرة متتالية
+                    row.classList.add('rule-saved-flash');
+                } catch (err) {
+                    showRuleRowError(row, 'Network error - could not save rule.');
+                } finally {
+                    saveBtn.disabled = false;
+                }
+            }
+
+            /** يحذف الصف - فوري من القاعدة لو محفوظ مسبقاً، أو محلي فقط لو صف جديد لسه ما انحفظ */
+            async function deleteRule(row) {
+                const guildId = getGuildId();
+                const ruleId = row.dataset.ruleId;
+                const container = row.parentElement;
+
+                if (!ruleId) {
+                    row.remove();
+                    if (container) updateEmptyPlaceholder(container);
+                    return;
+                }
+
+                const deleteBtn = row.querySelector('.btn-delete-rule');
+                deleteBtn.disabled = true;
+
+                try {
+                    const response = await fetch(`${API_BASE}/guild/${guildId}/auto-mod-rules/${ruleId}`, {
+                        method: 'DELETE',
+                        headers: getHeaders()
+                    });
+                    if (response.ok) {
+                        row.remove();
+                        if (container) updateEmptyPlaceholder(container);
+                    } else {
+                        deleteBtn.disabled = false;
+                        showRuleRowError(row, 'Failed to delete rule.');
+                    }
+                } catch (err) {
+                    deleteBtn.disabled = false;
+                    showRuleRowError(row, 'Network error - could not delete rule.');
+                }
+            }
+
+            const rulesContainers = {
+                warn: document.getElementById('warn_rules_container'),
+                mute: document.getElementById('mute_rules_container'),
+                kick: document.getElementById('kick_rules_container')
+            };
+
+            // زر "Add Rule" لكل نوع - يضيف صف فاضي جديد بدون data-rule-id
+            document.getElementById('add_warn_rule_btn')?.addEventListener('click', () => {
+                rulesContainers.warn.appendChild(createRuleRow('warn'));
+                updateEmptyPlaceholder(rulesContainers.warn);
+            });
+            document.getElementById('add_mute_rule_btn')?.addEventListener('click', () => {
+                rulesContainers.mute.appendChild(createRuleRow('mute'));
+                updateEmptyPlaceholder(rulesContainers.mute);
+            });
+            document.getElementById('add_kick_rule_btn')?.addEventListener('click', () => {
+                rulesContainers.kick.appendChild(createRuleRow('kick'));
+                updateEmptyPlaceholder(rulesContainers.kick);
+            });
+
+            /** يجلب كل القواعد المحفوظة للسيرفر ويوزّعها على الحاويات الثلاث */
+            async function loadAutoModRules() {
+                const guildId = getGuildId();
+                if (!guildId) return;
+
+                try {
+                    const response = await fetch(`${API_BASE}/guild/${guildId}/auto-mod-rules`, { headers: getHeaders() });
+                    if (!response.ok) return;
+                    const rules = await response.json();
+                    if (!Array.isArray(rules)) return;
+
+                    rules.forEach(rule => {
+                        const container = rulesContainers[rule.rule_type];
+                        if (container) container.appendChild(createRuleRow(rule.rule_type, rule));
+                    });
+
+                    // [تعديل] لو الحاوية طلعت فاضية (ما فيه قواعد محفوظة لهذا النوع)،
+                    // نضيف صف فاضي جاهز تلقائياً بدل الاكتفاء بعبارة "لا توجد قواعد بعد"
+                    Object.entries(rulesContainers).forEach(([type, container]) => {
+                        if (!container) return;
+                        if (container.querySelector('.action-row-builder') === null) {
+                            container.appendChild(createRuleRow(type));
+                        }
+                        updateEmptyPlaceholder(container);
+                    });
+                } catch (err) {
+                    console.error('[Auto-Mod Rules] Failed to load existing rules:', err);
+                }
+            }
+
+            loadAutoModRules();
+        });
+    </script>
+</body>
+</html>

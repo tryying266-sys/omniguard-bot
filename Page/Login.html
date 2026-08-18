@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniGuard - Login</title>
+    <!-- Google Fonts & FontAwesome Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Base Reset & Variables */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #111115;
+            --bg-tertiary: #18181c;
+            --bg-header: #060608;
+            --accent-red: #ff3344;
+            --accent-red-hover: #ff5566;
+            --accent-red-glow: rgba(255, 51, 68, 0.28);
+            --text-primary: #ffffff;
+            --text-secondary: #8e9297;
+            --border-color: #2a2b30;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Top Dark Navigation Bar */
+        header {
+            height: 64px;
+            background-color: var(--bg-header);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            z-index: 10;
+        }
+
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text-primary);
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .header-logo i {
+            color: var(--accent-red);
+            font-size: 22px;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: color 0.2s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+
+        /* Center Section with Radial Ambient Glow */
+        main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 40px 20px;
+            z-index: 1;
+        }
+
+        /* Ambient Red Glow Effect (الوهج/الضوء الأحمر الناعم) */
+        .glow-backdrop {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, var(--accent-red-glow) 0%, rgba(255, 51, 68, 0.08) 40%, transparent 70%);
+            filter: blur(70px);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+            animation: ambientPulse 8s ease-in-out infinite alternate;
+        }
+
+        @keyframes ambientPulse {
+            0% {
+                transform: translate(-50%, -50%) scale(0.92);
+                opacity: 0.75;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(1.08);
+                opacity: 1;
+            }
+        }
+
+        /* Login Card (المربع المنحني الحواف) */
+        .login-card {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            max-width: 420px;
+            background-color: rgba(17, 17, 21, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 44px 36px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6),
+                        0 0 35px rgba(255, 51, 68, 0.1);
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .login-card:hover {
+            border-color: rgba(255, 51, 68, 0.4);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7),
+                        0 0 45px rgba(255, 51, 68, 0.18);
+        }
+
+        /* Shield Icon Box */
+        .card-icon-box {
+            width: 64px;
+            height: 64px;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px auto;
+            color: var(--accent-red);
+            font-size: 26px;
+            box-shadow: 0 4px 20px rgba(255, 51, 68, 0.15);
+        }
+
+        .card-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            letter-spacing: -0.3px;
+        }
+
+        .card-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 32px;
+        }
+
+        /* Discord Login Button */
+        .discord-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            padding: 14px 24px;
+            background-color: #5865F2; /* Official Discord Brand Color */
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 15px rgba(88, 101, 242, 0.3);
+        }
+
+        .discord-btn:hover {
+            background-color: #4752C4;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(88, 101, 242, 0.45);
+        }
+
+        .discord-btn i {
+            font-size: 18px;
+        }
+
+        /* Footer Terms & Privacy text */
+        .card-footer-text {
+            margin-top: 24px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .card-footer-text a {
+            color: var(--text-secondary);
+            text-decoration: underline;
+            transition: color 0.2s ease;
+        }
+
+        .card-footer-text a:hover {
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Dark Navigation Bar -->
+    <header>
+        <a href="#" class="header-logo">
+            <i class="fa-solid fa-shield-halved"></i>
+            <span>OmniGuard</span>
+        </a>
+        <nav>
+            <ul class="nav-links">
+                <li><a href="https://discord.gg/6PCmVw6dcR">Support</a></li>
+                <li><a href="FAQ.html">FAQ</a></li>
+                <li><a href="Information.html">Information</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Main Content Area with Radial Ambient Red Light Effect -->
+    <main>
+        <!-- Soft Ambient Red Glow behind the box (تأثير الضوء الأحمر المشع) -->
+        <div class="glow-backdrop"></div>
+
+        <!-- Rounded Login Card (المربع المنحني الحواف) -->
+        <div class="login-card">
+            <div class="card-icon-box">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <h1 class="card-title">Welcome to OmniGuard</h1>
+            <p class="card-subtitle">Log in with your Discord account to seamlessly manage and secure your servers.</p>
+            
+            <!-- Log in with Discord Button -->
+            <button type="button" id="discord-login-btn" class="discord-btn">
+                <i class="fa-brands fa-discord"></i>
+                Log in with Discord
+            </button>
+
+            <p class="card-footer-text">
+                By connecting your account, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+            </p>
+        </div>
+    </main>
+
+<!-- Supabase JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+    const SUPABASE_URL = 'https://lcnjswibemyenakwojkz.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxjbmpzd2liZW15ZW5ha3dvamt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM4ODQ0ODEsImV4cCI6MjA5OTQ2MDQ4MX0.AfbKJsd6sOK1FPz2w-rH3XT28m4eneB1uNJEyETJ9ug'; 
+
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    document.getElementById('discord-login-btn').addEventListener('click', async () => {
+        // [FIX] سكوبات اللوجن فقط - identify+guilds كافية لتسجيل الدخول وجلب
+        // قائمة سيرفراتك. أي سكوب متعلق بالبوت (bot/applications.commands/
+        // guilds.join/guilds.members.read) اتشال من هنا عمداً لأنه كان يفتح
+        // شاشة "أضف البوت لسيرفر" بديسكورد كل مرة تسجل دخول - هالشاشة ما
+        // لها أي علاقة باختيار سيرفر الإدارة بالداشبورد. تثبيت البوت الحين
+        // له رابط منفصل مخصص لكل سيرفر بالتحديد (dashboard.js -> buildInviteUrl)
+        // يُستخدم فقط لما تحتاج فعلاً تضيف البوت لسيرفر معيّن.
+        const { error } = await supabaseClient.auth.signInWithOAuth({
+            provider: 'discord',
+            options: {
+                redirectTo: window.location.origin + '/index.html',
+                scopes: 'identify guilds'
+            }
+        });
+
+        if (error) {
+    console.error('Login Error:', error.message);
+    alert('An error occurred during login attempt: ' + error.message);
+    }
+    });
+</script>
+</body>
+</html>

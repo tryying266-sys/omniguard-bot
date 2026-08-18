@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Meta tags for JS integration -->
+    <meta name="dashboard-guild-id" content="REPLACE_WITH_YOUR_GUILD_ID">
+    <title>OmniGuard - Welcome & Leave</title>
+    
+    <!-- Google Fonts & FontAwesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Base Colors & Reset - Matching index.html exactly */
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #111115;
+            --bg-tertiary: #18181c;
+            --accent-red: #ff3344;
+            --accent-red-hover: #ff5566;
+            --accent-green: #3ba55d;
+            --accent-green-hover: #43b869;
+            --text-primary: #ffffff;
+            --text-secondary: #8e9297;
+            --border-color: #2a2b30;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styles - Matching index.html exactly */
+        .sidebar {
+            width: 280px; background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column;
+            padding: 24px 16px; overflow-y: auto;
+        }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+
+        .logo-section {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 24px; padding-left: 8px; flex-shrink: 0;
+        }
+
+        .logo-icon { color: var(--accent-red); font-size: 24px; }
+        .logo-text { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+
+        .category-container {
+            display: flex; align-items: center; gap: 10px;
+            margin-top: 18px; margin-bottom: 10px; width: 100%;
+        }
+
+        .category-header {
+            font-size: 10px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1.2px; color: var(--text-secondary); white-space: nowrap;
+        }
+
+        .category-line { flex-grow: 1; height: 1px; background-color: var(--border-color); }
+
+        .menu-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+
+        .menu-item a {
+            display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+            color: var(--text-secondary); text-decoration: none; border-radius: 8px;
+            font-weight: 500; font-size: 14px; transition: all 0.2s ease;
+        }
+
+        .menu-item a:hover { color: var(--text-primary); background-color: var(--bg-tertiary); }
+
+        .menu-item.active a {
+            color: var(--text-primary);
+            background-color: rgba(255, 51, 68, 0.1);
+            border-left: 3px solid var(--accent-red);
+            padding-left: 11px;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex-grow: 1; background-color: var(--bg-primary);
+            display: flex; flex-direction: column; overflow-y: auto;
+        }
+
+        header {
+            height: 70px; border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 40px; background-color: var(--bg-secondary); flex-shrink: 0;
+        }
+
+        .header-title { font-size: 18px; font-weight: 600; }
+        .user-profile { display: flex; align-items: center; gap: 10px; }
+        .avatar {
+            width: 32px; height: 32px; border-radius: 50%;
+            background-color: var(--accent-red); display: flex;
+            align-items: center; justify-content: center; font-weight: bold; font-size: 14px;
+        }
+
+        .content-body {
+            padding: 40px; max-width: 1200px; width: 100%; margin: 0 auto;
+        }
+
+        /* Settings Grid */
+        .settings-grid {
+            display: grid; grid-template-columns: repeat(2, 1fr);
+            gap: 24px; margin-bottom: 32px;
+        }
+
+        @media (max-width: 992px) { .settings-grid { grid-template-columns: 1fr; } }
+
+        .settings-card {
+            background-color: var(--bg-secondary); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 28px; display: flex; flex-direction: column; gap: 20px;
+        }
+
+        .full-width { grid-column: span 2; }
+
+        .card-header-group {
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--border-color); padding-bottom: 14px;
+        }
+
+        .card-title-container { display: flex; align-items: center; gap: 12px; }
+        .card-header-icon { color: var(--accent-red); font-size: 20px; }
+        .card-header-title { font-size: 16px; font-weight: 600; }
+
+        /* iOS Switch Toggle */
+        .toggle-switch {
+            position: relative; display: inline-block; width: 46px; height: 24px;
+        }
+
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+
+        .slider {
+            position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--bg-tertiary); border: 1px solid var(--border-color);
+            transition: .2s ease-in-out; border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute; content: ""; height: 16px; width: 16px;
+            left: 3px; bottom: 3px; background-color: var(--text-secondary);
+            transition: .2s ease-in-out; border-radius: 50%;
+        }
+
+        input:checked + .slider { background-color: rgba(255, 51, 68, 0.2); border-color: var(--accent-red); }
+        input:checked + .slider:before { transform: translateX(22px); background-color: var(--accent-red); }
+
+        /* توجلات "Coming Soon" (data-future-column بدل id) - باهتة بصرياً
+           ومؤشر منع، عشان يكون واضح إنها مو فعّالة لسه لحد ما تنضاف
+           أعمدتها بقاعدة البيانات. */
+        .toggle-switch input:disabled + .slider { opacity: 0.4; cursor: not-allowed; }
+
+        /* Form Controls */
+        .form-group { display: flex; flex-direction: column; gap: 8px; }
+        .form-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
+
+        .form-select, .form-textarea {
+            width: 100%; background-color: var(--bg-tertiary); border: 1px solid var(--border-color);
+            color: var(--text-primary); padding: 12px 16px; border-radius: 8px; font-size: 14px; outline: none;
+        }
+        .form-textarea { resize: vertical; min-height: 120px; }
+
+        /* Variable Badges */
+        .variable-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+        .var-badge {
+            background-color: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-color);
+            color: var(--accent-red); padding: 4px 10px; border-radius: 6px; font-size: 12px; font-family: monospace;
+        }
+
+        /* Save Bar */
+        /* Sticky Save Bar - Exact configuration from general-settings.html */
+.save-changes-bar { 
+    background-color: var(--bg-secondary); 
+    border: 1px solid var(--border-color); 
+    border-radius: 12px; 
+    padding: 20px 32px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    
+    /* Crucial lines that enable the sticky behavior at the bottom */
+    position: sticky; 
+    bottom: 20px; 
+    z-index: 10; 
+}
+        /* حالات زر الحفظ - نفس نظام general-settings.html بالضبط (المنطق
+           بـ dashboard.js عام ويشتغل على أي .save-btn بالصفحة تلقائياً،
+           هذا الملف بس يوفر المظهر البصري لكل حالة). */
+        .save-btn { border: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 0.2s, color 0.2s; }
+
+        .save-btn.state-default { background-color: var(--bg-tertiary); color: var(--text-secondary); cursor: not-allowed; }
+
+        .save-btn.state-dirty { background-color: var(--accent-red); color: var(--text-primary); }
+        .save-btn.state-dirty:hover { background-color: var(--accent-red-hover); }
+
+        .save-btn.state-saved { background-color: var(--accent-green); color: var(--text-primary); cursor: default; }
+
+        .save-btn.state-error { background-color: var(--accent-red); color: var(--text-primary); }
+        .save-btn.state-error:hover { background-color: var(--accent-red-hover); } 
+        /* --- التنسيقات المفقودة للهيدر --- */
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.guild-select {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.guild-select:focus {
+    border-color: var(--accent-red);
+}
+
+.logout-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.logout-btn:hover {
+    color: var(--accent-red);
+    border-color: var(--accent-red);
+    background-color: rgba(255, 51, 68, 0.05);
+}
+
+#user-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+    </style>
+</head>
+<body>
+
+     <!-- Left Sidebar Navigation (Synced with index.html) -->
+    <aside class="sidebar">
+        <!-- Bot Logo and Name -->
+        <div class="logo-section">
+            <i class="fa-solid fa-shield-halved logo-icon"></i>
+            <span class="logo-text">OmniGuard</span>
+        </div>
+        
+           <!-- SEARCH CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Search</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    Search
+                </a>
+            </li>
+        </ul>
+
+        <!-- HOME CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Home</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="index">
+                    <i class="fa-solid fa-house"></i>
+                    Home
+                </a>
+            </li>
+        </ul>
+
+        <!-- CORE SETTINGS CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Core Settings</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="general-settings">
+                    <i class="fa-solid fa-sliders"></i>
+                    General Settings
+                </a>
+            </li>
+            <li class="menu-item active">
+                <a href="welcome-leave">
+                    <i class="fa-solid fa-door-open"></i>
+                    Welcome & Leave
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="role-management">
+                    <i class="fa-solid fa-user-gear"></i>
+                    Role Management
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODERATION & SECURITY CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Moderation & Security</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="auto-mod">
+                    <i class="fa-solid fa-robot"></i>
+                    Auto-Mod
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="anti-alt">
+                    <i class="fa-solid fa-user-shield"></i>
+                    Anti-Alt
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="AutoRespond">
+                    <i class="fa-solid fa-reply-all"></i>
+                    Auto Respond
+                </a>
+            </li>
+        </ul>
+
+        <!-- TICKET SYSTEM CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Ticket System</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="category">
+                    <i class="fa-solid fa-ticket"></i>
+                    Ticket Category
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="AutoLog">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    Ticket Auto Log
+                </a>
+            </li>
+        </ul>
+
+        </li>
+            <li class="menu-item">
+                <a href="Permissionspanel">
+                    <i class="fa-solid fa-sliders"></i>
+                    Ticket Panel
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODULES & FEATURES CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Modules & Features</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="custom-messages">
+                    <i class="fa-solid fa-comment-dots"></i>
+                    Custom Messages
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="Level">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    Leveling System
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="commands">
+                    <i class="fa-solid fa-terminal"></i>
+                    Command Customization
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+ <main class="main-content"> 
+    
+    <!-- Main Content Area -->
+    <header>
+            <div class="header-title">General Settings</div>
+            <div class="header-controls">
+                <!-- Guild / Server Selector Dropdown -->
+                <select id="guild-selector" class="guild-select">
+                    <option value="" disabled selected>Loading Servers...</option>
+                </select>
+
+                <!-- Dynamic User Profile -->
+                <div class="user-profile" id="user-profile">
+                    <span id="user-name">Loading...</span>
+                    <div class="avatar" id="user-avatar">OG</div>
+                </div>
+
+                <!-- Logout Button -->
+                <button id="logout-btn" class="logout-btn">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+    </header>
+
+        <div class="content-body">
+            <div class="settings-grid">
+                
+                <!-- Welcome Configuration -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <div class="card-title-container">
+                            <i class="fa-solid fa-door-open card-header-icon"></i>
+                            <h2 class="card-header-title">Welcome Module</h2>
+                        </div>
+                        <label class="toggle-switch">
+                            <!-- id = عمود setting_leave_welcome.enabled_welcome حرفياً -->
+                            <input id="enabled_welcome" type="checkbox">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 10px; margin-bottom: 10px;">
+                        <label class="form-label">Target Welcome Channel</label>
+                        <!-- id = عمود setting_leave_welcome.channel_welcome (نص واحد، مو
+                             مصفوفة - عشان كذا <select> عادي مو .selector-box). القيمة
+                             تُحفظ تلقائياً عبر Smart Binding العام بـ dashboard.js، لكن
+                             تعبئة الخيارات (القنوات) لها سكربت خاص بهذي الصفحة آخرها -
+                             راجع التعليق هناك للتفاصيل. -->
+                        <select id="channel_welcome" class="form-select">
+                            <option value="">Fetching channels...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Add-ons Configuration -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <div class="card-title-container">
+                            <i class="fa-solid fa-wand-magic-sparkles card-header-icon"></i>
+                            <h2 class="card-header-title">Advanced Features</h2>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-tertiary); padding:15px; border-radius:8px;">
+                        <div>
+                            <p style="font-size:14px; font-weight:500;">Mention New Member</p>
+                            <p style="font-size:12px; color:var(--text-secondary);">Pings the user in the welcome channel.</p>
+                        </div>
+                        <!-- id = عمود setting_leave_welcome.member_ping -->
+                        <label class="toggle-switch"><input id="member_ping" type="checkbox"><span class="slider"></span></label>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-tertiary); padding:15px; border-radius:8px;">
+                        <div>
+                            <p style="font-size:14px; font-weight:500;">Direct Message (DM)</p>
+                            <p style="font-size:12px; color:var(--text-secondary);">Sends a private welcome to the user.</p>
+                        </div>
+                        <!-- id = عمود setting_leave_welcome.send_welcome_dm. ⚠️ ملاحظة
+                             معلّقة: نص رسالة الخاص (عمود text_dm_welcome) ما له حقل
+                             بالواجهة لسه - نظام الـ DM نفسه مو جاهز بعد حسب طلبك، فهذا
+                             التوجل بس يحفظ التفعيل/التعطيل حالياً. -->
+                        <label class="toggle-switch"><input id="send_welcome_dm" type="checkbox"><span class="slider"></span></label>
+                    </div>
+                </div>
+
+                <!-- Message Builder (Full Width - Expanded smoothly to 100%) -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group">
+                        <div class="card-title-container">
+                            <i class="fa-solid fa-pen-nib card-header-icon"></i>
+                            <h2 class="card-header-title">Welcome Content</h2>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Custom Message Content</label>
+                        <!-- id = عمود setting_leave_welcome.custom_welcome_text. maxlength="2000"
+                             = حد محتوى الرسالة العادية بديسكورد (الوضع الافتراضي حالياً
+                             welcome_msg_type='text' لأن حقل اختيار النوع نفسه مو مبني
+                             بالواجهة بعد - راجع الملاحظة المعلّقة بآخر الصفحة). -->
+                        <textarea id="custom_welcome_text" class="form-textarea" maxlength="2000" placeholder="Welcome {user} to {server}!"></textarea>
+                        <div class="variable-tags">
+                            <span class="var-badge">{user}</span>
+                            <span class="var-badge">{username}</span>
+                            <span class="var-badge">{server}</span>
+                            <span class="var-badge">{membercount}</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Direct Message Content</label>
+                        <!-- id = عمود setting_leave_welcome.text_dm_welcome. العمود نفسه
+                             موجود بالسكيما من الأول وwelcome.js يقرأه أصلاً بـ
+                             sendWelcomeMessage() - كان بس ناقص حقل بالواجهة، هذا هو. -->
+                        <textarea id="text_dm_welcome" class="form-textarea" maxlength="2000" placeholder="Hey {username}, thanks for joining {server}!"></textarea>
+                        <div class="variable-tags">
+                            <span class="var-badge">{username}</span>
+                            <span class="var-badge">{tag}</span>
+                            <span class="var-badge">{server}</span>
+                            <span class="var-badge">{membercount}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Leave Module - يطابق بنية Welcome Module بالضبط (تفعيل + قناة). -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <div class="card-title-container">
+                            <i class="fa-solid fa-door-closed card-header-icon"></i>
+                            <h2 class="card-header-title">Leave Module</h2>
+                        </div>
+                        <label class="toggle-switch">
+                            <!-- id = عمود setting_leave_welcome.enabled_leave -->
+                            <input id="enabled_leave" type="checkbox">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 10px; margin-bottom: 10px;">
+                        <label class="form-label">Target Goodbye Channel</label>
+                        <!-- id = عمود setting_leave_welcome.channel_leave - نفس منطق
+                             channel_welcome فوق بالضبط (تعبئة الخيارات بسكربت الصفحة). -->
+                        <select id="channel_leave" class="form-select">
+                            <option value="">Fetching channels...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Advanced Features (Leave) - يطابق بنية كارت "Advanced Features"
+                     تبع Welcome حرفياً (نفس toggle-switch الحقيقي)، بس التوجلين هنا
+                     "تجهيز" لعمودين جديدين لسا مو موجودين بالسكيما (راجع القائمة
+                     الكاملة للأعمدة الجديدة المطلوبة آخر الملف). عمداً:
+
+                       - disabled: يمنع أي تفاعل فعلي لين الأعمدة تنضاف بقاعدة
+                         البيانات فعلياً - مجرد مؤشر بصري "جاهز مستقبلاً".
+                       - data-future-column بدل id: buildPayload() بـ dashboard.js
+                         يجمع أي عنصر عنده id بس (بغض النظر عن disabled) - لو حطينا
+                         id حقيقي الحين، أول ضغطة Save بترسل عمود غير موجود بـ
+                         Supabase وبيفشل الحفظ كامل بالصفحة (خطأ schema cache من
+                         PostgREST)، مو بس هالحقل.
+
+                     بمجرد ما تضيف العمود بالسكيما: شيل disabled، وحوّل
+                     data-future-column="X" لـ id="X" - يشتغل فوراً بدون أي كود
+                     إضافي (Smart Binding العام كافي، زي باقي حقول الصفحة). -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <div class="card-title-container">
+                            <i class="fa-solid fa-wand-magic-sparkles card-header-icon"></i>
+                            <h2 class="card-header-title">Advanced Features</h2>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-tertiary); padding:15px; border-radius:8px;">
+                        <div>
+                            <p style="font-size:14px; font-weight:500;">Direct Message (DM)</p>
+                            <p style="font-size:12px; color:var(--text-secondary);">Sends a private goodbye message to the member who left.</p>
+                        </div>
+                        <!-- id = عمود setting_leave_welcome.send_leave_dm (مضاف بالدلتا SQL
+                             هذي - راجع أعلى الملف). Mention Departing Member اتلغى نهائياً
+                             بناءً على طلب المستخدم، ما تبقى أي إشارة له هنا. -->
+                        <label class="toggle-switch"><input id="send_leave_dm" type="checkbox"><span class="slider"></span></label>
+                    </div>
+                </div>
+
+                <!-- Leave Content (Full Width) - يطابق كارت "Welcome Content" فوق. -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group">
+                        <div class="card-title-container">
+                            <i class="fa-solid fa-pen-nib card-header-icon"></i>
+                            <h2 class="card-header-title">Leave Content</h2>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Goodbye Message Content</label>
+                        <!-- id = عمود setting_leave_welcome.text_msg_leave. maxlength="2000"
+                             = حد محتوى الرسالة العادية بديسكورد (رسالة المغادرة نص عادي
+                             دايماً بالكود، ما تصير embed إطلاقاً - راجع sendLeaveMessage
+                             بـ welcome.js). -->
+                        <textarea id="text_msg_leave" class="form-textarea" maxlength="2000" placeholder="{username} has left the server."></textarea>
+                        <!-- {user} و {mention} مستبعدين عمداً هنا: بالمغادرة forceMention
+                             دايماً false بالكود (ميزة المنشن اتلغت نهائياً)، فـ {user}
+                             بيطلع نفس {username} بالضبط - عرضهم الاثنين كان بيلخبط بدون
+                             أي فرق فعلي بالنتيجة. -->
+                        <div class="variable-tags">
+                            <span class="var-badge">{username}</span>
+                            <span class="var-badge">{server}</span>
+                            <span class="var-badge">{membercount}</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Direct Message Content</label>
+                        <!-- id = عمود setting_leave_welcome.text_dm_leave (مضاف بالدلتا SQL
+                             هذي). ترسل للعضو بعد ما يطلع من السيرفر - راجع sendLeaveMessage
+                             المعدّلة بـ welcome.js. -->
+                        <textarea id="text_dm_leave" class="form-textarea" maxlength="2000" placeholder="Sorry to see you go, {username}."></textarea>
+                        <div class="variable-tags">
+                            <span class="var-badge">{username}</span>
+                            <span class="var-badge">{tag}</span>
+                            <span class="var-badge">{server}</span>
+                            <span class="var-badge">{membercount}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Save Bar -->
+            <div class="save-changes-bar">
+                <span style="color:var(--text-secondary); font-size:14px;">Careful — any unsaved modifications will be discarded!</span>
+                <!-- الكلاس الابتدائي state-default (رمادي + معطّل) - dashboard.js
+                     يتحكم فيه بعدين حسب حالة الفورم، نفس general-settings.html. -->
+                <button class="save-btn state-default" disabled>Save Changes</button>
+            </div>
+        </div>
+    </main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="dashboard.js"></script>
+
+    <!-- ================================================================
+         سكربت خاص بهذي الصفحة فقط (welcome-leave.html) - بدون أي تعديل
+         على dashboard.js. يحل مشكلتين ما يغطيهم dashboard.js الحالي:
+
+         [أ] تعبئة قوائم القنوات (channel_welcome / channel_leave):
+             هذي حقول TEXT بالسكيما (قيمة وحدة، مو مصفوفة)، فاستخدمنا
+             <select> عادي مو .selector-box (نظام التاقات مصمم للمصفوفات
+             بس). لكن dashboard.js الحالي ما يعبّي عناصر <select> إطلاقاً -
+             populateDiscordSelectors() تشتغل بس على .selector-box، وحتى
+             فحص "هل أجيب هيكل السيرفر؟" (needsStructure) يدوّر على
+             .selector-box فقط، فما راح يجيب بيانات القنوات أصلاً لهذي
+             الصفحة. الحل: نجيب guild_structure_cache بأنفسنا هنا ونعبّي
+             الـ <select> يدوياً - نفس مصدر البيانات اللي getroles.js يكتبه،
+             وبنفس فلترة القنوات النصية (type 0/5) اللي dashboard.js يطبّقها
+             بصفحات ثانية، بس بشكل مستقل بدون أي اعتماد على دوالها الداخلية.
+
+         [ب] لازم نجيب الإعدادات المحفوظة (setting_leave_welcome) مرة
+             ثانية بعد ما نعبّي خيارات الـ <select> - لأن dashboard.js
+             يحاول يعيّن القيمة المحفوظة (el.value = ...) قبل ما توجد
+             الخيارات أصلاً (الصفحة كانت لسا "Fetching channels...")،
+             فالتعيين يفشل بصمت. نعيد تطبيقها بعد التعبئة عشان القناة
+             المحفوظة فعلياً تبان مختارة صح.
+         ================================================================ -->
+    <script>
+        (async function () {
+              const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) { window.location.href = 'Login.html'; return; }
+        if (typeof initGlobalHeader === 'function') initGlobalHeader(session);
+            const guildId = getGuildId();
+            if (!guildId) return;
+
+            const welcomeSelect = document.getElementById('channel_welcome');
+            const leaveSelect = document.getElementById('channel_leave');
+
+            // نفس أنواع القنوات النصية اللي dashboard.js يعتمدها (discord.js
+            // ChannelType: 0 = GuildText, 5 = GuildAnnouncement)
+            const TEXT_CHANNEL_TYPES = [0, 5];
+
+            function populateChannelSelect(selectEl, channelGroups) {
+                if (!selectEl) return;
+
+                selectEl.innerHTML = '';
+
+                const noneOption = document.createElement('option');
+                noneOption.value = '';
+                noneOption.textContent = '— None —';
+                selectEl.appendChild(noneOption);
+
+                const groupsWithChannels = (channelGroups || [])
+                    .map(group => ({
+                        ...group,
+                        channels: (group.channels || []).filter(c => TEXT_CHANNEL_TYPES.includes(c.type)),
+                    }))
+                    .filter(group => group.channels.length > 0);
+
+                if (groupsWithChannels.length === 0) {
+                    const empty = document.createElement('option');
+                    empty.value = '';
+                    empty.textContent = 'No text channels synced yet - try again shortly';
+                    empty.disabled = true;
+                    selectEl.appendChild(empty);
+                    return;
+                }
+
+                groupsWithChannels.forEach(group => {
+                    const optgroup = document.createElement('optgroup');
+                    optgroup.label = group.categoryName;
+                    group.channels.forEach(channel => {
+                        const opt = document.createElement('option');
+                        opt.value = channel.id;
+                        opt.textContent = `# ${channel.name}`;
+                        optgroup.appendChild(opt);
+                    });
+                    selectEl.appendChild(optgroup);
+                });
+            }
+
+            // [أ] جيب هيكل السيرفر (القنوات) وعبّي القائمتين
+            let channels = [];
+            try {
+                const structureRes = await fetch(`${API_BASE}/guild/${guildId}/guild_structure_cache`, { headers: getHeaders() });
+                const structureData = await structureRes.json();
+                channels = (structureRes.ok && Array.isArray(structureData?.channels)) ? structureData.channels : [];
+            } catch (err) {
+                console.error('[welcome-leave] Failed to fetch guild structure:', err);
+            }
+
+            populateChannelSelect(welcomeSelect, channels);
+            populateChannelSelect(leaveSelect, channels);
+
+            // [ب] أعد تطبيق القناة المحفوظة فعلياً بقاعدة البيانات (لو فيه)
+            // بعد ما صارت الخيارات موجودة بالـ <select>
+            try {
+                const settingsRes = await fetch(`${API_BASE}/guild/${guildId}/setting_leave_welcome`, { headers: getHeaders() });
+                const settingsData = await settingsRes.json();
+                if (settingsRes.ok && settingsData) {
+                    if (welcomeSelect && settingsData.channel_welcome) welcomeSelect.value = settingsData.channel_welcome;
+                    if (leaveSelect && settingsData.channel_leave) leaveSelect.value = settingsData.channel_leave;
+                }
+            } catch (err) {
+                console.error('[welcome-leave] Failed to re-apply saved channel selection:', err);
+            }
+            // ملاحظة: التعيين هنا برمجي (el.value = ...) فما يطلق حدث input/change
+            // ولا يحمّر زر الحفظ بالغلط - نفس سلوك populateUI() بـ dashboard.js.
+
+            // ------------------------------------------------------------
+            // فلاتر النصوص (custom_welcome_text / text_msg_leave) - بحرية
+            // واسعة زي ما طلبت: ما نمنع أي رمز مشروع بالرسالة (@ / # /
+            // باك-تيك كلها مستخدمة فعلياً بمنشن/تنسيق شرعي هنا، عكس حقل
+            // النيكنيم بصفحة general-settings.html). بس نشيل محارف التحكم/
+            // الخفية اللي ما إلها داعي (تحافظ على الأسطر الجديدة \n لأنها
+            // ضرورية لرسائل متعددة الأسطر)، ونثبّت حد الطول حتى لو انلصق
+            // نص أطول من maxlength (بعض المتصفحات ما تقص اللصق تلقائياً).
+            // ------------------------------------------------------------
+            function sanitizeMessageText(value, maxLen) {
+                return value
+                    // محارف تحكم (عدا \t \n \r) + محارف خفية Zero-width
+                    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200F\uFEFF]/g, '')
+                    .slice(0, maxLen);
+            }
+
+            ['custom_welcome_text', 'text_dm_welcome', 'text_msg_leave', 'text_dm_leave'].forEach((id) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.addEventListener('input', () => {
+                    const cleaned = sanitizeMessageText(el.value, 2000);
+                    if (cleaned !== el.value) el.value = cleaned;
+                });
+            });
+        })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="dashboard-guild-id" content="REPLACE_WITH_YOUR_GUILD_ID">
+    <title>OmniGuard - Ticket System Settings</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* Base Colors & Reset */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #111115;
+            --bg-tertiary: #18181c;
+            --accent-red: #ff3344;
+            --accent-red-hover: #ff5566;
+            --accent-green: #3ba55d;
+            --accent-green-hover: #43b869;
+            --text-primary: #ffffff;
+            --text-secondary: #8e9297;
+            --border-color: #2a2b30;
+        }
+
+        body { background-color: var(--bg-primary); color: var(--text-primary); display: flex; height: 100vh; overflow: hidden; }
+
+        /* Sidebar Styles */
+        .sidebar { width: 280px; background-color: var(--bg-secondary); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 24px 16px; overflow-y: auto; }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        .logo-section { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-left: 8px; flex-shrink: 0; }
+        .logo-icon { color: var(--accent-red); font-size: 24px; }
+        .logo-text { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+        .category-container { display: flex; align-items: center; gap: 10px; margin-top: 18px; margin-bottom: 10px; width: 100%; }
+        .category-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-secondary); white-space: nowrap; }
+        .category-line { flex-grow: 1; height: 1px; background-color: var(--border-color); }
+        .menu-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+        .menu-item a { display: flex; align-items: center; gap: 12px; padding: 10px 14px; color: var(--text-secondary); text-decoration: none; border-radius: 8px; font-weight: 500; font-size: 14px; transition: all 0.2s ease; }
+        .menu-item a:hover { color: var(--text-primary); background-color: var(--bg-tertiary); }
+        .menu-item.active a { color: var(--text-primary); background-color: rgba(255, 51, 68, 0.1); border-left: 3px solid var(--accent-red); padding-left: 11px; }
+
+        /* Main Content Area */
+        .main-content { flex-grow: 1; background-color: var(--bg-primary); display: flex; flex-direction: column; overflow-y: auto; }
+        header { height: 70px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background-color: var(--bg-secondary); flex-shrink: 0; }
+        .header-title { font-size: 18px; font-weight: 600; }
+        .user-profile { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; background-color: var(--accent-red); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
+        .header-controls { display: flex; align-items: center; gap: 16px; }
+        .guild-select { background-color: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); padding: 8px 12px; border-radius: 8px; font-size: 14px; outline: none; cursor: pointer; transition: border-color 0.2s; }
+        .guild-select:focus { border-color: var(--accent-red); }
+        .avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+        .logout-btn { background-color: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); padding: 8px 12px; border-radius: 8px; font-size: 13px; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease; }
+        .logout-btn:hover { color: var(--accent-red); border-color: var(--accent-red); background-color: rgba(255, 51, 68, 0.05); }
+
+        .content-body { padding: 40px; max-width: 1200px; width: 100%; margin: 0 auto; }
+
+        /* Tabs Navigation */
+        .tabs-nav { display: flex; gap: 8px; margin-bottom: 24px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; overflow-x: auto; }
+        .tab-btn { background-color: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s ease; display: flex; align-items: center; gap: 8px; }
+        .tab-btn:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+        .tab-btn.active { background-color: rgba(255, 51, 68, 0.1); color: var(--accent-red); border-color: var(--accent-red); }
+
+        /* Tab Content Panes */
+        .tab-pane { display: none; }
+        .tab-pane.active { display: block; }
+
+        /* Settings Grid */
+        .settings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 32px; }
+        @media (max-width: 992px) { .settings-grid { grid-template-columns: 1fr; } }
+
+        .settings-card { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 28px; display: flex; flex-direction: column; gap: 20px; position: relative; }
+        .full-width { grid-column: span 2; }
+
+        .card-header-group { display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 14px; }
+        .card-header-icon { color: var(--accent-red); font-size: 20px; }
+        .card-header-title { font-size: 16px; font-weight: 600; }
+
+        .form-row { display: flex; gap: 16px; }
+        .form-group { flex: 1; display: flex; flex-direction: column; gap: 8px; position: relative; }
+        .form-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
+
+        .form-input, .form-textarea, .form-select { width: 100%; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 12px 16px; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; }
+        .form-input:focus, .form-textarea:focus, .form-select:focus { border-color: var(--accent-red); }
+        .form-textarea { resize: vertical; min-height: 100px; }
+
+        /* Custom Checkbox Toggle Style */
+        .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; }
+        .toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); transition: .2s; border-radius: 24px; }
+        .toggle-slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: var(--text-secondary); transition: .2s; border-radius: 50%; }
+        input:checked + .toggle-slider { background-color: var(--accent-red); border-color: var(--accent-red); }
+        input:checked + .toggle-slider:before { transform: translateX(20px); background-color: white; }
+
+        /* Custom Multi-Select Dropdown Selector Box */
+        .selector-box {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px;
+            min-height: 45px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .selector-box:hover { border-color: var(--accent-red); }
+
+        .selector-placeholder { color: var(--text-secondary); font-size: 13px; margin-left: 5px; }
+
+        .tag-item {
+            background-color: rgba(255, 51, 68, 0.15);
+            color: var(--accent-red);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid rgba(255, 51, 68, 0.3);
+        }
+        .tag-item .remove-btn { cursor: pointer; font-size: 12px; line-height: 1; transition: color 0.2s; }
+        .tag-item .remove-btn:hover { color: white; }
+
+        .dropdown-list {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin-top: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .dropdown-list.show { display: block; }
+        .dropdown-item {
+            padding: 10px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .dropdown-item:hover { background-color: var(--accent-red); color: white; }
+
+        .limit-warning {
+            color: var(--accent-red);
+            font-size: 12px;
+            margin-top: 4px;
+            display: inline-block;
+        }
+
+        /* Save Bar */
+        .save-changes-bar { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; bottom: 20px; z-index: 10; margin-top: 24px; }
+        .save-info-text { font-size: 14px; color: var(--text-secondary); }
+
+        .save-btn { border: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 0.2s, color 0.2s; }
+        .save-btn.state-default { background-color: var(--bg-tertiary); color: var(--text-secondary); cursor: not-allowed; }
+        .save-btn.state-dirty { background-color: var(--accent-red); color: var(--text-primary); }
+        .save-btn.state-dirty:hover { background-color: var(--accent-red-hover); }
+        .save-btn.state-saved { background-color: var(--accent-green); color: var(--text-primary); cursor: default; }
+        .save-btn.state-error { background-color: var(--accent-red); color: var(--text-primary); }
+    </style>
+</head>
+<body>
+
+    <!-- Left Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="logo-section">
+            <i class="fa-solid fa-shield-halved logo-icon"></i>
+            <span class="logo-text">OmniGuard</span>
+        </div>
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Search</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    Search
+                </a>
+            </li>
+        </ul>
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Home</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="index">
+                    <i class="fa-solid fa-house"></i>
+                    Home
+                </a>
+            </li>
+        </ul>
+
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Core Settings</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="general-settings">
+                    <i class="fa-solid fa-sliders"></i>
+                    General Settings
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="welcome-leave">
+                    <i class="fa-solid fa-door-open"></i>
+                    Welcome & Leave
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="role-management">
+                    <i class="fa-solid fa-user-gear"></i>
+                    Role Management
+                </a>
+            </li>
+        </ul>
+
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Modules & Features</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item active">
+                <a href="ticketsystem">
+                    <i class="fa-solid fa-ticket"></i>
+                    Ticket System
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="commands">
+                    <i class="fa-solid fa-terminal"></i>
+                    Command Customization
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <header>
+            <div class="header-title">Ticket System Settings</div>
+            <div class="header-controls">
+                <select id="guild-selector" class="guild-select">
+                    <option value="" disabled selected>Loading Servers...</option>
+                </select>
+                <div class="user-profile" id="user-profile">
+                    <span id="user-name">Loading...</span>
+                    <div class="avatar" id="user-avatar">OG</div>
+                </div>
+                <button id="logout-btn" class="logout-btn">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="content-body">
+            
+            <!-- Tabs Navigation Header -->
+            <div class="tabs-nav">
+                <button class="tab-btn active" onclick="switchTab(event, 'tab-general')">
+                    <i class="fa-solid fa-gear"></i> General & Naming
+                </button>
+                <button class="tab-btn" onclick="switchTab(event, 'tab-messages')">
+                    <i class="fa-solid fa-message"></i> Messages & Embeds
+                </button>
+                <button class="tab-btn" onclick="switchTab(event, 'tab-permissions')">
+                    <i class="fa-solid fa-shield-halved"></i> Permissions & Limits
+                </button>
+                <button class="tab-btn" onclick="switchTab(event, 'tab-categories')">
+                    <i class="fa-solid fa-list-ul"></i> Categories & Menu
+                </button>
+                <button class="tab-btn" onclick="switchTab(event, 'tab-automation')">
+                    <i class="fa-solid fa-robot"></i> Automation & Logs
+                </button>
+            </div>
+
+            <!-- TAB 1: General & Naming (Features 1 & 6) -->
+            <div id="tab-general" class="tab-pane active">
+                <div class="settings-grid">
+                    <!-- 1. Ticket Naming & Counter -->
+                    <div class="settings-card full-width">
+                        <div class="card-header-group">
+                            <i class="fa-solid fa-hashtag card-header-icon"></i>
+                            <h2 class="card-header-title">Ticket Naming & Counter</h2>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Name Pattern</label>
+                                <input id="ticket_name_pattern" type="text" class="form-input" placeholder="ticket-{username} or ticket-{count}">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Initial Counter Number</label>
+                                <input id="ticket_counter_start" type="number" class="form-input" placeholder="1" min="1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 6. Custom Buttons & Select Menu Layout -->
+                    <div class="settings-card full-width">
+                        <div class="card-header-group">
+                            <i class="fa-solid fa-icons card-header-icon"></i>
+                            <h2 class="card-header-title">Custom Panel Buttons</h2>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label">Button Label Text</label>
+                                <input id="ticket_button_label" type="text" class="form-input" placeholder="📩 Open Support Ticket">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Button Emoji</label>
+                                <input id="ticket_button_emoji" type="text" class="form-input" placeholder="📩">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Button Style Color</label>
+                                <select id="ticket_button_style" class="form-select">
+                                    <option value="PRIMARY">Blurple (Primary)</option>
+                                    <option value="SUCCESS">Green (Success)</option>
+                                    <option value="DANGER">Red (Danger)</option>
+                                    <option value="SECONDARY">Grey (Secondary)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: Messages & Embeds (Features 2, 9 & 10) -->
+            <div id="tab-messages" class="tab-pane">
+                <div class="settings-grid">
+                    <!-- 2. Welcome / Panel Message -->
+                    <div class="settings-card full-width">
+                        <div class="card-header-group">
+                            <i class="fa-solid fa-comment-dots card-header-icon"></i>
+                            <h2 class="card-header-title">Welcome & Panel Message</h2>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Embed Title</label>
+                            <input id="ticket_embed_title" type="text" class="form-input" placeholder="Support Center">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Embed Description Content</label>
+                            <textarea id="ticket_embed_desc" class="form-textarea" placeholder="Click the button below to create a support ticket..."></textarea>
+                        </div>
+                        <div class="toggle-row">
+                            <span class="form-label" style="text-transform:none; font-size:14px; color:var(--text-primary);">Auto-Mention Support Role or User on Open</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="ticket_auto_mention">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 9. Modal / Form Input -->
+                    <div class="settings-card">
+                        <div class="card-header-group">
+                            <i class="fa-solid fa-keyboard card-header-icon"></i>
+                            <h2 class="card-header-title">Pre-Opening Questions Modal</h2>
+                        </div>
+                        <div class="toggle-row" style="margin-bottom: 12px;">
+                            <span class="form-label" style="text-transform:none; font-size:14px; color:var(--text-primary);">Enable Modal Form Before Opening</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="ticket_modal_enabled">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Modal Questions Prompt/Fields</label>
+                            <input id="ticket_modal_fields" type="text" class="form-input" placeholder="Account Name, Issue Description, Proof Link">
+                        </div>
+                    </div>
+
+                    <!-- 10. DM Notifications -->
+                    <div class="settings-card">
+                        <div class="card-header-group">
+                            <i class="fa-solid fa-paper-plane card-header-icon"></i>
+                            <h2 class="card-header-title">Direct Message (DM) Notifications</h2>
+                        </div>
+                        <div class="toggle-row" style="margin-bottom: 12px;">
+                            <span class="form-label" style="text-transform:none; font-size:14px; color:var(--text-primary);">Send User DM on Ticket Open / Close</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="ticket_dm_notifications">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Custom DM Message Template</label>
+                            <textarea id="ticket_dm_template" class="form-textarea" placeholder="Your ticket has been created/closed successfully. Transcript link: {transcript}"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: Permissions & Limits (Feature 3 & 4) -->
+            <div id="tab-permissions" class="tab-pane">
+                <div class="settings-grid">
+                    <!-- 3. Blacklist & User Ban System -->
+                    <div class="settings-card">
+                        <div class="card-header-group">
+                            <i class="fa-solid fa-user-slash card-header-icon"></i>
+                            <h2 class="card-header-title">Blacklist & User Ban System</h2>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Blacklisted Users / Roles</label>
+                            <div class="selector-box" id="ticket_blacklist_roles" data-source="roles" data-dropdown="blacklistRolesDropdown" onclick="toggleDropdown('blacklistRolesDropdown')">
+                                <span class="selector-placeholder">+ Select Excluded Roles/Users</span>
+                            </div>
+                            <div id="blacklistRolesDropdown" class="dropdown-list"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Max Active Tickets Per User</label>
+                            <input id="ticket_max_per_user" type="number" class="form-input" value="1" min="1" max="10">
+                        </div>
+                    </div>
+
+                    <!-- 4. Support Roles Assignment -->
+                    <div class="settings-card">
+                        <div class="card-header-group">
+                            <i class="fa-solid fa-user-gear card-header-icon"></i>
+                            <h2 class="card-header-title">Support & Admin Roles Assignment</h2>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Support Team Roles</label>
+                            <div class="selector-box" id="ticket_support_roles" data-source="roles" data-dropdown="supportRolesDropdown" onclick="toggleDropdown('supportRolesDropdown')">
+                                <span class="selector-placeholder">+ Select Support Roles</span>
+                            </div>
+                            <div id="supportRolesDropdown" class="dropdown-list"></div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Admin Control Roles</label>
+                            <div class="selector-box" id="ticket_admin_roles" data-source="roles" data-dropdown="adminRolesDropdown" onclick="toggleDropdown('adminRolesDropdown')">
+                                <span class="selector-placeholder">+ Select Admin Roles</span>
+                            </div>
+                            <div id="adminRolesDropdown" class="dropdown-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: Categories & Dropdown Menu (Feature 5) -->
+            <div id="tab-categories" class="tab-pane">
+                <div class="settings-grid">
+                    <div class="settings-card full-width">
+                        <div class="card-header-group">
+                            <i class="fa-solid fa-list-dropdown card-header-icon"></i>
+                            <h2 class="card-header-title">Ticket Categories & Select Menu</h2>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Dropdown Categories Options (e.g. Technical Support, Report Member, Inquiries, Purchase)</label>
+                            <textarea id="ticket_categories_list" class="form-textarea" placeholder="Technical Support&#10;Report Member&#10;Inquiries&#10;Purchase"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Target Parent Channels / Categories (Discord Category IDs mapping)</label>
+                            <div class="selector-box" id="ticket_parent_categories" data-source="channels" data-dropdown="parentChannelsDropdown" onclick="toggleDropdown('parentChannelsDropdown')">
+                                <span class="selector-placeholder">+ Select Category Channels</span>
+                            </div>
+                            <div id="parentChannelsDropdown" class="dropdown-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: Automation & Logs (Features 7 & 8) -->
+            <div id="tab-automation" class="tab-pane">
+                <div class="settings-grid">
+                    <!-- 7. Auto Close & Inactivity -->
+                    <div class="settings-card">
+                        <div class="card-header-group">
+                            <i class="fa-solid fa-clock card-header-icon"></i>
+                            <h2 class="card-header-title">Auto Close & Inactivity Timeout</h2>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Inactivity Timeout (Hours)</label>
+                            <input id="ticket_inactivity_timeout" type="number" class="form-input" placeholder="24" min="0">
+                        </div>
+                        <div class="toggle-row" style="margin-top: 10px;">
+                            <span class="form-label" style="text-transform:none; font-size:14px; color:var(--text-primary);">Require Confirmation Button to Close Ticket</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="ticket_close_confirmation" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 8. Transcripts Settings -->
+                    <div class="settings-card">
+                        <div class="card-header-group">
+                            <i class="fa-solid fa-file-lines card-header-icon"></i>
+                            <h2 class="card-header-title">Transcripts Settings</h2>
+                        </div>
+                        <div class="toggle-row" style="margin-bottom: 12px;">
+                            <span class="form-label" style="text-transform:none; font-size:14px; color:var(--text-primary);">Enable Saving Transcripts Automatically</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="ticket_transcripts_enabled" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Transcript Logging Channel</label>
+                            <div class="selector-box" id="ticket_transcript_channel" data-source="channels" data-dropdown="transcriptChannelDropdown" onclick="toggleDropdown('transcriptChannelDropdown')">
+                                <span class="selector-placeholder">+ Select Log Channel</span>
+                            </div>
+                            <div id="transcriptChannelDropdown" class="dropdown-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sticky Save Bar -->
+            <div class="save-changes-bar">
+                <span class="save-info-text">Careful — any unsaved modifications will be lost!</span>
+                <button class="save-btn state-default" disabled>Save Changes</button>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="dashboard.js"></script>
+
+    <script>
+        // Tab Switcher Function
+        function switchTab(evt, tabId) {
+            const panes = document.querySelectorAll('.tab-pane');
+            panes.forEach(pane => pane.classList.remove('active'));
+
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+
+            document.getElementById(tabId).classList.add('active');
+            evt.currentTarget.classList.add('active');
+        }
+
+        (async function () {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) { window.location.href = 'Login.html'; return; }
+            if (typeof initGlobalHeader === 'function') initGlobalHeader(session);
+
+            const MAX_TAGS_PER_BOX_PAGE = 50;
+            const originalAddDiscordTag = window.addDiscordTag;
+
+            if (typeof originalAddDiscordTag === 'function') {
+                window.addDiscordTag = function (boxId, id, displayName) {
+                    const box = document.getElementById(boxId);
+                    if (box && box.querySelectorAll('.tag-item').length >= MAX_TAGS_PER_BOX_PAGE) {
+                        showLimitWarning(box);
+                        return;
+                    }
+                    originalAddDiscordTag(boxId, id, displayName);
+                };
+            }
+
+            function showLimitWarning(box) { 
+                if (box.parentElement.querySelector('.limit-warning')) return;
+
+                const warning = document.createElement('div');
+                warning.className = 'limit-warning';
+                warning.textContent = `Maximum ${MAX_TAGS_PER_BOX_PAGE} items reached`;
+                box.insertAdjacentElement('afterend', warning);
+
+                setTimeout(() => warning.remove(), 2000);
+            }
+        })();
+    </script>
+</body>
+</html>

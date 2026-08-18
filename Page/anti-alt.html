@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="dashboard-guild-id" content="REPLACE_WITH_YOUR_GUILD_ID">
+    <title>OmniGuard - Anti-Alt Settings</title>
+    <!-- Google Fonts & FontAwesome Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Base Colors & Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #111115;
+            --bg-tertiary: #18181c;
+            --accent-red: #ff3344;
+            --accent-red-hover: #ff5566;
+            --text-primary: #ffffff;
+            --text-secondary: #8e9297;
+            --border-color: #2a2b30;
+            --warning-amber: #ffaa00;
+            --danger-color: #ff3344;
+            --success-color: #4cd137;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styles - Identical to index.html */
+        .sidebar {
+            width: 280px;
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 24px 16px;
+            overflow-y: auto;
+        }
+
+        /* Hide sidebar scrollbar for clean look */
+        .sidebar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding-left: 8px;
+            flex-shrink: 0;
+        }
+
+        .logo-icon {
+            color: var(--accent-red);
+            font-size: 24px;
+        }
+
+        .logo-text {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        /* Category Header with Center Text between Two Gray Lines */
+        .category-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 18px;
+            margin-bottom: 10px;
+            width: 100%;
+        }
+
+        .category-header {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .category-line {
+            flex-grow: 1;
+            height: 1px;
+            background-color: var(--border-color);
+        }
+
+        .menu-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .menu-item a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .menu-item a:hover {
+            color: var(--text-primary);
+            background-color: var(--bg-tertiary);
+        }
+
+        /* Highlight Active Item */
+        .menu-item.active a {
+            color: var(--text-primary);
+            background-color: rgba(255, 51, 68, 0.1);
+            border-left: 3px solid var(--accent-red);
+            padding-left: 11px;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex-grow: 1;
+            background-color: var(--bg-primary);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        header {
+            height: 70px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 40px;
+            background-color: var(--bg-secondary);
+            flex-shrink: 0;
+        }
+
+        .header-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--accent-red);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .content-body {
+            padding: 40px;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* Settings Grid Layout */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+
+        @media (max-width: 992px) {
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .settings-card {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card-header-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 14px;
+        }
+
+        .card-header-icon {
+            color: var(--accent-red);
+            font-size: 20px;
+        }
+
+        .card-header-title {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        /* Form Controls */
+        .form-row {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+        }
+
+        .form-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .form-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group-narrow {
+            flex: 0 0 240px;
+            max-width: 240px;
+        }
+
+        .form-group-wide {
+            flex: 1 1 0;
+            min-width: 0;
+        }
+
+        .full-width {
+            grid-column: span 2;
+        }
+
+        /* [NEW] Anti-Alt Log - الكرت نفسه يسكرول لما القائمة تطول، مو الصفحة
+           كلها (طلب صريح) - max-height ثابت + overflow-y auto. */
+        .alt-log-list {
+            max-height: 480px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding-right: 4px;
+        }
+
+        .alt-log-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 16px;
+        }
+
+        .alt-log-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .alt-log-info {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .alt-log-username {
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .alt-log-meta {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .alt-log-score {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent-red);
+            flex-shrink: 0;
+            min-width: 48px;
+            text-align: center;
+        }
+
+        .alt-log-btn {
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background-color 0.2s;
+        }
+
+        .alt-log-btn.ban {
+            background-color: var(--accent-red);
+            color: var(--text-primary);
+        }
+
+        .alt-log-btn.ban:hover {
+            background-color: var(--accent-red-hover);
+        }
+
+        .alt-log-btn.undo {
+            background-color: #2ecc71;
+            color: #ffffff;
+        }
+
+        .alt-log-btn.undo:hover {
+            background-color: #27ae60;
+        }
+
+        .alt-log-btn.unban {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .alt-log-empty {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 13px;
+            padding: 30px 0;
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-input:focus, .form-select:focus {
+            border-color: var(--accent-red);
+            box-shadow: 0 0 0 3px rgba(255, 51, 68, 0.15);
+        }
+
+        /* Custom Switch Styling */
+        .switch-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            padding: 14px 18px;
+            border-radius: 8px;
+            transition: background-color 0.2s;
+        }
+
+        .switch-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .switch-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .switch-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 46px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            transition: .25s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 3px;
+            background-color: var(--text-secondary);
+            transition: .25s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: rgba(255, 51, 68, 0.2);
+            border-color: var(--accent-red);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+            background-color: var(--accent-red);
+        }
+
+        /* System Info Banners */
+        .info-banner {
+            background-color: rgba(255, 170, 0, 0.05);
+            border: 1px dashed var(--warning-amber);
+            border-radius: 8px;
+            padding: 14px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .info-banner i {
+            color: var(--warning-amber);
+            font-size: 16px;
+            margin-top: 2px;
+        }
+
+        .info-banner p {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Bottom Fixed Save Bar */
+         /* Sticky Save Bar - Exact configuration from general-settings.html */
+.save-changes-bar { 
+    background-color: var(--bg-secondary); 
+    border: 1px solid var(--border-color); 
+    border-radius: 12px; 
+    padding: 20px 32px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    
+    /* Crucial lines that enable the sticky behavior at the bottom */
+    position: sticky; 
+    bottom: 20px; 
+    z-index: 10; 
+}
+
+        .save-info-text {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .save-btn {
+            background-color: var(--accent-red);
+            color: var(--text-primary);
+            border: none;
+            padding: 12px 28px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .save-btn:hover {
+            background-color: var(--accent-red-hover);
+        }
+
+        /* [تصحيح] حالات زر الحفظ - dashboard.js ينادي هالكلاسات تلقائياً
+           (setSaveButtonState) لكن ما يفرض ألوانها؛ كل صفحة تعرّفها بنفسها. */
+        .save-btn.state-default {
+            background-color: var(--bg-tertiary);
+            color: var(--text-secondary);
+            cursor: not-allowed;
+        }
+
+        .save-btn.state-default:hover {
+            background-color: var(--bg-tertiary);
+        }
+
+        .save-btn.state-dirty {
+            background-color: var(--accent-red);
+            color: var(--text-primary);
+        }
+
+        .save-btn.state-dirty:hover {
+            background-color: var(--accent-red-hover);
+        }
+
+        .save-btn.state-saved {
+            background-color: var(--success-color);
+            color: var(--text-primary);
+            cursor: not-allowed;
+        }
+
+        .save-btn.state-error {
+            background-color: var(--danger-color);
+            color: var(--text-primary);
+        }
+
+        .save-btn.state-error:hover {
+            background-color: var(--accent-red-hover);
+        }
+/* --- التنسيقات المفقودة للهيدر --- */
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.guild-select {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.guild-select:focus {
+    border-color: var(--accent-red);
+}
+
+.logout-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.logout-btn:hover {
+    color: var(--accent-red);
+    border-color: var(--accent-red);
+    background-color: rgba(255, 51, 68, 0.05);
+}
+
+#user-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+    </style>
+</head>
+<body>
+
+    <!-- Left Sidebar Navigation (Synced with index.html) -->
+    <aside class="sidebar">
+        <!-- Bot Logo and Name -->
+        <div class="logo-section">
+            <i class="fa-solid fa-shield-halved logo-icon"></i>
+            <span class="logo-text">OmniGuard</span>
+        </div>
+         <!-- SEARCH CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Search</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    Search
+                </a>
+            </li>
+        </ul>
+        <!-- HOME CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Home</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="index">
+                    <i class="fa-solid fa-house"></i>
+                    Home
+                </a>
+            </li>
+        </ul>
+
+        <!-- CORE SETTINGS CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Core Settings</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="general-settings">
+                    <i class="fa-solid fa-sliders"></i>
+                    General Settings
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="welcome-leave">
+                    <i class="fa-solid fa-door-open"></i>
+                    Welcome & Leave
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="role-management">
+                    <i class="fa-solid fa-user-gear"></i>
+                    Role Management
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODERATION & SECURITY CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Moderation & Security</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="auto-mod">
+                    <i class="fa-solid fa-robot"></i>
+                    Auto-Mod
+                </a>
+            </li>
+            <li class="menu-item active">
+                <a href="anti-alt">
+                    <i class="fa-solid fa-user-shield"></i>
+                    Anti-Alt
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="logging">
+                    <i class="fa-solid fa-reply-all"></i>
+                    Auto Respond
+                </a>
+            </li>
+        </ul>
+
+        <!-- TICKET SYSTEM CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Ticket System</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="category">
+                    <i class="fa-solid fa-ticket"></i>
+                    Ticket Category
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="AutoLog">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    Ticket Auto Log
+                </a>
+            </li>
+        </ul>
+
+        </ul>
+        </li>
+            <li class="menu-item">
+                <a href="Permissionspanel">
+                    <i class="fa-solid fa-sliders"></i>
+                    Ticket Panel
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODULES & FEATURES CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Modules & Features</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="custom-messages">
+                    <i class="fa-solid fa-comment-dots"></i>
+                    Custom Messages
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="Level">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    Leveling System
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="commands">
+                    <i class="fa-solid fa-terminal"></i>
+                    Command Customization
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+ <main class="main-content"> 
+    
+    <!-- Main Content Area -->
+    <header>
+            <div class="header-title">General Settings</div>
+            <div class="header-controls">
+                <!-- Guild / Server Selector Dropdown -->
+                <select id="guild-selector" class="guild-select">
+                    <option value="" disabled selected>Loading Servers...</option>
+                </select>
+
+                <!-- Dynamic User Profile -->
+                <div class="user-profile" id="user-profile">
+                    <span id="user-name">Loading...</span>
+                    <div class="avatar" id="user-avatar">OG</div>
+                </div>
+
+                <!-- Logout Button -->
+                <button id="logout-btn" class="logout-btn">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+            
+        </header>
+
+        <div class="content-body">
+            <div class="settings-grid">
+                
+                <!-- 1. Basic Configuration -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-toggle-on card-header-icon"></i>
+                        <h2 class="card-header-title">Basic Configuration</h2>
+                    </div>
+
+                    <!-- System Toggle -->
+                    <div class="switch-container">
+                        <div class="switch-info">
+                            <span class="switch-title">Enable Anti-Alt System</span>
+                            <span class="switch-desc">Instantly scan and flag new members with suspicious account ages upon arrival.</span>
+                        </div>
+                        <label class="switch">
+                            <input id="enabled" type="checkbox" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-row">
+                        <!-- Minimum Account Age Required + إجراؤها الخاص المستقل
+                             (age_gate_action) - بوابة صريحة منفصلة تماماً عن نظام
+                             النقاط تحت. راجع handleAgeGate() بـ AntiAlt.js. -->
+                        <div class="form-group form-group-narrow">
+                            <label class="form-label">Minimum Account Age Required</label>
+                            <input id="limit_age" type="text" class="form-input duration-input-ext" placeholder="e.g. 3d, 6mo, 1y" maxlength="8">
+                            <small style="color: var(--text-secondary); font-size: 11px;">Format: number + unit (s, min, h, d, w, mo, y).</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Action Below Min. Age</label>
+                            <!-- id = عمود setting_alt_anti.age_gate_action (عمود مستقل -
+                                 راجع FIX-15 بالمحادثة). لا تخلطه بـ action_to_take تحت. -->
+                            <select id="age_gate_action" class="form-select">
+                                <option value="kick">Kick (Allows re-joining when account matures)</option>
+                                <option value="ban">Ban (Permanently excludes account from guild)</option>
+                                <option value="mute">Mute (Timeout the member for a set duration)</option>
+                                <option value="isolate">Isolate (Strip all roles, assign to a locked no-access role)</option>
+                                <option value="none">None (Log and flag for staff inspection only)</option>
+                            </select>
+                            <small style="color: var(--text-secondary); font-size: 11px;">Applies when a joining account is younger than the minimum age above.</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Action on Detection -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <i class="fa-solid fa-gavel card-header-icon"></i>
+                        <h2 class="card-header-title">Action on Detection</h2>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Action to Take</label>
+                            <!-- id = عمود setting_alt_anti.action_to_take - خاص بنظام
+                                 النقاط (Score/Threshold) بس، مستقل عن age_gate_action
+                                 بالبطاقة الأولى. -->
+                            <select id="action_to_take" class="form-select">
+                                <option value="kick">Kick (Allows re-joining when account matures)</option>
+                                <option value="ban">Ban (Permanently excludes account from guild)</option>
+                                <option value="mute">Mute (Timeout the member for a set duration)</option>
+                                <option value="isolate">Isolate (Strip all roles, assign to a locked no-access role)</option>
+                                <option value="none">None (Log and flag for staff inspection only)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Mute Duration</label>
+                            <input id="action_mute_duration" type="text" class="form-input duration-input" placeholder="e.g., 24h" maxlength="6">
+                            <small style="color: var(--text-secondary); font-size: 11px;">Applies to both Action to Take and Action if Below Minimum Age. Format: number + s/m/h/d/w (e.g. 24h, 3d). Defaults to 24h if left blank.</small>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group" style="flex: 1 1 100%;">
+                            <label class="form-label">Detection Threshold Score</label>
+                            <!-- id = عمود setting_alt_anti.threshold_action (موجود
+                                 بالسكيما من الأصل - كان بدون حقل واجهة). أي عضو
+                                 تجاوز مجموع نقاطه هذا الرقم (وحقق شرط تنوع بُعدين
+                                 مستقلين على الأقل) يُعتبر alt مشتبه وتُنفَّذ عليه
+                                 Action to Take تلقائياً. -->
+                            <input id="threshold_action" type="number" class="form-input" min="20" step="1" placeholder="e.g. 65">
+                            <small style="color: var(--text-secondary); font-size: 11px;">Minimum combined score (from at least 2 independent detection signals) required before Action to Take executes automatically. Minimum allowed value: 20.</small>
+                        </div>
+                    </div>
+
+                    <div class="info-banner">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <p>Selecting "None" will only dispatch notification updates to your designated staff logs channels without performing automatic actions. Selecting "Isolate" auto-creates a locked "OmniGuard Quarantine" role (no access to any channel) the first time it's used.</p>
+                    </div>
+                </div>
+
+                <!-- 3. Anti-Alt Log -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group" style="justify-content: space-between;">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <i class="fa-solid fa-clipboard-list card-header-icon"></i>
+                            <h2 class="card-header-title">Anti-Alt Log</h2>
+                        </div>
+                        <div class="form-group" style="flex: 0 0 180px; margin: 0;">
+                            <label class="form-label" style="font-size: 11px;">Min. Score to Show</label>
+                            <!-- id = عمود setting_alt_anti.log_min_score_display - يُحفظ
+                                 بنفس زر Save Changes العام (Smart Binding عادي)، وكمان
+                                 يُعيد تحميل القائمة تحت فوراً عند التغيير (listener
+                                 محلي - راجع سكربت [3] بآخر الصفحة). -->
+                            <input id="log_min_score_display" type="number" class="form-input" min="20" step="1">
+                        </div>
+                    </div>
+
+                    <!-- القائمة نفسها تسكرول لو طالت (max-height بالـ CSS
+                         .alt-log-list) - مو الصفحة كلها. -->
+                    <div id="altLogList" class="alt-log-list">
+                        <p class="alt-log-empty">Loading...</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Bottom Save Bar -->
+            <div class="save-changes-bar">
+                <span class="save-info-text">Be careful — any unsaved modifications will be discarded!</span>
+                <button class="save-btn">Save Changes</button>
+            </div>
+        </div>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="dashboard.js"></script>
+
+    <!-- ======================================================================
+         سكربت خاص بصفحة anti-alt.html فقط - مستقل تماماً عن dashboard.js.
+         [1] Custom Days Limit: يمنع أي شي غير أرقام إنجليزية (0-9) - يشمل هذا
+             الأرقام العربية (١٢٣) والحروف والرموز - ويثبّت القيمة عند 3650
+             يوم كحد أقصى حتى لو المستخدم كتبها يدوياً (attribute max وحده ما
+             يمنع الكتابة الفعلية بكل المتصفحات).
+         [2] Mute Duration: نفس نمط حقول المدة بصفحة auto-mod.html (رقم حتى 4
+             خانات + حرف وحدة واحد s/m/h/d/w) - مطابق لصيغة parseDurationToMs()
+             الفعلية بـ AntiAlt.js.
+    ====================================================================== -->
+    <script>
+         // لاحظ إضافة async هنا لكي نستطيع استخدام await بالداخل
+        document.addEventListener('DOMContentLoaded', async () => {
+
+            // --- [خطوة الحماية: التحقق من الجلسة فوراً] ---
+            // نستخدم supabaseClient المعرف مسبقاً في dashboard.js بدون إعادة تعريفه
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (!session) {
+                    window.location.href = 'Login.html';
+                    return; // توقف عن تنفيذ بقية السكربت إذا لم يكن مسجلاً
+                }
+                
+                // إذا كان هناك جلسة، نقوم بتحديث بيانات الهيدر (الاسم والصورة)
+                // هذه الدالة يفترض أنها موجودة في dashboard.js، إذا لم تكن موجودة سنستدعي منطقاً بسيطاً
+                if (typeof initGlobalHeader === 'function') {
+    initGlobalHeader(session);
+}
+            } catch (err) {
+                console.error("Auth check failed:", err);
+                window.location.href = 'Login.html';
+                return;
+            }
+
+            // --- [1] Minimum Account Age Required: صيغة مدة موسّعة (s/min/h/d/w/mo/y) ---
+            // منفصل تماماً عن فلتر .duration-input بالأسفل [2] عمداً - وحداته
+            // متعددة الأحرف (min/mo) وتتعارض لو استخدم نفس الـ Regex اللي يقبل
+            // حرف وحدة واحد بس (s/m/h/d/w) المستخدم لـ Mute Duration.
+            const AGE_LIMIT_PATTERN = /^(\d{1,5})(min|mo|s|h|d|w|y)?/i;
+            document.querySelectorAll('.duration-input-ext').forEach(el => {
+                el.addEventListener('input', () => {
+                    const cleaned = el.value.toLowerCase().replace(/[^0-9a-z]/g, '');
+                    const match = cleaned.match(AGE_LIMIT_PATTERN);
+                    el.value = match ? (match[1] + (match[2] || '')) : '';
+                });
+            });
+
+            // --- [2] Mute Duration: نفس فلتر صيغة المدة ---
+            const DURATION_PATTERN = /^(\d{1,4})([smhdw]?)/i;
+            document.querySelectorAll('.duration-input').forEach(el => {
+                el.addEventListener('input', () => {
+                    const cleanedChars = el.value.toLowerCase().replace(/[^0-9smhdw]/g, '');
+                    const match = cleanedChars.match(DURATION_PATTERN);
+                    el.value = match ? (match[1] + match[2]) : '';
+                });
+            });
+
+            // --- [3] Anti-Alt Log: تحميل القائمة + عرضها + تنفيذ إجراء يدوي ---
+            // يستخدم API_BASE / getGuildId() / getHeaders() المعرّفة عالمياً
+            // بـ dashboard.js (نفس الملف يُحمَّل قبل هذا السكربت مباشرة).
+            const altLogList = document.getElementById('altLogList');
+            const minScoreInput = document.getElementById('log_min_score_display');
+
+            function formatGmtDate(iso) {
+                if (!iso) return 'Unknown';
+                return new Date(iso).toLocaleString('en-GB', { timeZone: 'UTC', dateStyle: 'medium', timeStyle: 'short' }) + ' GMT';
+            }
+
+            async function loadAltLog() {
+                const guildId = getGuildId();
+                if (!guildId || !altLogList) return;
+
+                const minScore = Number(minScoreInput?.value) || 20;
+                altLogList.innerHTML = '<p class="alt-log-empty">Loading...</p>';
+
+                try {
+                    const res = await fetch(`${API_BASE}/guild/${guildId}/alt-anti/logs?minScore=${minScore}`, { headers: getHeaders() });
+                    const rows = await res.json();
+
+                    if (!Array.isArray(rows) || rows.length === 0) {
+                        altLogList.innerHTML = '<p class="alt-log-empty">No suspected alt accounts at or above this score yet.</p>';
+                        return;
+                    }
+
+                    altLogList.innerHTML = '';
+                    rows.forEach((row) => {
+                        const item = document.createElement('div');
+                        item.className = 'alt-log-item';
+                        // [NEW] زر "Undo" أخضر يظهر بس لو stillActive=true (العقوبة
+                        // لسا سارية فعلياً بديسكورد الحين - محسوبة حياً من السيرفر،
+                        // مو مجرد نص action_taken المخزّن). Kicked/Flagged ما فيهم
+                        // تراجع (مافي شي يُرجَّع أصلاً).
+                        const undoButtonHtml = row.stillActive
+                            ? `<button class="alt-log-btn undo alt-log-undo-btn">Undo</button>`
+                            : '';
+
+                        item.innerHTML = `
+                            <img class="alt-log-avatar" src="${row.url_avatar || 'https://cdn.discordapp.com/embed/avatars/0.png'}" alt="">
+                            <div class="alt-log-info">
+                                <span class="alt-log-username">${row.username || row.id_user}</span>
+                                <span class="alt-log-meta">Account created: ${formatGmtDate(row.at_created_account)}</span>
+                                <span class="alt-log-meta">Detected: ${formatGmtDate(row.at_detected)} — Status: ${row.action_taken}${row.stillActive ? ' (Active)' : ''}</span>
+                            </div>
+                            <span class="alt-log-score">${row.score ?? '?'}%</span>
+                            ${undoButtonHtml}
+                            <select class="form-select alt-log-action-select" style="flex: 0 0 100px;">
+                                <option value="kick">Kick</option>
+                                <option value="ban">Ban</option>
+                                <option value="mute">Mute</option>
+                            </select>
+                            <button class="alt-log-btn ban alt-log-apply-btn">Apply</button>
+                        `;
+
+                        item.querySelector('.alt-log-apply-btn').addEventListener('click', async () => {
+                            const action = item.querySelector('.alt-log-action-select').value;
+                            const btn = item.querySelector('.alt-log-apply-btn');
+                            btn.disabled = true;
+                            btn.textContent = '...';
+
+                            try {
+                                const actionRes = await fetch(`${API_BASE}/guild/${guildId}/alt-anti/action`, {
+                                    method: 'POST',
+                                    headers: getHeaders(),
+                                    body: JSON.stringify({ logId: row.id, userId: row.id_user, action })
+                                });
+                                const result = await actionRes.json();
+                                if (!actionRes.ok || !result.success) {
+                                    alert(result.error || 'Failed to execute action.');
+                                    btn.disabled = false;
+                                    btn.textContent = 'Apply';
+                                    return;
+                                }
+                                loadAltLog();
+                            } catch (e) {
+                                alert('Network error while executing action.');
+                                btn.disabled = false;
+                                btn.textContent = 'Apply';
+                            }
+                        });
+
+                        const undoBtn = item.querySelector('.alt-log-undo-btn');
+                        if (undoBtn) {
+                            undoBtn.addEventListener('click', async () => {
+                                undoBtn.disabled = true;
+                                undoBtn.textContent = '...';
+
+                                try {
+                                    const undoRes = await fetch(`${API_BASE}/guild/${guildId}/alt-anti/undo`, {
+                                        method: 'POST',
+                                        headers: getHeaders(),
+                                        body: JSON.stringify({ userId: row.id_user, actionTaken: row.action_taken })
+                                    });
+                                    const result = await undoRes.json();
+                                    if (!undoRes.ok || !result.success) {
+                                        alert(result.error || 'Failed to undo action.');
+                                        undoBtn.disabled = false;
+                                        undoBtn.textContent = 'Undo';
+                                        return;
+                                    }
+                                    loadAltLog();
+                                } catch (e) {
+                                    alert('Network error while undoing action.');
+                                    undoBtn.disabled = false;
+                                    undoBtn.textContent = 'Undo';
+                                }
+                            });
+                        }
+
+                        altLogList.appendChild(item);
+                    });
+                } catch (e) {
+                    altLogList.innerHTML = '<p class="alt-log-empty">Failed to load log.</p>';
+                }
+            }
+
+            if (minScoreInput) {
+                minScoreInput.addEventListener('change', loadAltLog);
+            }
+            loadAltLog();
+        });
+    </script>
+</body>
+</html>

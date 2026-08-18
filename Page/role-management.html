@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Meta tags for JS integration -->
+    <meta name="dashboard-guild-id" content="REPLACE_WITH_YOUR_GUILD_ID">
+    <title>OmniGuard - Role Management</title>
+    
+    <!-- Google Fonts & FontAwesome Icons - Matching index.html perfectly -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Base Colors & Reset - Matching index.html exactly */
+        * {
+            margin: 0; padding: 0; box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #111115;
+            --bg-tertiary: #18181c;
+            --accent-red: #ff3344;
+            --accent-red-hover: #ff5566;
+            --accent-green: #3ba55d;
+            --accent-green-hover: #43b869;
+            --text-primary: #ffffff;
+            --text-secondary: #8e9297;
+            --border-color: #2a2b30;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styles - Matching index.html exactly */
+        .sidebar {
+            width: 280px; background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            display: flex; flex-direction: column;
+            padding: 24px 16px; overflow-y: auto;
+        }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+
+        .logo-section {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 24px; padding-left: 8px; flex-shrink: 0;
+        }
+
+        .logo-icon { color: var(--accent-red); font-size: 24px; }
+        .logo-text { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+
+        .category-container {
+            display: flex; align-items: center; gap: 10px;
+            margin-top: 18px; margin-bottom: 10px; width: 100%;
+        }
+
+        .category-header {
+            font-size: 10px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1.2px; color: var(--text-secondary); white-space: nowrap;
+        }
+
+        .category-line { flex-grow: 1; height: 1px; background-color: var(--border-color); }
+
+        .menu-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+
+        .menu-item a {
+            display: flex; align-items: center; gap: 12px; padding: 10px 14px;
+            color: var(--text-secondary); text-decoration: none; border-radius: 8px;
+            font-weight: 500; font-size: 14px; transition: all 0.2s ease;
+        }
+
+        .menu-item a:hover { color: var(--text-primary); background-color: var(--bg-tertiary); }
+
+        .menu-item.active a {
+            color: var(--text-primary);
+            background-color: rgba(255, 51, 68, 0.1);
+            border-left: 3px solid var(--accent-red);
+            padding-left: 11px;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            flex-grow: 1; background-color: var(--bg-primary);
+            display: flex; flex-direction: column; overflow-y: auto;
+        }
+
+        header {
+            height: 70px; border-bottom: 1px solid var(--border-color);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 40px; background-color: var(--bg-secondary); flex-shrink: 0;
+        }
+
+        .header-title { font-size: 18px; font-weight: 600; }
+        .user-profile { display: flex; align-items: center; gap: 10px; }
+        .avatar {
+            width: 32px; height: 32px; border-radius: 50%;
+            background-color: var(--accent-red); display: flex;
+            align-items: center; justify-content: center; font-weight: bold; font-size: 14px;
+        }
+
+        .content-body {
+            padding: 40px; max-width: 1200px; width: 100%; margin: 0 auto;
+        }
+
+        /* Settings Grid Layout */
+        .settings-grid {
+            display: grid; grid-template-columns: 1fr; gap: 24px; margin-bottom: 32px;
+        }
+
+        .settings-card {
+            background-color: var(--bg-secondary); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 28px; display: flex; flex-direction: column; gap: 20px;
+        }
+
+        .card-header-group {
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--border-color); padding-bottom: 14px;
+        }
+
+        .card-title-container { display: flex; align-items: center; gap: 12px; }
+        .card-header-icon { color: var(--accent-red); font-size: 20px; }
+        .card-header-title { font-size: 16px; font-weight: 600; }
+
+        /* Form Layouts */
+        .form-row { display: flex; gap: 20px; flex-wrap: wrap; }
+        .form-group { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 250px; position: relative; }
+        .form-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .form-input, .form-select {
+            width: 100%; background-color: var(--bg-tertiary); border: 1px solid var(--border-color);
+            color: var(--text-primary); padding: 12px 16px; border-radius: 8px; font-size: 14px; outline: none;
+            transition: border-color 0.2s;
+        }
+        .form-input:focus, .form-select:focus { border-color: var(--accent-red); }
+
+        /* Custom Multi-Select Dropdown Selector Box - نفس نظام general-settings.html
+           تماماً (بدل .role-selector-box الساكن القديم اللي ما كان له أي منطق JS
+           مربوط فعلياً - الصندوق نفسه كان مجرد div بدون data-source ولا id يطابق
+           عمود، فـ dashboard.js ما كان يقدر يعبّيه أو يحفظه إطلاقاً). */
+        .selector-box {
+            background-color: var(--bg-tertiary); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 8px; min-height: 45px; display: flex;
+            flex-wrap: wrap; gap: 6px; align-items: center; cursor: pointer;
+            transition: border-color 0.2s; position: relative;
+        }
+        .selector-box:hover { border-color: var(--accent-red); }
+        .selector-placeholder { color: var(--text-secondary); font-size: 13px; margin-left: 5px; }
+
+        /* تاق أحمر شفاف (نفس باقي الصفحات) - بس زر الإزالة "×" هنا رمادي
+           بدل الأحمر الافتراضي، حسب طلبك تحديداً لهذي الصفحة. */
+        .tag-item {
+            background-color: rgba(255, 51, 68, 0.15); color: var(--accent-red);
+            padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
+            display: flex; align-items: center; gap: 8px; border: 1px solid rgba(255, 51, 68, 0.3);
+        }
+        .tag-item .remove-btn { cursor: pointer; font-size: 12px; line-height: 1; color: var(--text-secondary); transition: color 0.2s; }
+        .tag-item .remove-btn:hover { color: var(--text-primary); }
+
+        .dropdown-list {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background-color: var(--bg-tertiary); border: 1px solid var(--border-color);
+            border-radius: 8px; margin-top: 5px; max-height: 200px; overflow-y: auto;
+            z-index: 100; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .dropdown-list.show { display: block; }
+        .dropdown-item { padding: 10px 16px; font-size: 14px; cursor: pointer; transition: background 0.2s; }
+        .dropdown-item:hover { background-color: var(--accent-red); color: white; }
+        .dropdown-empty { padding: 14px 16px; font-size: 13px; color: var(--text-secondary); text-align: center; }
+
+        /* فلتر مدة الإزالة (Removal Delay Duration) - حدّ أحمر + رسالة صغيرة
+           لما القيمة ما تطابق الصيغة المسموحة (1s / 1min / 1h / 1d / 1w / 1mo / 1y) */
+        .form-input.input-invalid { border-color: var(--accent-red); }
+        .field-error { color: var(--accent-red); font-size: 12px; display: none; }
+        .field-error.show { display: block; }
+
+        /* Info Banner */
+        .info-banner {
+            background-color: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 14px; display: flex; gap: 12px; align-items: flex-start;
+        }
+        .info-banner i { color: var(--accent-red); font-size: 16px; margin-top: 2px; }
+        .info-banner p { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+
+        /* Save Bar */
+        /* Sticky Save Bar - Exact configuration from general-settings.html */
+.save-changes-bar { 
+    background-color: var(--bg-secondary); 
+    border: 1px solid var(--border-color); 
+    border-radius: 12px; 
+    padding: 20px 32px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    
+    /* Crucial lines that enable the sticky behavior at the bottom */
+    position: sticky; 
+    bottom: 20px; 
+    z-index: 10; 
+}
+        /* حالات زر الحفظ - نفس نظام general-settings.html/welcome-leave.html
+           بالضبط (المنطق بـ dashboard.js عام، هذا الملف بس يوفر المظهر). */
+        .save-btn { border: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 0.2s, color 0.2s; }
+
+        .save-btn.state-default { background-color: var(--bg-tertiary); color: var(--text-secondary); cursor: not-allowed; }
+
+        .save-btn.state-dirty { background-color: var(--accent-red); color: var(--text-primary); }
+        .save-btn.state-dirty:hover { background-color: var(--accent-red-hover); }
+
+        .save-btn.state-saved { background-color: var(--accent-green); color: var(--text-primary); cursor: default; }
+
+        .save-btn.state-error { background-color: var(--accent-red); color: var(--text-primary); }
+        .save-btn.state-error:hover { background-color: var(--accent-red-hover); }
+        /* --- التنسيقات المفقودة للهيدر --- */
+.header-controls {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.guild-select {
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.guild-select:focus {
+    border-color: var(--accent-red);
+}
+
+.logout-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.logout-btn:hover {
+    color: var(--accent-red);
+    border-color: var(--accent-red);
+    background-color: rgba(255, 51, 68, 0.05);
+}
+
+#user-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+/* =====================================================================
+   [NEW - Role Management v7.0] زر التفعيل (Toggle Switch) - Enable Auto
+   User Role / Enable Auto Bot Role. عنصر <input type="checkbox"> حقيقي
+   (نفس id يطابق عمود SQL مباشرة - Smart Binding عادي، يمر عبر
+   buildPayload/populateUI العامين بدون أي كود إضافي) بس متخفي بصرياً
+   ومُعاد تصميمه كـ Switch عبر ::before/الليبل المجاور، بدل Checkbox
+   افتراضي - أسلوب قياسي (checkbox + label[for]) بدون أي جافاسكربت خاص.
+   ===================================================================== */
+.toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.toggle-row-text { display: flex; flex-direction: column; gap: 2px; }
+.toggle-row-title { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.toggle-row-subtitle { font-size: 12px; color: var(--text-secondary); }
+
+.switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch-slider {
+    position: absolute; cursor: pointer; inset: 0;
+    background-color: var(--bg-tertiary); border: 1px solid var(--border-color);
+    border-radius: 24px; transition: background-color 0.2s, border-color 0.2s;
+}
+.switch-slider::before {
+    content: ""; position: absolute; height: 16px; width: 16px; left: 3px; bottom: 3px;
+    background-color: var(--text-secondary); border-radius: 50%; transition: transform 0.2s, background-color 0.2s;
+}
+.switch input:checked + .switch-slider { background-color: var(--accent-red); border-color: var(--accent-red); }
+.switch input:checked + .switch-slider::before { transform: translateX(20px); background-color: #ffffff; }
+
+/* صندوق الرتب يصير رمادي/غير قابل للتفاعل وقت تعطيل التوجل المقابل له -
+   يبقى ظاهراً (ما يختفي) حسب طلب المطور صراحة. */
+.roles-box-wrapper.roles-disabled .selector-box {
+    opacity: 0.45; pointer-events: none; cursor: not-allowed;
+}
+.roles-box-wrapper.roles-disabled .selector-box:hover { border-color: var(--border-color); }
+
+/* =====================================================================
+   [NEW] قسم Reaction / Button Roles - كروت مستقلة، كل وحد له حفظ خاص
+   فيه (كلاسات .rr-* منفصلة تماماً عن .save-btn/.state-* العامة بـ
+   dashboard.js عمداً - راجع تعليق JS بالأسفل ليش هذا مهم).
+   ===================================================================== */
+.rr-header-row { display: flex; align-items: center; justify-content: space-between; }
+.rr-add-embed-btn {
+    background-color: var(--bg-tertiary); border: 1px solid var(--border-color);
+    color: var(--text-primary); padding: 10px 18px; border-radius: 8px;
+    font-size: 13px; font-weight: 600; cursor: pointer; display: flex;
+    align-items: center; gap: 8px; transition: all 0.2s;
+}
+.rr-add-embed-btn:hover { border-color: var(--accent-red); color: var(--accent-red); }
+
+.rr-cards-container { display: flex; flex-direction: column; gap: 20px; }
+
+.rr-card {
+    background-color: var(--bg-tertiary); border: 1px solid var(--border-color);
+    border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 18px; position: relative;
+}
+
+.rr-card-top { display: flex; align-items: center; justify-content: space-between; }
+.rr-card-badge { font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.rr-delete-card-btn {
+    background: none; border: 1px solid var(--border-color); color: var(--text-secondary);
+    width: 32px; height: 32px; border-radius: 8px; cursor: pointer; font-size: 14px;
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0;
+}
+.rr-delete-card-btn:hover { background-color: rgba(255, 51, 68, 0.1); border-color: var(--accent-red); color: var(--accent-red); }
+
+.rr-color-input {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 45px; border: 1px solid var(--border-color);
+    border-radius: 8px; background-color: var(--bg-secondary); cursor: pointer; padding: 4px;
+}
+.rr-color-input::-webkit-color-swatch-wrapper { padding: 0; }
+.rr-color-input::-webkit-color-swatch { border: none; border-radius: 6px; }
+
+.rr-buttons-list { display: flex; flex-direction: column; gap: 12px; }
+.rr-button-row {
+    display: grid; grid-template-columns: 1.2fr 1.4fr 1fr 0.8fr auto; gap: 10px; align-items: center;
+    background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px;
+}
+.rr-button-row .form-input, .rr-button-row .form-select { padding: 10px 12px; font-size: 13px; }
+
+.rr-role-picker { position: relative; }
+.rr-role-picker-box {
+    background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px;
+    padding: 10px 12px; font-size: 13px; cursor: pointer; display: flex; align-items: center;
+    justify-content: space-between; gap: 6px; min-height: 39px;
+}
+.rr-role-picker-box:hover { border-color: var(--accent-red); }
+.rr-role-picker-box .placeholder { color: var(--text-secondary); }
+.rr-role-picker-box .picked {
+    background-color: rgba(255, 51, 68, 0.15); color: var(--accent-red); padding: 3px 8px;
+    border-radius: 6px; font-size: 12px; font-weight: 600;
+}
+.rr-role-picker-list {
+    position: absolute; top: 100%; left: 0; right: 0; background-color: var(--bg-tertiary);
+    border: 1px solid var(--border-color); border-radius: 8px; margin-top: 5px; max-height: 200px;
+    overflow-y: auto; z-index: 100; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+.rr-role-picker-list.show { display: block; }
+.rr-role-picker-item { padding: 10px 14px; font-size: 13px; cursor: pointer; }
+.rr-role-picker-item:hover { background-color: var(--accent-red); color: white; }
+.rr-role-picker-empty { padding: 12px 14px; font-size: 12px; color: var(--text-secondary); text-align: center; }
+
+.rr-remove-button-btn {
+    background: none; border: 1px solid var(--border-color); color: var(--text-secondary);
+    width: 34px; height: 34px; border-radius: 8px; cursor: pointer; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+}
+.rr-remove-button-btn:hover { background-color: rgba(255, 51, 68, 0.1); border-color: var(--accent-red); color: var(--accent-red); }
+
+.rr-add-button-btn {
+    background: none; border: 1px dashed var(--border-color); color: var(--text-secondary);
+    padding: 10px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;
+    transition: all 0.2s; text-align: center;
+}
+.rr-add-button-btn:hover:not(:disabled) { border-color: var(--accent-red); color: var(--accent-red); }
+.rr-add-button-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.rr-limit-note { font-size: 11px; color: var(--text-secondary); text-align: right; }
+
+/* Discord Interactive Preview */
+.rr-preview-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.rr-preview {
+    background-color: #313338; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 12px;
+}
+.rr-preview-embed { border-left: 4px solid var(--accent-red); background-color: #2b2d31; border-radius: 4px; padding: 12px 16px; }
+.rr-preview-embed-title { color: #ffffff; font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+.rr-preview-embed-desc { color: #dbdee1; font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+.rr-preview-embed-empty { color: #949ba4; font-size: 13px; font-style: italic; }
+.rr-preview-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.rr-preview-btn { padding: 8px 14px; border-radius: 4px; font-size: 13px; font-weight: 500; color: #ffffff; display: flex; align-items: center; gap: 6px; }
+.rr-preview-btn.style-primary { background-color: #5865f2; }
+.rr-preview-btn.style-secondary { background-color: #4e5058; }
+.rr-preview-btn.style-success { background-color: #248046; }
+.rr-preview-btn.style-danger { background-color: #da373c; }
+.rr-preview-empty { color: #949ba4; font-size: 12px; font-style: italic; }
+
+/* زر الحفظ الخاص بكل كرت - نفس ألوان .save-btn العامة، كلاسات منفصلة
+   عمداً (راجع شرح مفصّل بالجافاسكربت بالأسفل). */
+.rr-card-save-bar { display: flex; align-items: center; justify-content: flex-end; gap: 14px; }
+.rr-save-btn { border: none; padding: 12px 26px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color 0.2s, color 0.2s; }
+.rr-save-btn.rr-state-default { background-color: var(--bg-secondary); color: var(--text-secondary); cursor: not-allowed; }
+.rr-save-btn.rr-state-dirty { background-color: var(--accent-red); color: var(--text-primary); }
+.rr-save-btn.rr-state-dirty:hover { background-color: var(--accent-red-hover); }
+.rr-save-btn.rr-state-saved { background-color: var(--accent-green); color: var(--text-primary); cursor: default; }
+.rr-card-error-banner {
+    display: none;
+    background-color: rgba(218, 55, 60, 0.15);
+    border: 1px solid rgba(218, 55, 60, 0.4);
+    color: #ff6b70;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 10px 14px;
+    border-radius: 8px;
+    align-items: center;
+    gap: 8px;
+}
+.rr-card-error-banner.show { display: flex; }
+
+/* =====================================================================
+   [NEW] مربع تأكيد الحذف المخصص (يستبدل confirm() الافتراضي بالمتصفح)
+   ===================================================================== */
+.rr-modal-overlay {
+    display: none; position: fixed; inset: 0; background-color: rgba(0, 0, 0, 0.65);
+    z-index: 1000; align-items: center; justify-content: center;
+}
+.rr-modal-overlay.show { display: flex; }
+.rr-modal-box {
+    background-color: var(--bg-secondary); border: 1px solid var(--border-color);
+    border-radius: 12px; padding: 28px; width: 90%; max-width: 380px;
+    display: flex; flex-direction: column; gap: 20px; text-align: center;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+.rr-modal-icon { font-size: 32px; color: var(--accent-red); }
+.rr-modal-text { font-size: 14px; color: var(--text-primary); line-height: 1.6; }
+.rr-modal-actions { display: flex; gap: 12px; }
+.rr-modal-btn {
+    flex: 1; border: none; padding: 12px; border-radius: 8px;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: background-color 0.2s;
+}
+.rr-modal-btn-confirm { background-color: var(--accent-red); color: #ffffff; }
+.rr-modal-btn-confirm:hover { background-color: var(--accent-red-hover); }
+.rr-modal-btn-cancel { background-color: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); }
+.rr-modal-btn-cancel:hover { background-color: #1a1a1a; }
+    </style>
+</head>
+<body>
+
+    <!-- Left Sidebar Navigation (Synced with index.html) -->
+    <aside class="sidebar">
+        <!-- Bot Logo and Name -->
+        <div class="logo-section">
+            <i class="fa-solid fa-shield-halved logo-icon"></i>
+            <span class="logo-text">OmniGuard</span>
+        </div>
+         <!-- SEARCH CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Search</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    Search
+                </a>
+            </li>
+        </ul>
+        <!-- HOME CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Home</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="index">
+                    <i class="fa-solid fa-house"></i>
+                    Home
+                </a>
+            </li>
+        </ul>
+
+        <!-- CORE SETTINGS CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Core Settings</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+             <li class="menu-item">
+                <a href="general-settings">
+                    <i class="fa-solid fa-sliders"></i>
+                    General Settings
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="welcome-leave">
+                    <i class="fa-solid fa-door-open"></i>
+                    Welcome & Leave
+                </a>
+            </li>
+            <li class="menu-item active">
+                <a href="role-management">
+                    <i class="fa-solid fa-user-gear"></i>
+                    Role Management
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODERATION & SECURITY CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Moderation & Security</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="auto-mod">
+                    <i class="fa-solid fa-robot"></i>
+                    Auto-Mod
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="anti-alt">
+                    <i class="fa-solid fa-user-shield"></i>
+                    Anti-Alt
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="AutoRespond">
+                    <i class="fa-solid fa-reply-all"></i>
+                    Auto Respond
+                </a>
+            </li>
+        </ul>
+
+        <!-- TICKET SYSTEM CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Ticket System</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="category">
+                    <i class="fa-solid fa-ticket"></i>
+                    Ticket Category
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="AutoLog">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    Ticket Auto Log
+                </a>
+            </li>
+        </ul>
+
+        </li>
+            <li class="menu-item">
+                <a href="Permissionspanel">
+                    <i class="fa-solid fa-sliders"></i>
+                    Ticket Panel
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODULES & FEATURES CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Modules & Features</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="custom-messages">
+                    <i class="fa-solid fa-comment-dots"></i>
+                    Custom Messages
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="Level">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    Leveling System
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="commands">
+                    <i class="fa-solid fa-terminal"></i>
+                    Command Customization
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <main class="main-content"> 
+    
+        <!-- Main Content Area -->
+        <header>
+            <div class="header-title">Role Management</div>
+            <div class="header-controls">
+                <!-- Guild / Server Selector Dropdown -->
+                <select id="guild-selector" class="guild-select">
+                    <option value="" disabled selected>Loading Servers...</option>
+                </select>
+
+                <!-- Dynamic User Profile -->
+                <div class="user-profile" id="user-profile">
+                    <span id="user-name">Loading...</span>
+                    <div class="avatar" id="user-avatar">OG</div>
+                </div>
+
+                <!-- Logout Button -->
+                <button id="logout-btn" class="logout-btn">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="content-body">
+            <div class="settings-grid">
+
+                <!-- ملاحظة: كارت "Dashboard Access Roles" اتحذف من هنا عمداً - نفس
+                     الحقل (dashboard_access_roles) موجود أصلاً وموصول صح بـ
+                     general-settings.html عبر data-target-table="setting_management_role"،
+                     فكان مكرر هنا بدون أي ربط فعلي أصلاً. -->
+
+                <!-- Auto-Roles Settings Card -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <div class="card-title-container">
+                            <i class="fa-solid fa-user-plus card-header-icon"></i>
+                            <h2 class="card-header-title">Auto-Role System Configurations</h2>
+                        </div>
+                    </div>
+
+                    <!-- Auto User Role -->
+                    <div class="form-group">
+                        <div class="toggle-row">
+                            <div class="toggle-row-text">
+                                <span class="toggle-row-title">Enable Auto User Role</span>
+                                <span class="toggle-row-subtitle">Automatically assign selected roles to new human members upon joining.</span>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="enable_new_user_auto_roles">
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group roles-box-wrapper" id="new_user_auto_roles_wrapper">
+                        <label class="form-label">Roles to Assign to New Members</label>
+                        <div class="selector-box" id="new_user_auto_roles" data-source="roles" data-dropdown="newUserAutoRolesDropdown">
+                            <span class="selector-placeholder">+ Select Roles</span>
+                        </div>
+                        <div id="newUserAutoRolesDropdown" class="dropdown-list"></div>
+                    </div>
+
+                    <!-- Auto Bot Role -->
+                    <div class="form-group">
+                        <div class="toggle-row">
+                            <div class="toggle-row-text">
+                                <span class="toggle-row-title">Enable Auto Bot Role</span>
+                                <span class="toggle-row-subtitle">Automatically assign selected roles to new bots upon joining.</span>
+                            </div>
+                            <label class="switch">
+                                <input type="checkbox" id="enable_new_bot_auto_roles">
+                                <span class="switch-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group roles-box-wrapper" id="new_bot_auto_roles_wrapper">
+                        <label class="form-label">Roles to Assign to New Bots</label>
+                        <div class="selector-box" id="new_bot_auto_roles" data-source="roles" data-dropdown="newBotAutoRolesDropdown">
+                            <span class="selector-placeholder">+ Select Roles</span>
+                        </div>
+                        <div id="newBotAutoRolesDropdown" class="dropdown-list"></div>
+                    </div>
+
+                </div>
+
+                <!-- Reaction / Button Roles Card -->
+                <div class="settings-card">
+                    <div class="card-header-group rr-header-row">
+                        <div class="card-title-container">
+                            <i class="fa-solid fa-hand-pointer card-header-icon"></i>
+                            <h2 class="card-header-title">Reaction / Button Roles</h2>
+                        </div>
+                        <button type="button" class="rr-add-embed-btn" id="rrAddEmbedBtn">
+                            <i class="fa-solid fa-plus"></i>
+                            Add New Embed
+                        </button>
+                    </div>
+
+                    <div class="info-banner">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <p>Each card below is an independent message published to Discord. Every card saves and publishes on its own — there is no shared save button for this section. A card needs a target channel and at least one button before it can be saved.</p>
+                    </div>
+
+                    <div class="rr-cards-container" id="rrCardsContainer">
+                        <!-- الكروت تُبنى ديناميكياً بالجافاسكربت تحت -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Bottom Save Changes Bar - يخص كارت Auto-Role System Configurations
+                 بس (مصفوفتي الرتب + فلاقي التفعيل). كروت Reaction/Button Roles
+                 لها زر حفظ مستقل داخل كل كرت - راجع rr-card-save-bar. -->
+            <div class="save-changes-bar">
+                <span style="color:var(--text-secondary); font-size:14px;">Careful — any unsaved modifications to Auto-Role settings will be discarded!</span>
+                <button class="save-btn state-default" disabled>Save Changes</button>
+            </div>
+        </div>
+    </main>
+    <!-- [NEW] مربع تأكيد مخصص (يستبدل confirm() الافتراضي) - عنصر واحد
+         بالصفحة، يُعاد استخدامه لأي تأكيد مستقبلي بهذا القسم. -->
+    <div class="rr-modal-overlay" id="rrModalOverlay">
+        <div class="rr-modal-box">
+            <i class="fa-solid fa-triangle-exclamation rr-modal-icon"></i>
+            <p class="rr-modal-text" id="rrModalText"></p>
+            <div class="rr-modal-actions">
+                <button type="button" class="rr-modal-btn rr-modal-btn-cancel" id="rrModalCancelBtn">Cancel</button>
+                <button type="button" class="rr-modal-btn rr-modal-btn-confirm" id="rrModalConfirmBtn">Yes</button>
+            </div>
+        </div>
+    </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="dashboard.js"></script>
+
+    <script>
+         // لاحظ إضافة async هنا لكي نستطيع استخدام await بالداخل
+        document.addEventListener('DOMContentLoaded', async () => {
+
+            // --- [خطوة الحماية: التحقق من الجلسة فوراً] ---
+            // نستخدم supabaseClient المعرف مسبقاً في dashboard.js بدون إعادة تعريفه
+            try {
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                if (!session) {
+                    window.location.href = 'Login.html';
+                    return; // توقف عن تنفيذ بقية السكربت إذا لم يكن مسجلاً
+                }
+                
+                // إذا كان هناك جلسة، نقوم بتحديث بيانات الهيدر (الاسم والصورة)
+                // هذه الدالة يفترض أنها موجودة في dashboard.js، إذا لم تكن موجودة سنستدعي منطقاً بسيطاً
+                if (typeof initGlobalHeader === 'function') {
+    initGlobalHeader(session);
+}
+            } catch (err) {
+                console.error("Auth check failed:", err);
+                window.location.href = 'Login.html';
+                return;
+            }
+
+            // 1. تفعيل فتح القوائم المنسدلة تلقائياً عند الضغط على أي selector-box
+            document.addEventListener('click', function (e) {
+                const box = e.target.closest('.selector-box');
+                if (box && box.dataset.dropdown) {
+                    e.stopPropagation();
+                    if (typeof window.toggleDropdown === 'function') {
+                        window.toggleDropdown(box.dataset.dropdown);
+                    }
+                }
+            });
+        });
+    </script>
+
+    <!-- =================================================================
+         [NEW - Role Management v7.0] سكربت محلي مستقل تماماً عن دورة
+         buildPayload/populateUI/markDirty العامة بـ dashboard.js، لسببين:
+
+         1) عناصر هالقسم (عناوين/أوصاف/أزرار الكروت) عمداً بدون أي "id" -
+            buildPayload() بدشبورد.js يجمع أي input/select/textarea "له id"
+            بكل الصفحة (مو محصور بكارت Auto-Role بس) - لو عطيناها id كانت
+            بتنضم تلقائياً لحمولة "Save Changes" العام، وهذا يخالف تأكيد
+            المطور الصريح: "لا لا زر حفظ عام لكل الصفحة" لهذا القسم.
+         2) كل حدث input/change جوه .rr-cards-container نوقف انتشاره
+            (stopPropagation) قبل ما يوصل document - وإلا مستمعات
+            dashboard.js العامة (markDirty على أي input/select بالصفحة)
+            كانت بتلون زر "Save Changes" العلوي أحمر بمجرد الكتابة بكارت
+            Reaction Role، رغم إنه ما له علاقة فيه إطلاقاً.
+
+         زر حفظ كل كرت له كلاس ".rr-save-btn" (مو ".save-btn") عمداً كمان -
+         دوال dashboard.js (getSaveButton/markDirty/markSaved/...) تستخدم
+         document.querySelector('.save-btn') غير محصور (أول عنصر بس) -
+         لو استخدمنا نفس الكلاس كانت أزرار الكروت ممكن تتصادم مع منطق
+         الزر العلوي. الحالات الأربع (رمادي/أحمر/أخضر 2.5 ثانية/خطأ) هنا
+         مُعاد تنفيذها محلياً بنفس السلوك بالضبط، لكل كرت لحاله.
+         ================================================================= -->
+    <script>
+    (function () {
+        'use strict';
+
+        const MAX_BUTTONS_PER_CARD = 15;
+        const STYLE_OPTIONS = [
+            { value: 'primary', label: 'Blurple' },
+            { value: 'secondary', label: 'Gray' },
+            { value: 'success', label: 'Green' },
+            { value: 'danger', label: 'Red' },
+        ];
+        const TEXT_CHANNEL_TYPES = [0, 5]; // نفس تعريف dashboard.js بالضبط
+
+        const container = document.getElementById('rrCardsContainer');
+        const addEmbedBtn = document.getElementById('rrAddEmbedBtn');
+
+        // كل عنصر: { id: <dbId|null>, channelId, title, description, color,
+        //            messageId, buttons: [{roleId, roleName, label, style, emoji}],
+        //            uiState: 'default'|'dirty'|'saved'|'error', saving: bool }
+        let cards = [];
+        let localIdCounter = 0;
+        function nextLocalId() { return `local-${++localIdCounter}`; }
+
+        // [FIX] القنوات والرتب هنا بمعزل تام عن window.guildStructure
+        // بدشبورد.js - عمداً (data-source ما مربوط بعناصرنا، تفادياً
+        // للتصادم - راجع الشرح أعلى الملف). المشكلة: fetchGuildStructure()
+        // بدشبورد.js تشتغل بتوقيت غير مضمون بالنسبة لرسم كروتنا (أحياناً
+        // كروتنا ترسم قبل ما تجهز، فتطلع القائمة فاضية للأبد لأن ما فيه
+        // إعادة تعبئة تلقائية لعناصرنا). الحل: نجيب نفس البيانات بأنفسنا
+        // مستقلين تماماً، ونخزنها محلياً هنا.
+        let localGuildStructure = { roles: [], channels: [] };
+
+        async function fetchLocalGuildStructure() {
+            const guildId = (typeof getGuildId === 'function') ? getGuildId() : null;
+            if (!guildId) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/guild/${guildId}/guild_structure_cache`, { headers: getHeaders() });
+                const data = await res.json();
+                localGuildStructure.roles = (res.ok && Array.isArray(data?.roles)) ? data.roles : [];
+                localGuildStructure.channels = (res.ok && Array.isArray(data?.channels)) ? data.channels : [];
+            } catch (err) {
+                console.error('[ReactionRoles] Failed to fetch guild structure:', err);
+                localGuildStructure = { roles: [], channels: [] };
+            }
+
+            // القنوات/الرتب وصلت - نعيد بناء أي عنصر <select>/role-picker
+            // موجود فعلاً بالصفحة (كروت اترسمت قبل ما توصل البيانات).
+            container.querySelectorAll('.rr-channel-select').forEach(sel => {
+                const current = sel.value;
+                populateChannelSelect(sel, current);
+            });
+        }
+
+        // --- منع أي تعديل جوه هالقسم من توصيل markDirty العام فوق ---
+        container.addEventListener('input', (e) => e.stopPropagation());
+        container.addEventListener('change', (e) => e.stopPropagation());
+        container.addEventListener('keypress', (e) => e.stopPropagation());
+
+        // إغلاق أي قائمة رتب مفتوحة عند الضغط برّا
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.rr-role-picker')) {
+                document.querySelectorAll('.rr-role-picker-list.show').forEach(l => l.classList.remove('show'));
+            }
+        });
+
+        function getRoleName(roleId) {
+            const role = (localGuildStructure.roles || []).find(r => r.id === roleId);
+            return role ? role.name : roleId;
+        }
+
+        // كل الرتب المستخدمة حالياً بأي كرت/زر ماعدا (localCardId, excludeButtonIndex)
+        function getUsedRoleIds(excludeCardId, excludeButtonIndex) {
+            const used = new Set();
+            cards.forEach((card) => {
+                card.buttons.forEach((btn, idx) => {
+                    if (card._localId === excludeCardId && idx === excludeButtonIndex) return;
+                    if (btn.roleId) used.add(btn.roleId);
+                });
+            });
+            return used;
+        }
+
+        function findCard(localId) { return cards.find(c => c._localId === localId); }
+
+        function showCardError(card, message) {
+            const el = container.querySelector(`[data-local-id="${card._localId}"]`);
+            if (!el) return;
+            const banner = el.querySelector('.rr-card-error-banner');
+            if (!banner) return;
+            banner.querySelector('.rr-card-error-text').textContent = message;
+            banner.classList.add('show');
+
+            clearTimeout(banner._hideTimeout);
+            banner._hideTimeout = setTimeout(() => banner.classList.remove('show'), 6000);
+        }
+
+        function hideCardError(card) {
+            const el = container.querySelector(`[data-local-id="${card._localId}"]`);
+            const banner = el?.querySelector('.rr-card-error-banner');
+            if (banner) { clearTimeout(banner._hideTimeout); banner.classList.remove('show'); }
+        }
+
+        function markCardDirty(card) {
+            if (card.uiState !== 'saving') card.uiState = 'dirty';
+            // [FIX] ما ننادي renderCard() هنا - إعادة بناء الكرت كامل
+            // (innerHTML) بكل ضغطة حرف كانت تدمر الـ focus/المؤشر داخل
+            // الحقل اللي يكتب فيه المستخدم (يوقف الكتابة كل حرف). هنا
+            // نحدّث بس حالة زر الحفظ لهذا الكرت تحديداً بدون لمس باقي الـ DOM.
+            const el = container.querySelector(`[data-local-id="${card._localId}"]`);
+            if (el) applyCardSaveState(el, card);
+        }
+
+        // =============================================================
+        // تحميل الكروت الموجودة من السيرفر
+        // =============================================================
+        async function loadReactionRoleCards() {
+            const guildId = (typeof getGuildId === 'function') ? getGuildId() : null;
+            if (!guildId) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/guild/${guildId}/reaction-roles`, { headers: getHeaders() });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data?.error || 'Failed to load cards');
+
+                cards = (Array.isArray(data) ? data : []).map(row => ({
+                    id: row.id,
+                    channelId: row.id_channel,
+                    messageId: row.id_message,
+                    title: row.embed_title || '',
+                    description: row.embed_description || '',
+                    color: row.embed_color || '#ff3344',
+                    buttons: (row.buttons || []).map(b => ({
+                        roleId: b.id_role,
+                        roleName: getRoleName(b.id_role),
+                        label: b.button_label,
+                        style: b.button_style,
+                        emoji: b.button_emoji || '',
+                    })),
+                    uiState: 'default',
+                    _localId: nextLocalId(),
+                }));
+
+                renderAllCards();
+            } catch (err) {
+                console.error('[ReactionRoles] Failed to load cards:', err);
+            }
+        }
+
+        function createEmptyCard() {
+            return {
+                id: null,
+                channelId: '',
+                messageId: null,
+                title: '',
+                description: '',
+                color: '#ff3344',
+                buttons: [],
+                uiState: 'default',
+                _localId: nextLocalId(),
+            };
+        }
+
+        // =============================================================
+        // بناء عناصر الـ <select> لقنوات ديسكورد (نفس منطق dashboard.js
+        // بالضبط - optgroup لكل category، القناة نفسها بس قابلة للاختيار)
+        // =============================================================
+        function populateChannelSelect(selectEl, selectedValue) {
+            selectEl.innerHTML = '<option value="">Select a channel...</option>';
+            const groups = (localGuildStructure.channels || [])
+                .map(g => ({ ...g, channels: (g.channels || []).filter(c => TEXT_CHANNEL_TYPES.includes(c.type)) }))
+                .filter(g => g.channels.length > 0);
+
+            groups.forEach(group => {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = group.categoryName;
+                group.channels.forEach(channel => {
+                    const option = document.createElement('option');
+                    option.value = channel.id;
+                    option.textContent = `# ${channel.name}`;
+                    optgroup.appendChild(option);
+                });
+                selectEl.appendChild(optgroup);
+            });
+
+            if (selectedValue) selectEl.value = selectedValue;
+        }
+
+        // =============================================================
+        // بناء DOM لكرت واحد بالكامل من الصفر (أبسط وأضمن من patch جزئي)
+        // =============================================================
+        function renderCard(card) {
+            let el = container.querySelector(`[data-local-id="${card._localId}"]`);
+            if (!el) {
+                el = document.createElement('div');
+                el.className = 'rr-card';
+                el.dataset.localId = card._localId;
+                container.appendChild(el);
+            }
+
+            el.innerHTML = `
+                <div class="rr-card-top">
+                    <span class="rr-card-badge">${card.id ? (card.messageId ? 'Published' : 'Saved') : 'New — Not Published'}</span>
+                    <button type="button" class="rr-delete-card-btn" title="Delete card"><i class="fa-solid fa-trash"></i></button>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Target Channel</label>
+                    <select class="form-select rr-channel-select"></select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Embed Title</label>
+                    <input type="text" class="form-input rr-title-input" placeholder="Select Your Roles" maxlength="256" value="${escapeAttr(card.title)}">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Embed Accent Color</label>
+                    <input type="color" class="rr-color-input" value="${escapeAttr(card.color)}">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Embed Description</label>
+                    <textarea class="form-input rr-desc-input" rows="3" maxlength="4096" placeholder="Click the buttons below to assign or remove roles...">${escapeHtml(card.description)}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Buttons</label>
+                    <div class="rr-buttons-list"></div>
+                    <button type="button" class="rr-add-button-btn" ${card.buttons.length >= MAX_BUTTONS_PER_CARD ? 'disabled' : ''}>
+                        + Add New Button
+                    </button>
+                    <div class="rr-limit-note">${card.buttons.length} / ${MAX_BUTTONS_PER_CARD} buttons</div>
+                </div>
+
+                <div class="form-group">
+                    <span class="rr-preview-label">Discord Interactive Preview</span>
+                    <div class="rr-preview"></div>
+                </div>
+
+                <div class="rr-card-error-banner" id="rrErrorBanner-${card._localId}">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span class="rr-card-error-text"></span>
+                </div>
+
+                <div class="rr-card-save-bar">
+                    <button type="button" class="rr-save-btn rr-state-default" disabled>Save Changes</button>
+                </div>
+            `;
+
+            // --- ربط القناة ---
+            const channelSelect = el.querySelector('.rr-channel-select');
+            populateChannelSelect(channelSelect, card.channelId);
+            channelSelect.addEventListener('change', () => {
+                card.channelId = channelSelect.value;
+                markCardDirty(card);
+            });
+
+            // --- العنوان/الوصف/اللون ---
+            el.querySelector('.rr-title-input').addEventListener('input', (e) => {
+                card.title = e.target.value;
+                updatePreview(el, card);
+                markCardDirty(card);
+            });
+            el.querySelector('.rr-desc-input').addEventListener('input', (e) => {
+                card.description = e.target.value;
+                updatePreview(el, card);
+                markCardDirty(card);
+            });
+            el.querySelector('.rr-color-input').addEventListener('input', (e) => {
+                card.color = e.target.value;
+                updatePreview(el, card);
+                markCardDirty(card);
+            });
+
+            // --- حذف الكرت ---
+            el.querySelector('.rr-delete-card-btn').addEventListener('click', () => deleteCard(card));
+
+            // --- إضافة زر جديد ---
+            el.querySelector('.rr-add-button-btn').addEventListener('click', () => {
+                if (card.buttons.length >= MAX_BUTTONS_PER_CARD) return;
+                card.buttons.push({ roleId: '', roleName: '', label: '', style: 'secondary', emoji: '' });
+                markCardDirty(card);
+                renderCard(card); // إعادة بناء كاملة عشان صف الزر الجديد يظهر
+            });
+
+            // --- زر الحفظ ---
+            const saveBtn = el.querySelector('.rr-save-btn');
+            saveBtn.addEventListener('click', () => saveCard(card));
+
+            renderButtonsList(el, card);
+            updatePreview(el, card);
+            applyCardSaveState(el, card);
+        }
+
+        function renderButtonsList(el, card) {
+            const list = el.querySelector('.rr-buttons-list');
+            list.innerHTML = '';
+
+            card.buttons.forEach((btn, index) => {
+                const row = document.createElement('div');
+                row.className = 'rr-button-row';
+                row.innerHTML = `
+                    <input type="text" class="form-input rr-btn-label" placeholder="Button Label" maxlength="80" value="${escapeAttr(btn.label)}">
+                    <div class="rr-role-picker">
+                        <div class="rr-role-picker-box">
+                            ${btn.roleId ? `<span class="picked">${escapeHtml(btn.roleName || btn.roleId)}</span>` : '<span class="placeholder">+ Select a role</span>'}
+                            <i class="fa-solid fa-chevron-down" style="font-size:10px;color:var(--text-secondary);"></i>
+                        </div>
+                        <div class="rr-role-picker-list"></div>
+                    </div>
+                    <select class="form-select rr-btn-style"></select>
+                    <input type="text" class="form-input rr-btn-emoji" placeholder="🎮" maxlength="8" value="${escapeAttr(btn.emoji)}">
+                    <button type="button" class="rr-remove-button-btn" title="Remove button"><i class="fa-solid fa-xmark"></i></button>
+                `;
+                list.appendChild(row);
+
+                // Label
+                row.querySelector('.rr-btn-label').addEventListener('input', (e) => {
+                    btn.label = e.target.value;
+                    updatePreview(el, card);
+                    markCardDirty(card);
+                });
+
+                // Style dropdown
+                const styleSelect = row.querySelector('.rr-btn-style');
+                STYLE_OPTIONS.forEach(opt => {
+                    const o = document.createElement('option');
+                    o.value = opt.value; o.textContent = opt.label;
+                    if (opt.value === btn.style) o.selected = true;
+                    styleSelect.appendChild(o);
+                });
+                styleSelect.addEventListener('change', () => {
+                    btn.style = styleSelect.value;
+                    updatePreview(el, card);
+                    markCardDirty(card);
+                });
+
+                // Emoji
+                row.querySelector('.rr-btn-emoji').addEventListener('input', (e) => {
+                    btn.emoji = e.target.value;
+                    updatePreview(el, card);
+                    markCardDirty(card);
+                });
+
+                // Remove button
+                row.querySelector('.rr-remove-button-btn').addEventListener('click', () => {
+                    card.buttons.splice(index, 1);
+                    markCardDirty(card);
+                    renderCard(card);
+                });
+
+                // Role picker (dropdown مخصص - يستثني الرتب المستخدمة بأي زر ثاني)
+                const pickerBox = row.querySelector('.rr-role-picker-box');
+                const pickerList = row.querySelector('.rr-role-picker-list');
+                pickerBox.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    document.querySelectorAll('.rr-role-picker-list.show').forEach(l => { if (l !== pickerList) l.classList.remove('show'); });
+                    buildRolePickerList(pickerList, card, index, btn);
+                    pickerList.classList.toggle('show');
+                });
+            });
+        }
+
+        function buildRolePickerList(listEl, card, buttonIndex, btn) {
+            const usedRoleIds = getUsedRoleIds(card._localId, buttonIndex);
+            const allRoles = localGuildStructure.roles || [];
+            const available = allRoles.filter(r => !usedRoleIds.has(r.id));
+
+            listEl.innerHTML = '';
+            if (available.length === 0) {
+                listEl.innerHTML = '<div class="rr-role-picker-empty">No available roles left — every role is already assigned to a button.</div>';
+                return;
+            }
+
+            available.forEach(role => {
+                const item = document.createElement('div');
+                item.className = 'rr-role-picker-item';
+                item.textContent = role.name;
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    btn.roleId = role.id;
+                    btn.roleName = role.name;
+                    listEl.classList.remove('show');
+                    const cardEl = container.querySelector(`[data-local-id="${card._localId}"]`);
+                    renderButtonsList(cardEl, card);
+                    updatePreview(cardEl, card);
+                    markCardDirty(card);
+                });
+                listEl.appendChild(item);
+            });
+        }
+
+        function updatePreview(el, card) {
+            const preview = el.querySelector('.rr-preview');
+            const hasEmbedContent = card.title || card.description;
+
+            const embedHtml = hasEmbedContent ? `
+                <div class="rr-preview-embed">
+                    ${card.title ? `<div class="rr-preview-embed-title">${escapeHtml(card.title)}</div>` : ''}
+                    ${card.description ? `<div class="rr-preview-embed-desc">${escapeHtml(card.description)}</div>` : ''}
+                </div>
+            ` : `<div class="rr-preview-embed rr-preview-embed-empty">Add a title or description to preview the embed…</div>`;
+
+            preview.style.setProperty('--rr-preview-accent', card.color);
+            const embedBox = preview;
+
+            const buttonsHtml = card.buttons.length > 0
+                ? `<div class="rr-preview-buttons">${card.buttons.map(b => `
+                    <span class="rr-preview-btn style-${b.style}">${b.emoji ? escapeHtml(b.emoji) : ''} ${escapeHtml(b.label || 'Button')}</span>
+                `).join('')}</div>`
+                : `<div class="rr-preview-empty">No buttons yet — add at least one to publish this card.</div>`;
+
+            preview.innerHTML = embedHtml + buttonsHtml;
+            const embedDiv = preview.querySelector('.rr-preview-embed');
+            if (embedDiv) embedDiv.style.borderLeftColor = card.color;
+        }
+
+        // =============================================================
+        // حالة زر الحفظ الخاص بكل كرت (رمادي/أحمر/أخضر 2.5 ثانية/خطأ) -
+        // نفس سلوك dashboard.js's markClean/markDirty/markSaved/markError
+        // بالضبط، منسوخ محلياً لكل كرت لحاله (راجع تعليق أعلى الملف).
+        // =============================================================
+        function applyCardSaveState(el, card) {
+            const btn = el.querySelector('.rr-save-btn');
+            btn.classList.remove('rr-state-default', 'rr-state-dirty', 'rr-state-saved', 'rr-state-error');
+
+            if (card.uiState === 'dirty') {
+                btn.classList.add('rr-state-dirty');
+                btn.disabled = false;
+                btn.textContent = 'Save Changes';
+            } else if (card.uiState === 'saved') {
+                btn.classList.add('rr-state-saved');
+                btn.disabled = true;
+                btn.textContent = '✓ Saved';
+            } else if (card.uiState === 'error') {
+                btn.classList.add('rr-state-error');
+                btn.disabled = false;
+                btn.textContent = '⚠ Error - Retry';
+            } else {
+                btn.classList.add('rr-state-default');
+                btn.disabled = true;
+                btn.textContent = 'Save Changes';
+            }
+        }
+
+        function renderAllCards() {
+            container.innerHTML = '';
+            cards.forEach(card => renderCard(card));
+        }
+
+        // =============================================================
+        // الحفظ الفعلي (Create أو Update حسب وجود card.id) + النشر
+        // بديسكورد (يتم كامل من طرف السيرفر - apiRouter.js)
+        // =============================================================
+        function validateCardLocally(card) {
+            if (!card.channelId) return 'Please select a target channel first.';
+            if (card.buttons.length === 0) return 'At least one button is required before this card can be saved.';
+            if (card.buttons.length > MAX_BUTTONS_PER_CARD) return `A maximum of ${MAX_BUTTONS_PER_CARD} buttons is allowed per card.`;
+
+            const seenRoles = new Set();
+            for (const btn of card.buttons) {
+                if (!btn.roleId) return 'Every button needs a target role selected.';
+                if (!btn.label || !btn.label.trim()) return 'Every button needs a label.';
+                if (seenRoles.has(btn.roleId)) return 'The same role cannot be used on more than one button in this card.';
+                seenRoles.add(btn.roleId);
+            }
+            return null;
+        }
+
+        async function saveCard(card) {
+            const el = container.querySelector(`[data-local-id="${card._localId}"]`);
+            const validationError = validateCardLocally(card);
+            if (validationError) {
+                showCardError(card, validationError);
+                return;
+            }
+
+            const guildId = getGuildId();
+            const payload = {
+                channelId: card.channelId,
+                title: card.title || null,
+                description: card.description || null,
+                color: card.color,
+                buttons: card.buttons.map(b => ({ roleId: b.roleId, label: b.label.trim(), style: b.style, emoji: b.emoji || null })),
+            };
+
+            card.uiState = 'saving';
+            hideCardError(card);
+            const saveBtn = el.querySelector('.rr-save-btn');
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            try {
+                const url = card.id
+                    ? `${API_BASE}/guild/${guildId}/reaction-roles/${card.id}`
+                    : `${API_BASE}/guild/${guildId}/reaction-roles`;
+                const method = card.id ? 'PUT' : 'POST';
+
+                const res = await fetch(url, { method, headers: getHeaders(), body: JSON.stringify(payload) });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data?.error || 'Failed to save card');
+
+                card.id = data.embed.id;
+                card.messageId = data.embed.id_message;
+                card.uiState = 'saved';
+                renderCard(card);
+
+                setTimeout(() => {
+                    if (card.uiState === 'saved') { card.uiState = 'default'; renderCard(card); }
+                }, 2500);
+            } catch (err) {
+                console.error('[ReactionRoles] Failed to save card:', err);
+                card.uiState = 'error';
+                renderCard(card);
+                showCardError(card, err.message || 'Failed to save this card. Please try again.');
+            }
+        }
+
+        // =============================================================
+        // مربع تأكيد مخصص (Promise-based) - يستبدل confirm() الافتراضي
+        // =============================================================
+        const modalOverlay = document.getElementById('rrModalOverlay');
+        const modalText = document.getElementById('rrModalText');
+        const modalConfirmBtn = document.getElementById('rrModalConfirmBtn');
+        const modalCancelBtn = document.getElementById('rrModalCancelBtn');
+
+        function showConfirmModal(message) {
+            return new Promise((resolve) => {
+                modalText.textContent = message;
+                modalOverlay.classList.add('show');
+
+                function cleanup(result) {
+                    modalOverlay.classList.remove('show');
+                    modalConfirmBtn.removeEventListener('click', onConfirm);
+                    modalCancelBtn.removeEventListener('click', onCancel);
+                    modalOverlay.removeEventListener('click', onOverlayClick);
+                    resolve(result);
+                }
+                function onConfirm() { cleanup(true); }
+                function onCancel() { cleanup(false); }
+                function onOverlayClick(e) { if (e.target === modalOverlay) cleanup(false); }
+
+                modalConfirmBtn.addEventListener('click', onConfirm);
+                modalCancelBtn.addEventListener('click', onCancel);
+                modalOverlay.addEventListener('click', onOverlayClick);
+            });
+        }
+
+        async function deleteCard(card) {
+            if (card.id) {
+                const confirmed = await showConfirmModal('Are you sure you want to delete this card? Its message will also be removed from Discord.');
+                if (!confirmed) return;
+                try {
+                    const guildId = getGuildId();
+                    const res = await fetch(`${API_BASE}/guild/${guildId}/reaction-roles/${card.id}`, { method: 'DELETE', headers: getHeaders() });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data?.error || 'Failed to delete card');
+                } catch (err) {
+                    console.error('[ReactionRoles] Failed to delete card:', err);
+                    showCardError(card, err.message || 'Failed to delete this card. Please try again.');
+                    return;
+                }
+            }
+
+            cards = cards.filter(c => c._localId !== card._localId);
+            const el = container.querySelector(`[data-local-id="${card._localId}"]`);
+            if (el) el.remove();
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str || '';
+            return div.innerHTML;
+        }
+        function escapeAttr(str) {
+            return (str || '').replace(/"/g, '&quot;');
+        }
+
+        // =============================================================
+        // إعدادات التوجل (Enable Auto User/Bot Role) - يقرأ الحالة بنفسه
+        // بمعزل عن توقيت loadPageSettings() الداخلي بدشبورد.js (راجع شرح
+        // أعلى الملف)، ويربط تلوين صندوق الرتب حسب حالة كل توجل.
+        // =============================================================
+        function wireToggle(checkboxId, wrapperId) {
+            const checkbox = document.getElementById(checkboxId);
+            const wrapper = document.getElementById(wrapperId);
+            if (!checkbox || !wrapper) return;
+
+            function sync() {
+                wrapper.classList.toggle('roles-disabled', !checkbox.checked);
+            }
+            sync();
+            checkbox.addEventListener('change', sync);
+
+            return sync;
+        }
+
+        async function syncToggleVisualStateFromServer() {
+            const guildId = (typeof getGuildId === 'function') ? getGuildId() : null;
+            if (!guildId) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/guild/${guildId}/setting_management_role`, { headers: getHeaders() });
+                const data = await res.json();
+                if (!res.ok) return;
+
+                const userCheckbox = document.getElementById('enable_new_user_auto_roles');
+                const botCheckbox = document.getElementById('enable_new_bot_auto_roles');
+                if (userCheckbox) userCheckbox.checked = !!data.enable_new_user_auto_roles;
+                if (botCheckbox) botCheckbox.checked = !!data.enable_new_bot_auto_roles;
+
+                document.getElementById('new_user_auto_roles_wrapper')?.classList.toggle('roles-disabled', !userCheckbox?.checked);
+                document.getElementById('new_bot_auto_roles_wrapper')?.classList.toggle('roles-disabled', !botCheckbox?.checked);
+            } catch (err) {
+                console.error('[RoleManagement] Failed to sync toggle visual state:', err);
+            }
+        }
+
+        // =============================================================
+        // بدء التشغيل
+        // =============================================================
+        wireToggle('enable_new_user_auto_roles', 'new_user_auto_roles_wrapper');
+        wireToggle('enable_new_bot_auto_roles', 'new_bot_auto_roles_wrapper');
+
+        addEmbedBtn.addEventListener('click', () => {
+            const card = createEmptyCard();
+            cards.push(card);
+            renderCard(card);
+        });
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            syncToggleVisualStateFromServer();
+            // نجيب هيكل السيرفر (رتب+قنوات) قبل تحميل الكروت، عشان أسماء
+            // الرتب المحفوظة مسبقاً وقوائم القنوات تظهر صح من أول رسمة.
+            await fetchLocalGuildStructure();
+            await loadReactionRoleCards();
+        });
+    })();
+    </script>
+</body>
+</html>

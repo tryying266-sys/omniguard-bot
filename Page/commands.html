@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniGuard - Command Customization</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Base Colors & Reset */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #111115;
+            --bg-tertiary: #18181c;
+            --accent-red: #ff3344;
+            --accent-red-hover: #ff5566;
+            --text-primary: #ffffff;
+            --text-secondary: #8e9297;
+            --border-color: #2a2b30;
+        }
+
+        body { background-color: var(--bg-primary); color: var(--text-primary); display: flex; height: 100vh; overflow: hidden; }
+
+        /* Sidebar Styles */
+        .sidebar { width: 280px; background-color: var(--bg-secondary); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 24px 16px; overflow-y: auto; }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        .logo-section { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-left: 8px; flex-shrink: 0; }
+        .logo-icon { color: var(--accent-red); font-size: 24px; }
+        .logo-text { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+        .category-container { display: flex; align-items: center; gap: 10px; margin-top: 18px; margin-bottom: 10px; width: 100%; }
+        .category-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-secondary); white-space: nowrap; }
+        .category-line { flex-grow: 1; height: 1px; background-color: var(--border-color); }
+        .menu-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+        .menu-item a { display: flex; align-items: center; gap: 12px; padding: 10px 14px; color: var(--text-secondary); text-decoration: none; border-radius: 8px; font-weight: 500; font-size: 14px; transition: all 0.2s ease; }
+        .menu-item a:hover { color: var(--text-primary); background-color: var(--bg-tertiary); }
+        .menu-item.active a { color: var(--text-primary); background-color: rgba(255, 51, 68, 0.1); border-left: 3px solid var(--accent-red); padding-left: 11px; }
+
+        /* Main Content Area */
+        .main-content { flex-grow: 1; background-color: var(--bg-primary); display: flex; flex-direction: column; overflow-y: auto; }
+        header { height: 70px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background-color: var(--bg-secondary); flex-shrink: 0; }
+        .header-title { font-size: 18px; font-weight: 600; }
+        .user-profile { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; background-color: var(--accent-red); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
+
+        .content-body { padding: 40px; max-width: 1200px; width: 100%; margin: 0 auto; }
+
+        /* Settings Grid */
+        .settings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 32px; }
+        @media (max-width: 992px) { .settings-grid { grid-template-columns: 1fr; } }
+
+        .settings-card { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+
+        .card-header-group { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 14px; }
+        .card-title-left { display: flex; align-items: center; gap: 12px; }
+        .card-header-icon { color: var(--accent-red); font-size: 20px; width: 24px; text-align: center; }
+        .card-header-title { font-size: 16px; font-weight: 600; text-transform: capitalize; }
+        
+        .default-badge { font-size: 11px; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 3px 10px; border-radius: 6px; font-family: monospace; }
+
+        /* Card Tabs Navigation */
+        .card-tabs { display: flex; gap: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; overflow-x: auto; }
+        .card-tabs::-webkit-scrollbar { height: 3px; }
+        .card-tabs::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+        
+        .tab-btn {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .tab-btn:hover { color: var(--text-primary); border-color: rgba(255, 51, 68, 0.4); }
+        .tab-btn.active {
+            background-color: rgba(255, 51, 68, 0.15);
+            color: var(--accent-red);
+            border-color: rgba(255, 51, 68, 0.4);
+            font-weight: 600;
+        }
+
+        /* Tab Panes */
+        .tab-pane { display: none; flex-direction: column; gap: 8px; }
+        .tab-pane.active { display: flex; }
+
+        .form-group { display: flex; flex-direction: column; gap: 8px; position: relative; }
+        .form-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
+
+        /* Tag Input Box Styling */
+        .tags-input-box {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 12px;
+            min-height: 48px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            cursor: text;
+            transition: border-color 0.2s;
+        }
+        .tags-input-box:focus-within { border-color: var(--accent-red); }
+
+        .tags-wrapper { display: flex; flex-wrap: wrap; gap: 6px; }
+
+        .cmd-tag {
+            background-color: rgba(255, 51, 68, 0.15);
+            color: var(--accent-red);
+            padding: 5px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid rgba(255, 51, 68, 0.3);
+        }
+        .cmd-tag i { cursor: pointer; font-size: 11px; transition: color 0.2s; }
+        .cmd-tag i:hover { color: #ffffff; }
+
+        .tag-bare-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 14px;
+            flex-grow: 1;
+            min-width: 140px;
+        }
+
+        /* Semi-transparent Prefix Warning Alert */
+        .prefix-alert {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            background-color: rgba(255, 51, 68, 0.12);
+            border: 1px solid rgba(255, 51, 68, 0.25);
+            color: var(--accent-red);
+            font-size: 12px;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin-top: 4px;
+            transition: all 0.2s ease;
+        }
+
+        /* Save Bar */
+        .save-changes-bar { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; bottom: 20px; z-index: 10; }
+        .save-info-text { font-size: 14px; color: var(--text-secondary); }
+        .save-btn { background-color: var(--accent-red); color: var(--text-primary); border: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; }
+        .save-btn:hover { background-color: var(--accent-red-hover); }
+    </style>
+</head>
+<body>
+
+    <!-- Left Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="logo-section">
+            <i class="fa-solid fa-shield-halved logo-icon"></i>
+            <span class="logo-text">OmniGuard</span>
+        </div>
+
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Home</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="index.html">
+                    <i class="fa-solid fa-house"></i>
+                    Home
+                </a>
+            </li>
+        </ul>
+
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Core Settings</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="general-settings.html">
+                    <i class="fa-solid fa-sliders"></i>
+                    General Settings
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="welcome-leave.html">
+                    <i class="fa-solid fa-door-open"></i>
+                    Welcome & Leave
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="role-management.html">
+                    <i class="fa-solid fa-user-gear"></i>
+                    Role Management
+                </a>
+            </li>
+        </ul>
+
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Moderation & Security</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="auto-mod.html">
+                    <i class="fa-solid fa-robot"></i>
+                    Auto-Mod
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="anti-alt.html">
+                    <i class="fa-solid fa-user-shield"></i>
+                    Anti-Alt
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="logging.html">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    Logging
+                </a>
+            </li>
+        </ul>
+
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Modules & Features</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="custom-messages.html">
+                    <i class="fa-solid fa-comment-dots"></i>
+                    Custom Messages
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="Level">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    Leveling System
+                </a>
+            </li>
+            <li class="menu-item active">
+                <a href="command-aliases.html">
+                    <i class="fa-solid fa-terminal"></i>
+                    Command Customization
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <header>
+            <div class="header-title">Command Customization</div>
+            <div class="user-profile">
+                <span>Administrator</span>
+                <div class="avatar">OG</div>
+            </div>
+        </header>
+
+        <div class="content-body">
+            <div class="settings-grid">
+                
+                <!-- CARD 1: USER MODERATION -->
+                <div class="settings-card" id="card-user-mod">
+                    <div class="card-header-group">
+                        <div class="card-title-left">
+                            <i class="fa-solid fa-volume-xmark card-header-icon" id="icon-user-mod"></i>
+                            <h2 class="card-header-title" id="title-user-mod">Mute</h2>
+                        </div>
+                        <span class="default-badge" id="badge-user-mod">Default: mute</span>
+                    </div>
+
+                    <!-- Tabs Header -->
+                    <div class="card-tabs">
+                        <button class="tab-btn active" onclick="switchTab('user-mod', 'mute', 'Mute', 'fa-solid fa-volume-xmark', 'mute', this)">
+                            <i class="fa-solid fa-volume-xmark"></i> Mute
+                        </button>
+                        <button class="tab-btn" onclick="switchTab('user-mod', 'warn', 'Warn', 'fa-solid fa-triangle-exclamation', 'warn', this)">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Warn
+                        </button>
+                        <button class="tab-btn" onclick="switchTab('user-mod', 'kick', 'Kick', 'fa-solid fa-user-xmark', 'kick', this)">
+                            <i class="fa-solid fa-user-xmark"></i> Kick
+                        </button>
+                        <button class="tab-btn" onclick="switchTab('user-mod', 'ban', 'Ban', 'fa-solid fa-user-slash', 'ban', this)">
+                            <i class="fa-solid fa-user-slash"></i> Ban
+                        </button>
+                        <!-- [NEW] Unmute/Unban - aliases ثابتة موجودة فعلاً بالكود جوة
+                             mute.js/ban.js (نفس unslow جوة slowmode.js بالضبط) -->
+                        <button class="tab-btn" onclick="switchTab('user-mod', 'unmute', 'Unmute', 'fa-solid fa-volume-high', 'unmute', this)">
+                            <i class="fa-solid fa-volume-high"></i> Unmute
+                        </button>
+                        <button class="tab-btn" onclick="switchTab('user-mod', 'unban', 'Unban', 'fa-solid fa-user-check', 'unban', this)">
+                            <i class="fa-solid fa-user-check"></i> Unban
+                        </button>
+                    </div>
+
+                    <!-- Tab Panes -->
+                    <div class="tab-pane active" id="pane-mute">
+                        <div class="form-group">
+                            <label class="form-label">Custom Command Aliases</label>
+                            <div class="tags-input-box" onclick="focusInput('mute-input')">
+                                <div class="tags-wrapper" id="mute-tags"></div>
+                                <input type="text" id="mute-input" data-cmd="mute" class="tag-bare-input" placeholder="Type custom name & press Enter..." oninput="handleAliasInput(this)" onkeydown="handleAliasKeydown(event, 'mute')">
+                            </div>
+                            <div id="mute-alert" class="prefix-alert">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>The bot prefix is already there automatically, the violating symbol has been removed.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" id="pane-warn">
+                        <div class="form-group">
+                            <label class="form-label">Custom Command Aliases</label>
+                            <div class="tags-input-box" onclick="focusInput('warn-input')">
+                                <div class="tags-wrapper" id="warn-tags"></div>
+                                <input type="text" id="warn-input" data-cmd="warn" class="tag-bare-input" placeholder="Type custom name & press Enter..." oninput="handleAliasInput(this)" onkeydown="handleAliasKeydown(event, 'warn')">
+                            </div>
+                            <div id="warn-alert" class="prefix-alert">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>The bot prefix is already there automatically, the violating symbol has been removed.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" id="pane-kick">
+                        <div class="form-group">
+                            <label class="form-label">Custom Command Aliases</label>
+                            <div class="tags-input-box" onclick="focusInput('kick-input')">
+                                <div class="tags-wrapper" id="kick-tags"></div>
+                                <input type="text" id="kick-input" data-cmd="kick" class="tag-bare-input" placeholder="Type custom name & press Enter..." oninput="handleAliasInput(this)" onkeydown="handleAliasKeydown(event, 'kick')">
+                            </div>
+                            <div id="kick-alert" class="prefix-alert">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>The bot prefix is already there automatically, the violating symbol has been removed.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" id="pane-ban">
+                        <div class="form-group">
+                            <label class="form-label">Custom Command Aliases</label>
+                            <div class="tags-input-box" onclick="focusInput('ban-input')">
+                                <div class="tags-wrapper" id="ban-tags"></div>
+                                <input type="text" id="ban-input" data-cmd="ban" class="tag-bare-input" placeholder="Type custom name & press Enter..." oninput="handleAliasInput(this)" onkeydown="handleAliasKeydown(event, 'ban')">
+                            </div>
+                            <div id="ban-alert" class="prefix-alert">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>The bot prefix is already there automatically, the violating symbol has been removed.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- [NEW] Unmute -->
+                    <div class="tab-pane" id="pane-unmute">
+                        <div class="form-group">
+                            <label class="form-label">Custom Command Aliases</label>
+                            <div class="tags-input-box" onclick="focusInput('unmute-input')">
+                                <div class="tags-wrapper" id="unmute-tags"></div>
+                                <input type="text" id="unmute-input" data-cmd="unmute" class="tag-bare-input" placeholder="Type custom name & press Enter..." oninput="handleAliasInput(this)" onkeydown="handleAliasKeydown(event, 'unmute')">
+                            </div>
+                            <div id="unmute-alert" class="prefix-alert">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>The bot prefix is already there automatically, the violating symbol has been removed.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- [NEW] Unban -->
+                    <div class="tab-pane" id="pane-unban">
+                        <div class="form-group">
+                            <label class="form-label">Custom Command Aliases</label>
+                            <div class="tags-input-box" onclick="focusInput('unban-input')">
+                                <div class="tags-wrapper" id="unban-tags"></div>
+                                <input type="text" id="unban-input" data-cmd="unban" class="tag-bare-input" placeholder="Type custom name & press Enter..." oninput="handleAliasInput(this)" onkeydown="handleAliasKeydown(event, 'unban')">
+                            </div>
+                            <div id="unban-alert" class="prefix-alert">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>The bot prefix is already there automatically, the violating symbol has been removed.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARD 2: CHAT CONTROL -->
+                <div class="settings-card" id="card-chat-control">
+                    <div class="card-header-group">
+                        <div class="card-title-left">
+                            <i class="fa-solid fa-trash-can card-header-icon" id="icon-chat-control"></i>
+                            <h2 class="card-header-title" id="title-chat-control">Delete</h2>
+                        </div>
+                        <span class="default-badge" id="badge-chat-control">Default: delete</span>
+                    </div>
+
+                    <!-- Tabs Header -->
+                    <div class="card-tabs">
+                        <button class="tab-btn active" onclick="switchTab('chat-control', 'delete', 'Delete', 'fa-solid fa-trash-can', 'delete', this)">
+                            <i class="fa-solid fa-trash-can"></i> Delete
+                        </button>
+                        <button class="tab-btn" onclick="switchTab('chat-control', 'lock', 'Lock', 'fa-solid fa-lock', 'lock', this)">
+                            <i class="fa-solid fa-lock"></i> Lock
+                        </button>
+                        <button class="tab-btn" onclick="switchTab('chat-control', 'unlock', 'Unlock', 'fa-solid fa-lock-open', 'unlock', this)">
+                            <i class="fa-solid fa-lock-open"></i> Unlock
+                        </button>
+                        <button class="tab-btn" onclick="switchTab('chat-control', 'slowmode', 'Slowmode', 'fa-solid fa-gauge-simple-high', 'slowmode', this)">
+                            <i class="fa-solid fa-gauge-simple-high"></i> Slowmode
+                        </button>
+                        <button class="tab-btn" onclick="switchTab('chat-control', 'unslow', 'Unslow', 'fa-solid fa-gauge', 'unslow', this)">
+                            <i class="fa-solid fa-gauge"></i> Unslow
+                        </button>
+                    </div>
+
+                    <!-- Tab Panes -->
+                    <div class="tab-pane active" id="pane-delete">
+                        <div class="form-group">
+                            <label class="form-label">Custom Command Aliases</label>
+                            <div class="tags-input-box" onclick="focusInput('delete-input')">
+                                <div class="tags-wrapper" id="delete-tags"></div>
+                                <input type="text" id="delete-input" data-cmd="delete" class="tag-bare-input" placeholder="Type custom name & press Enter..." oninput="handleAliasInput(this)" onkeydown="handleAliasKeydown(event, 'delete')">
+                            </div>
+                            <div id="delete-alert" class="prefix-alert">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>The bot prefix is already there automatically, the violating symbol has been removed.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" id="pane-lock">
+                        <div class="form-group">
+                            <label class="form-label">Custom Command Aliases</label>
+                            <div class="tags-input-box" onclick="focusInput('lock-input')">
+                                <div class="tags-wrapper" id="lock-tags"></div>
+                                <input type="text" id="lock-input" data-cmd="lock" class="tag-bare-input" placeholder="Type custom name & press Enter..." oninput="handleAliasInput(this)" onkeydown="handleAliasKeydown(event, 'lock')">
+                            </div>
+                            <div id="lock-alert" class="prefix-alert">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>The bot prefix is already there automatically, the violating symbol has been removed.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" id="pane-unlock">
+                        <div class="form-group">
+                            <label class="form-label">Custom Command Aliases</label>
+                            <div class="tags-input-box" onclick="focusInput('unlock-input')">
+                                <div class="tags-wrapper" id="unlock-tags"></div>
+                                <input type="text" id="unlock-input" data-cmd="unlock" class="tag-bare-input" placeholder="Type custom name & press Enter..." oninput="handleAliasInput(this)" onkeydown="handleAliasKeydown(event, 'unlock')">
+                            </div>
+                            <div id="unlock-alert" class="prefix-alert">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>The bot prefix is already there automatically, the violating symbol has been removed.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" id="pane-slowmode">
+                        <div class="form-group">
+                            <label class="form-label">Custom Command Aliases</label>
+                            <div class="tags-input-box" onclick="focusInput('slowmode-input')">
+                                <div class="tags-wrapper" id="slowmode-tags"></div>
+                                <input type="text" id="slowmode-input" data-cmd="slowmode" class="tag-bare-input" placeholder="Type custom name & press Enter..." oninput="handleAliasInput(this)" onkeydown="handleAliasKeydown(event, 'slowmode')">
+                            </div>
+                            <div id="slowmode-alert" class="prefix-alert">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>The bot prefix is already there automatically, the violating symbol has been removed.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" id="pane-unslow">
+                        <div class="form-group">
+                            <label class="form-label">Custom Command Aliases</label>
+                            <div class="tags-input-box" onclick="focusInput('unslow-input')">
+                                <div class="tags-wrapper" id="unslow-tags"></div>
+                                <input type="text" id="unslow-input" data-cmd="unslow" class="tag-bare-input" placeholder="Type custom name & press Enter..." oninput="handleAliasInput(this)" onkeydown="handleAliasKeydown(event, 'unslow')">
+                            </div>
+                            <div id="unslow-alert" class="prefix-alert">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>The bot prefix is already there automatically, the violating symbol has been removed.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARD 3: INFORMATION & LOOKUP -->
+                <div class="settings-card" id="card-info-lookup">
+                    <div class="card-header-group">
+                        <div class="card-title-left">
+                            <i class="fa-solid fa-user card-header-icon" id="icon-info-lookup"></i>
+                            <h2 class="card-header-title" id="title-info-lookup">User Info</h2>
+                        </div>
+                        <span class="default-badge" id="badge-info-lookup">Default: userinfo</span>
+                    </div>
+
+                    <!-- Tabs Header -->
+                    <div class="card-tabs">
+                        <button class="tab-btn active" onclick="switchTab('info-lookup', 'userinfo', 'User Info', 'fa-solid fa-user', 'userinfo', this)">
+                            <i class="fa-solid fa-user"></i> User Info
+                        </button>
+                        <button class="tab-btn" onclick="switchTab('info-lookup', 'serverinfo', 'Server Info', 'fa-solid fa-server', 'serverinfo', this)">
+                            <i class="fa-solid fa-server"></i> Server Info
+                        </button>
+                        <button class="tab-btn" onclick="switchTab('info-lookup', 'avatar', 'Avatar', 'fa-solid fa-image', 'avatar', this)">
+                            <i class="fa-solid fa-image"></i> Avatar
+                        </button>
+                        <button class="tab-btn" onclick="switchTab('info-lookup', 'checkpermissions', 'Check Perms', 'fa-solid fa-shield-halved', 'checkpermissions', this)">
+                            <i class="fa-solid fa-shield-halved"></i> Check Perms
+                        </button>
+                    </div>
+
+                    <!-- Tab Panes -->
+                    <div class="tab-pane active" id="pane-userinfo">
+                        <div class="form-group">
+                            <label class="form-label">Custom Command Aliases</label>
+                            <div class="tags-input-box" onclick="focusInput('userinfo-input')">
+                                <div class="tags-wrapper" id="userinfo-tags"></div>
+                                <input type="text" id="userinfo-input" data-cmd="userinfo" class="tag-bare-input" placeholder="Type custom name & press Enter..." oninput="handleAliasInput(this)" onkeydown="handleAliasKeydown(event, 'userinfo')">
+                            </div>
+                            <div id="userinfo-alert" class="prefix-alert">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>The bot prefix is already there automatically, the violating symbol has been removed.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" id="pane-serverinfo">
+                        <div class="form-group">
+                            <label class="form-label">Custom Command Aliases</label>
+                            <div class="tags-input-box" onclick="focusInput('serverinfo-input')">
+                                <div class="tags-wrapper" id="serverinfo-tags"></div>
+                                <input type="text" id="serverinfo-input" data-cmd="serverinfo" class="tag-bare-input" placeholder="Type custom name & press Enter..." oninput="handleAliasInput(this)" onkeydown="handleAliasKeydown(event, 'serverinfo')">
+                            </div>
+                            <div id="serverinfo-alert" class="prefix-alert">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>The bot prefix is already there automatically, the violating symbol has been removed.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" id="pane-avatar">
+                        <div class="form-group">
+                            <label class="form-label">Custom Command Aliases</label>
+                            <div class="tags-input-box" onclick="focusInput('avatar-input')">
+                                <div class="tags-wrapper" id="avatar-tags"></div>
+                                <input type="text" id="avatar-input" data-cmd="avatar" class="tag-bare-input" placeholder="Type custom name & press Enter..." oninput="handleAliasInput(this)" onkeydown="handleAliasKeydown(event, 'avatar')">
+                            </div>
+                            <div id="avatar-alert" class="prefix-alert">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>The bot prefix is already there automatically, the violating symbol has been removed.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tab-pane" id="pane-checkpermissions">
+                        <div class="form-group">
+                            <label class="form-label">Custom Command Aliases</label>
+                            <div class="tags-input-box" onclick="focusInput('checkpermissions-input')">
+                                <div class="tags-wrapper" id="checkpermissions-tags"></div>
+                                <input type="text" id="checkpermissions-input" data-cmd="checkpermissions" class="tag-bare-input" placeholder="Type custom name & press Enter..." oninput="handleAliasInput(this)" onkeydown="handleAliasKeydown(event, 'checkpermissions')">
+                            </div>
+                            <div id="checkpermissions-alert" class="prefix-alert">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>The bot prefix is already there automatically, the violating symbol has been removed.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARD 4: UTILITY & ENGAGEMENT -->
+                <div class="settings-card" id="card-utility">
+                    <div class="card-header-group">
+                        <div class="card-title-left">
+                            <i class="fa-solid fa-square-poll-vertical card-header-icon" id="icon-utility"></i>
+                            <h2 class="card-header-title" id="title-utility">Poll</h2>
+                        </div>
+                        <span class="default-badge" id="badge-utility">Default: poll</span>
+                    </div>
+
+                    <!-- Tabs Header -->
+                    <div class="card-tabs">
+                        <button class="tab-btn active" onclick="switchTab('utility', 'poll', 'Poll', 'fa-solid fa-square-poll-vertical', 'poll', this)">
+                            <i class="fa-solid fa-square-poll-vertical"></i> Poll
+                        </button>
+                    </div>
+
+                    <!-- Tab Panes -->
+                    <div class="tab-pane active" id="pane-poll">
+                        <div class="form-group">
+                            <label class="form-label">Custom Command Aliases</label>
+                            <div class="tags-input-box" onclick="focusInput('poll-input')">
+                                <div class="tags-wrapper" id="poll-tags"></div>
+                                <input type="text" id="poll-input" data-cmd="poll" class="tag-bare-input" placeholder="Type custom name & press Enter..." oninput="handleAliasInput(this)" onkeydown="handleAliasKeydown(event, 'poll')">
+                            </div>
+                            <div id="poll-alert" class="prefix-alert">
+                                <i class="fa-solid fa-circle-exclamation"></i>
+                                <span>The bot prefix is already there automatically, the violating symbol has been removed.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Sticky Save Bar -->
+            <div class="save-changes-bar">
+                <span class="save-info-text">Careful — any unsaved modifications will be lost!</span>
+                <button class="save-btn" onclick="saveAllAliases()">Save Changes</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- [NEW] نفس نمط باقي صفحات الداشبورد بالضبط - مطلوبة قبل dashboard.js
+         (راجع تعليق "Supabase Session Bridge" بأعلى dashboard.js). -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- [NEW] نعيد استخدام getGuildId()/getHeaders()/API_BASE وحالة زر
+         الحفظ (markClean/markDirty/markSaved/markError) الجاهزة أصلاً بهذا
+         الملف - بدل ما نكرر نفس المنطق هنا. ملاحظة معروفة ومقبولة: هذي
+         الصفحة (commands.html) مو مسجّلة بـ endpointMap (ولا تحتوي عناصر
+         data-target-table)، فـ dashboard.js's الخاصة بيها (loadPageSettings/
+         savePageSettings) تشتغل تلقائياً بدون أي تأثير فعلي (console.warn
+         توضيحي بس + صفر طلبات شبكة زايدة) - الصفحة تدير تحميلها وحفظها
+         الحقيقي بنفسها بالسكربت تحت. -->
+    <script src="dashboard.js"></script>
+    <script>
+        // Dynamic Tab Switching Handler
+        function switchTab(cardGroup, cmdKey, titleText, iconClass, defaultVal, btnElement) {
+            const cardElement = document.getElementById(`card-${cardGroup}`);
+
+            // 1. Update active state on tab buttons inside this card
+            const tabButtons = cardElement.querySelectorAll('.tab-btn');
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            btnElement.classList.add('active');
+
+            // 2. Hide all tab panes in this card & show the selected one
+            const tabPanes = cardElement.querySelectorAll('.tab-pane');
+            tabPanes.forEach(pane => pane.classList.remove('active'));
+            document.getElementById(`pane-${cmdKey}`).classList.add('active');
+
+            // 3. Dynamic header update (Title, Icon, Default Badge)
+            document.getElementById(`title-${cardGroup}`).innerText = titleText;
+            document.getElementById(`icon-${cardGroup}`).className = `card-header-icon ${iconClass}`;
+            document.getElementById(`badge-${cardGroup}`).innerText = `Default: ${defaultVal}`;
+        }
+
+        // Regex to catch prefix symbols (#, $, !, /, ?, ., -, +, @, etc.)
+        const prefixRegex = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/g;
+
+        // Focus input field when clicking anywhere inside the tag box
+        function focusInput(inputId) {
+            const input = document.getElementById(inputId);
+            if (input) input.focus();
+        }
+
+        // Real-time input handling for single words & stripping prefix symbols
+        function handleAliasInput(inputElement) {
+            const cmdId = inputElement.dataset.cmd;
+            const alertBox = document.getElementById(`${cmdId}-alert`);
+            let val = inputElement.value;
+
+            // Check if prefix character exists
+            if (prefixRegex.test(val)) {
+                inputElement.value = val.replace(prefixRegex, '');
+                alertBox.style.display = 'flex'; // Show semi-transparent warning
+            }
+
+            // Convert word to tag automatically if space was pressed/entered
+            if (inputElement.value.includes(' ')) {
+                const cleanWord = inputElement.value.trim();
+                if (cleanWord.length > 0) {
+                    addTag(cmdId, cleanWord);
+                }
+                inputElement.value = '';
+                alertBox.style.display = 'none'; // Clear alert when word is completed
+            }
+        }
+
+        // Keyboard navigation (Enter key)
+        function handleAliasKeydown(event, cmdId) {
+            const input = event.target;
+            const alertBox = document.getElementById(`${cmdId}-alert`);
+            const val = input.value.trim();
+
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                if (val !== '') {
+                    addTag(cmdId, val);
+                    input.value = '';
+                    alertBox.style.display = 'none'; // Hide alert upon completion
+                }
+            }
+        }
+
+        // [NEW] الحد الأقصى المسموح لكل أمر - نفس Aliases.MAX_ALIASES_PER_COMMAND
+        // بالباك إند بالضبط (10). هذا فحص شكلي إضافي بس (UX أسرع، رسالة فورية
+        // بدون انتظار رد الشبكة) - الفحص الحقيقي والملزم دائماً بالسيرفر.
+        const MAX_ALIASES_PER_COMMAND = 10;
+
+        // Add a new Tag to the specified command container
+        function addTag(cmdId, text) {
+            const container = document.getElementById(`${cmdId}-tags`);
+            if (!container) return;
+
+            // Prevent duplicate tags for the same command
+            const existingTags = Array.from(container.querySelectorAll('.cmd-tag span')).map(s => s.innerText.trim());
+            if (existingTags.includes(text)) return;
+
+            if (existingTags.length >= MAX_ALIASES_PER_COMMAND) {
+                const alertBox = document.getElementById(`${cmdId}-alert`);
+                if (alertBox) {
+                    alertBox.querySelector('span').textContent = `Maximum ${MAX_ALIASES_PER_COMMAND} aliases reached for this command.`;
+                    alertBox.style.display = 'flex';
+                }
+                return;
+            }
+
+            const tag = document.createElement('div');
+            tag.className = 'cmd-tag';
+            tag.innerHTML = `<span>${text}</span> <i class="fa-solid fa-xmark" onclick="removeTag(this)"></i>`;
+            
+            container.appendChild(tag);
+
+            // [NEW] أي إضافة تاق = تعديل فعلي - نفس دالة markDirty() الجاهزة
+            // بـ dashboard.js (تحمّر الزر، تفعّله). محمية بـ typeof احتياطاً
+            // لو الصفحة انفتحت يوماً بدون dashboard.js.
+            if (typeof markDirty === 'function') markDirty();
+        }
+
+        // Remove Tag
+        function removeTag(element) {
+            element.parentElement.remove();
+            if (typeof markDirty === 'function') markDirty();
+        }
+
+        // [NEW] يجمع كل aliases أمر معيّن من الـ DOM الحالي (شكل مصفوفة نصوص)
+        function getAliasesFor(cmdId) {
+            const container = document.getElementById(`${cmdId}-tags`);
+            if (!container) return [];
+            return Array.from(container.querySelectorAll('.cmd-tag span'))
+                .map(s => s.innerText.trim())
+                .filter(Boolean);
+        }
+
+        // [NEW] يعيد بناء تاقات أمر معيّن من مصفوفة (تُستخدم وقت التحميل
+        // الأولي من الـ API - راجع loadAllAliases تحت). ما تطلق حدث input/
+        // change (نفس ملاحظة populateUI بـ dashboard.js - تعديل برمجي مباشر
+        // للـ DOM، مو تفاعل مستخدم حقيقي)، فما تُعتبر "تعديل" بالغلط.
+        function setAliasesFor(cmdId, aliasList) {
+            const container = document.getElementById(`${cmdId}-tags`);
+            if (!container) return;
+            container.innerHTML = '';
+            aliasList.forEach(alias => {
+                const tag = document.createElement('div');
+                tag.className = 'cmd-tag';
+                tag.innerHTML = `<span>${alias}</span> <i class="fa-solid fa-xmark" onclick="removeTag(this)"></i>`;
+                container.appendChild(tag);
+            });
+        }
+
+        // [NEW] نفس الأسماء بالضبط - المرجع الوحيد لأسماء التابات بالصفحة
+        // (يُستخدم بالتحميل والحفظ سوا، بدل تكرار المصفوفة مرتين).
+        // unmute/unban [NEW]: aliases ثابتة بالكود جوة mute.js/ban.js (نفس
+        // unslow جوة slowmode.js بالضبط) - مسجّلة فعلاً بـ commandhandler.js's
+        // commands Collection فما تحتاج أي تعديل بالباك إند، بس تابات جديدة هنا.
+        const ALL_COMMAND_IDS = [
+            'warn', 'kick', 'ban', 'mute', 'unmute', 'unban', 'delete',
+            'lock', 'unlock', 'slowmode', 'unslow', 'poll',
+            'checkpermissions', 'avatar', 'userinfo', 'serverinfo'
+        ];
+
+        // [NEW] تحميل كل aliases السيرفر الحالي من الـ API الحقيقي وقت فتح
+        // الصفحة، وتوزيعها على كل تبويب حسب command_name. GET وحدة بس ترجع
+        // كل الصفوف مسطّحة (id, command_name, alias) - نجمّعها هنا محلياً.
+        async function loadAllAliases() {
+            const guildId = getGuildId();
+            if (!guildId) {
+                console.warn('[Commands Page] No guildId found - nothing will be loaded.');
+                if (typeof markClean === 'function') markClean();
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/guild/${guildId}/command-aliases`, { headers: getHeaders() });
+                const rows = await response.json();
+
+                if (!response.ok) {
+                    console.error('[Commands Page] Failed to load aliases:', rows?.error || `HTTP ${response.status}`);
+                    return;
+                }
+
+                const grouped = {};
+                (Array.isArray(rows) ? rows : []).forEach(row => {
+                    if (!grouped[row.command_name]) grouped[row.command_name] = [];
+                    grouped[row.command_name].push(row.alias);
+                });
+
+                ALL_COMMAND_IDS.forEach(cmdId => setAliasesFor(cmdId, grouped[cmdId] || []));
+            } catch (err) {
+                console.error('[Commands Page] Network error while loading aliases:', err.message);
+            } finally {
+                // نفس منطق dashboard.js's loadPageSettings بالضبط: الصفحة
+                // لسه بس فتحت = ما فيه تعديلات لسه بالتعريف، بغض النظر عن
+                // نجاح أو فشل التحميل.
+                if (typeof markClean === 'function') markClean();
+            }
+        }
+
+        // Save action across all 14 commands - PUT حقيقي واحد لكل أمر
+        // (Promise.all بالتوازي)، نفس نمط dashboard.js's savePageSettings
+        // بالضبط لما تكون الصفحة فيها أكثر من "جدول" يُحفظ دفعة وحدة.
+        async function saveAllAliases() {
+            const guildId = getGuildId();
+            if (!guildId) return;
+
+            // فلاش أي نص لسه مكتوب بحقل الإدخال وما تحوّل لتاق بعد (نفس
+            // السلوك القديم بالضبط - المستخدم يقدر يكتب ويضغط Save مباشرة
+            // بدون Enter).
+            ALL_COMMAND_IDS.forEach(cmdId => {
+                const input = document.getElementById(`${cmdId}-input`);
+                const alertBox = document.getElementById(`${cmdId}-alert`);
+                if (input) {
+                    const val = input.value.trim();
+                    if (val !== '') {
+                        addTag(cmdId, val);
+                        input.value = '';
+                    }
+                }
+                if (alertBox) alertBox.style.display = 'none';
+            });
+
+            const saveBtn = document.querySelector('.save-btn');
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Saving...';
+            }
+
+            try {
+                const results = await Promise.all(ALL_COMMAND_IDS.map(async (cmdId) => {
+                    const aliases = getAliasesFor(cmdId);
+                    try {
+                        const response = await fetch(`${API_BASE}/guild/${guildId}/command-aliases/${cmdId}`, {
+                            method: 'PUT',
+                            headers: getHeaders(),
+                            body: JSON.stringify({ aliases })
+                        });
+
+                        if (response.ok) return { cmdId, ok: true };
+
+                        const err = await response.json().catch(() => ({}));
+                        return { cmdId, ok: false, error: err.error || 'Failed to save' };
+                    } catch (networkErr) {
+                        return { cmdId, ok: false, error: networkErr.message };
+                    }
+                }));
+
+                const failed = results.filter(r => !r.ok);
+
+                if (failed.length === 0) {
+                    // أخضر لمدة 2.5 ثانية ثم يرجع رمادي تلقائياً - نفس
+                    // dashboard.js's markSaved() بالضبط.
+                    if (typeof markSaved === 'function') markSaved();
+                } else {
+                    // نعرض رسالة الخطأ الحقيقية من السيرفر داخل صندوق
+                    // التنبيه الموجود أصلاً لكل تبويب (بدل رسالة البريفكس
+                    // الثابتة)، بالإضافة لتلوين الزر أحمر "Error - Retry".
+                    failed.forEach(f => {
+                        console.error(`[Commands Page] Save Error - ${f.cmdId}:`, f.error);
+                        const alertBox = document.getElementById(`${f.cmdId}-alert`);
+                        if (alertBox) {
+                            alertBox.querySelector('span').textContent = f.error;
+                            alertBox.style.display = 'flex';
+                        }
+                    });
+                    if (typeof markError === 'function') markError();
+                }
+            } catch (err) {
+                console.error('[Commands Page] Network Error:', err.message);
+                if (typeof markError === 'function') markError();
+            } finally {
+                // markSaved()/markError() فوق يتكفلوا بإعادة نص/حالة الزر
+                // الصحيحة - هذا احتياط أخير بس لو صار خطأ غير متوقع قبل ما
+                // توصل لهم (مثلاً استثناء بالكود نفسه).
+                if (saveBtn && saveBtn.textContent === 'Saving...') {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save Changes';
+                }
+            }
+        }
+
+        // [NEW] تحميل aliases الحقيقية فور فتح الصفحة (dashboard.js's own
+        // DOMContentLoaded يستدعي loadPageSettings() الخاصة فيه أيضاً - بلا
+        // ضرر لهذي الصفحة بالذات، راجع التعليق أعلى وسم <script src="dashboard.js">).
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAllAliases();
+        });
+    </script>
+</body>
+</html>

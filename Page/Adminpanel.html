@@ -1,0 +1,646 @@
+<html lang="en"><head><style id="omniguard-fallback-styles">
+        .save-btn.state-default { background-color: var(--bg-tertiary, #18181c); color: var(--text-secondary, #8e9297); cursor: not-allowed; }
+        .save-btn.state-dirty { background-color: var(--accent-red, #ff3344); color: var(--text-primary, #ffffff); }
+        .save-btn.state-dirty:hover { background-color: var(--accent-red-hover, #ff5566); }
+        .save-btn.state-saved { background-color: var(--accent-green, #3ba55d); color: var(--text-primary, #ffffff); cursor: default; }
+        .save-btn.state-error { background-color: var(--accent-red, #ff3344); color: var(--text-primary, #ffffff); }
+        .save-btn.state-error:hover { background-color: var(--accent-red-hover, #ff5566); }
+        .limit-warning { color: var(--accent-red, #ff3344); font-size: 12px; margin-top: 4px; display: inline-block; }
+    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="dashboard-api-key" content="dK8#mP2$vxL9!zQ5@wR3*tY7^bN1&amp;cX4_uJ6+eA0-fG8~hM2?sK9&lt;pL1&gt;qW5%zX8">
+    <meta name="dashboard-guild-id" content="REPLACE_WITH_YOUR_GUILD_ID">
+    <title>OmniGuard - Admin Control Panel</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        /* Base Colors & Reset */
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        :root {
+            --bg-primary: #0a0a0c;
+            --bg-secondary: #111115;
+            --bg-tertiary: #18181c;
+            --accent-red: #ff3344;
+            --accent-red-hover: #ff5566;
+            --accent-green: #3ba55d;
+            --accent-green-hover: #43b869;
+            --accent-amber: #faa61a;
+            --accent-blue: #00b0f4;
+            --text-primary: #ffffff;
+            --text-secondary: #8e9297;
+            --border-color: #2a2b30;
+        }
+
+        body { background-color: var(--bg-primary); color: var(--text-primary); display: flex; height: 100vh; overflow: hidden; }
+
+        /* Sidebar Styles */
+        .sidebar { width: 280px; background-color: var(--bg-secondary); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 24px 16px; overflow-y: auto; flex-shrink: 0; }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
+        .logo-section { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-left: 8px; flex-shrink: 0; }
+        .logo-icon { color: var(--accent-red); font-size: 24px; }
+        .logo-text { font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+        .category-container { display: flex; align-items: center; gap: 10px; margin-top: 18px; margin-bottom: 10px; width: 100%; }
+        .category-header { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-secondary); white-space: nowrap; }
+        .category-line { flex-grow: 1; height: 1px; background-color: var(--border-color); }
+        .menu-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+        .menu-item a { display: flex; align-items: center; gap: 12px; padding: 10px 14px; color: var(--text-secondary); text-decoration: none; border-radius: 8px; font-weight: 500; font-size: 14px; transition: all 0.2s ease; }
+        .menu-item a:hover { color: var(--text-primary); background-color: var(--bg-tertiary); }
+        .menu-item.active a { color: var(--text-primary); background-color: rgba(255, 51, 68, 0.1); border-left: 3px solid var(--accent-red); padding-left: 11px; }
+
+        /* Main Content Area */
+        .main-content { flex-grow: 1; background-color: var(--bg-primary); display: flex; flex-direction: column; overflow-y: auto; }
+        header { height: 70px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background-color: var(--bg-secondary); flex-shrink: 0; }
+        .header-title { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .header-badge { font-size: 11px; background-color: rgba(255, 51, 68, 0.15); color: var(--accent-red); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(255, 51, 68, 0.3); font-weight: 700; }
+        .user-profile { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; background-color: var(--accent-red); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
+
+        .content-body { padding: 40px; max-width: 1200px; width: 100%; margin: 0 auto; }
+
+        /* Settings Grid */
+        .settings-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 32px; }
+        @media (max-width: 992px) { .settings-grid { grid-template-columns: 1fr; } }
+
+        .settings-card { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 28px; display: flex; flex-direction: column; gap: 20px; position: relative; }
+        .full-width { grid-column: span 2; }
+        @media (max-width: 992px) { .full-width { grid-column: span 1; } }
+
+        .card-header-group { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 14px; }
+        .card-header-left { display: flex; align-items: center; gap: 12px; }
+        .card-header-icon { color: var(--accent-red); font-size: 20px; }
+        .card-header-title { font-size: 16px; font-weight: 600; }
+
+        .form-row { display: flex; gap: 16px; }
+        @media (max-width: 768px) { .form-row { flex-direction: column; } }
+        .form-group { flex: 1; display: flex; flex-direction: column; gap: 8px; position: relative; }
+        .form-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .form-input, .form-select, .form-textarea { width: 100%; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 12px 16px; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; }
+        .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent-red); }
+        .form-select { cursor: pointer; }
+        .form-textarea { resize: vertical; min-height: 80px; }
+
+        /* Custom Toggle Switches */
+        .switch-container { display: flex; flex-direction: column; gap: 12px; }
+        .switch-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; }
+        .switch-info { display: flex; flex-direction: column; gap: 2px; }
+        .switch-title { font-size: 14px; font-weight: 600; }
+        .switch-desc { font-size: 12px; color: var(--text-secondary); }
+
+        .toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--bg-primary); border: 1px solid var(--border-color); transition: .3s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: var(--text-secondary); transition: .3s; border-radius: 50%; }
+        input:checked + .slider { background-color: rgba(255, 51, 68, 0.2); border-color: var(--accent-red); }
+        input:checked + .slider:before { transform: translateX(20px); background-color: var(--accent-red); }
+
+        /* Live Metrics Cards */
+        .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        @media (max-width: 768px) { .metrics-grid { grid-template-columns: repeat(2, 1fr); } }
+        .metric-card { background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; text-align: center; display: flex; flex-direction: column; gap: 6px; }
+        .metric-value { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+        .metric-label { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
+
+        /* Log Console Viewers */
+        .console-box { background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; font-family: monospace; font-size: 12px; color: var(--text-secondary); height: 160px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5; }
+        .console-box::-webkit-scrollbar { width: 4px; }
+        .console-box::-webkit-scrollbar-thumb { background: var(--border-color); }
+
+        /* Buttons & Actions */
+        .btn-action { background-color: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
+        .btn-action:hover { background-color: rgba(255, 51, 68, 0.15); border-color: var(--accent-red); color: var(--accent-red); }
+        .btn-action-primary { background-color: var(--accent-red); border: 1px solid var(--accent-red); color: var(--text-primary); }
+        .btn-action-primary:hover { background-color: var(--accent-red-hover); color: white; }
+        .actions-row { display: flex; gap: 12px; flex-wrap: wrap; }
+
+        /* Dynamic Table Container */
+        .table-container { width: 100%; overflow-x: auto; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; }
+        .data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+        .data-table th { background-color: rgba(0,0,0,0.2); padding: 12px 16px; color: var(--text-secondary); font-weight: 600; border-bottom: 1px solid var(--border-color); text-transform: uppercase; font-size: 11px; }
+        .data-table td { padding: 12px 16px; border-bottom: 1px solid var(--border-color); color: var(--text-primary); }
+        .data-table tr:last-child td { border-bottom: none; }
+        .table-empty { padding: 20px; text-align: center; color: var(--text-secondary); font-size: 13px; }
+
+        /* Save Bar */
+        .save-changes-bar { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; bottom: 20px; z-index: 10; }
+        .save-info-text { font-size: 14px; color: var(--text-secondary); }
+
+        .save-btn { border: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 0.2s, color 0.2s; }
+        .save-btn.state-default { background-color: var(--bg-tertiary); color: var(--text-secondary); cursor: not-allowed; }
+        .save-btn.state-dirty { background-color: var(--accent-red); color: var(--text-primary); }
+        .save-btn.state-dirty:hover { background-color: var(--accent-red-hover); }
+        .save-btn.state-saved { background-color: var(--accent-green); color: var(--text-primary); cursor: default; }
+        .save-btn.state-error { background-color: var(--accent-red); color: var(--text-primary); }
+    </style>
+</head>
+<body>
+
+    <!-- Left Sidebar Navigation - Identical Layout -->
+    <aside class="sidebar">
+        <div class="logo-section">
+            <i class="fa-solid fa-shield-halved logo-icon"></i>
+            <span class="logo-text">OmniGuard</span>
+        </div>
+
+        <!-- HOME CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Home</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="index.html">
+                    <i class="fa-solid fa-house"></i>
+                    Home
+                </a>
+            </li>
+        </ul>
+
+        <!-- CORE SETTINGS CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Core Settings</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="general-settings.html">
+                    <i class="fa-solid fa-sliders"></i>
+                    General Settings
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="welcome-leave.html">
+                    <i class="fa-solid fa-door-open"></i>
+                    Welcome &amp; Leave
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="role-management.html">
+                    <i class="fa-solid fa-user-gear"></i>
+                    Role Management
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODERATION & SECURITY CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Moderation &amp; Security</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="auto-mod.html">
+                    <i class="fa-solid fa-robot"></i>
+                    Auto-Mod
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="anti-alt.html">
+                    <i class="fa-solid fa-user-shield"></i>
+                    Anti-Alt
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="AutoRespond">
+                    <i class="fa-solid fa-reply-all"></i>
+                    Auto Respond
+                </a>
+            </li>
+        </ul>
+
+        <!-- MODULES & FEATURES CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Modules &amp; Features</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item">
+                <a href="custom-messages.html">
+                    <i class="fa-solid fa-comment-dots"></i>
+                    Custom Messages
+                </a>
+            </li>
+            <li class="menu-item">
+                <a href="leveling-system.html">
+                    <i class="fa-solid fa-chart-simple"></i>
+                    Leveling System
+                </a>
+            </li>
+        </ul>
+
+        <!-- ADMINISTRATION CATEGORY -->
+        <div class="category-container">
+            <div class="category-line"></div>
+            <span class="category-header">Administration</span>
+            <div class="category-line"></div>
+        </div>
+        <ul class="menu-list">
+            <li class="menu-item active">
+                <a href="admin-control.html">
+                    <i class="fa-solid fa-user-ninja"></i>
+                    Control Panel
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <header>
+            <div class="header-title">
+                Control Panel
+                <span class="header-badge">Super Admin</span>
+            </div>
+            <div class="user-profile">
+                <span>Administrator</span>
+                <div class="avatar">OG</div>
+            </div>
+        </header>
+
+        <div class="content-body">
+            <div class="settings-grid">
+
+                <!-- 1. Live System Monitoring & Health -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group">
+                        <div class="card-header-left">
+                            <i class="fa-solid fa-chart-line card-header-icon"></i>
+                            <h2 class="card-header-title">Live System Metrics</h2>
+                        </div>
+                    </div>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <span class="metric-label">Bot Latency</span>
+                            <span id="metric_latency" class="metric-value">-- ms</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">CPU Usage</span>
+                            <span id="metric_cpu" class="metric-value">-- %</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">RAM Memory</span>
+                            <span id="metric_ram" class="metric-value">-- MB</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Database Status</span>
+                            <span id="metric_db_status" class="metric-value" style="font-size:14px; color: var(--accent-green);">Connected</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Total Guilds</span>
+                            <span id="metric_guilds" class="metric-value">0</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Total Users</span>
+                            <span id="metric_users" class="metric-value">0</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Commands Today</span>
+                            <span id="metric_commands_today" class="metric-value">0</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Active Blacklists</span>
+                            <span id="metric_blacklists_count" class="metric-value">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Global Bot State & Maintenance -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <div class="card-header-left">
+                            <i class="fa-solid fa-power-off card-header-icon"></i>
+                            <h2 class="card-header-title">Bot State &amp; Maintenance</h2>
+                        </div>
+                    </div>
+                    
+                    <div class="switch-container">
+                        <div class="switch-item">
+                            <div class="switch-info">
+                                <span class="switch-title">Maintenance Mode</span>
+                                <span class="switch-desc">Restrict all bot commands to super administrators.</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="maintenance_enabled">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Maintenance Notice Message</label>
+                        <input id="maintenance_message" type="text" class="form-input" placeholder="OmniGuard is currently under scheduled maintenance. Please try again later.">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Online Status</label>
+                            <select id="bot_online_status" class="form-select">
+                                <option value="online">Online</option>
+                                <option value="idle">Idle</option>
+                                <option value="dnd">Do Not Disturb</option>
+                                <option value="invisible">Invisible</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Activity Type</label>
+                            <select id="bot_activity_type" class="form-select">
+                                <option value="PLAYING">Playing</option>
+                                <option value="WATCHING">Watching</option>
+                                <option value="LISTENING">Listening</option>
+                                <option value="COMPETING">Competing</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Activity Text</label>
+                        <input id="bot_activity_text" type="text" class="form-input" placeholder="e.g. Protecting Servers | !help">
+                    </div>
+                </div>
+
+                <!-- 3. Feature Flags / Global Toggles -->
+                <div class="settings-card">
+                    <div class="card-header-group">
+                        <div class="card-header-left">
+                            <i class="fa-solid fa-toggle-on card-header-icon"></i>
+                            <h2 class="card-header-title">Feature Flags</h2>
+                        </div>
+                    </div>
+
+                    <div class="switch-container">
+                        <div class="switch-item">
+                            <div class="switch-info">
+                                <span class="switch-title">Auto-Mod Rules</span>
+                                <span class="switch-desc">Global toggle for spam &amp; link filter execution.</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="flag_automod" checked="">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="switch-item">
+                            <div class="switch-info">
+                                <span class="switch-title">Anti-Alt System</span>
+                                <span class="switch-desc">Global toggle for alt account detection on join.</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="flag_antialt" checked="">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="switch-item">
+                            <div class="switch-info">
+                                <span class="switch-title">Welcome &amp; Leave Dispatcher</span>
+                                <span class="switch-desc">Global toggle for greeting message generation.</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="flag_welcome" checked="">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="switch-item">
+                            <div class="switch-info">
+                                <span class="switch-title">Leveling &amp; XP System</span>
+                                <span class="switch-desc">Global toggle for tracking user XP &amp; level ups.</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="flag_leveling" checked="">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
+                        <div class="switch-item">
+                            <div class="switch-info">
+                                <span class="switch-title">Custom Messages Module</span>
+                                <span class="switch-desc">Global toggle for automated trigger responses.</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="flag_custom_messages" checked="">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Global Website Banners & User Notices -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group">
+                        <div class="card-header-left">
+                            <i class="fa-solid fa-bullhorn card-header-icon"></i>
+                            <h2 class="card-header-title">Website Banners &amp; Targeted Alerts</h2>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <!-- Global Website Banner -->
+                        <div class="form-group" style="flex:1.2;">
+                            <label class="form-label">Global Top Banner Notice</label>
+                            <div class="switch-item" style="margin-bottom: 10px;">
+                                <div class="switch-info">
+                                    <span class="switch-title">Display Banner on Dashboard</span>
+                                    <span class="switch-desc">Renders an alert strip at the top of all user web pages.</span>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="banner_enabled">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <div class="form-row" style="margin-bottom: 10px;">
+                                <div class="form-group">
+                                    <label class="form-label">Banner Style</label>
+                                    <select id="banner_type" class="form-select">
+                                        <option value="info">Informational (Blue)</option>
+                                        <option value="warning">Warning (Yellow)</option>
+                                        <option value="error">Critical Incident (Red)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <input id="banner_text" type="text" class="form-input" placeholder="e.g. Scheduled maintenance window in 2 hours.">
+                        </div>
+
+                        <!-- Targeted User Popup -->
+                        <div class="form-group" style="flex:1;">
+                            <label class="form-label">User-Targeted Login Popup</label>
+                            <input id="popup_target_user_id" type="text" class="form-input" placeholder="Target User Discord ID" style="margin-bottom: 8px;">
+                            <input id="popup_title" type="text" class="form-input" placeholder="Popup Title" style="margin-bottom: 8px;">
+                            <textarea id="popup_message" class="form-textarea" placeholder="Detailed message displayed on target user login..." style="margin-bottom: 8px;"></textarea>
+                            <div class="switch-item" style="margin-bottom: 12px;">
+                                <div class="switch-info">
+                                    <span class="switch-title">Force Dismissal</span>
+                                    <span class="switch-desc">User must click "I Understand" to proceed.</span>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="popup_force_dismiss" checked="">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <button id="btn_send_user_popup" type="button" class="btn-action btn-action-primary">
+                                <i class="fa-solid fa-paper-plane"></i> Dispatch User Notice
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. Access Control & Blacklist Management -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group">
+                        <div class="card-header-left">
+                            <i class="fa-solid fa-user-slash card-header-icon"></i>
+                            <h2 class="card-header-title">Access Control &amp; Blacklist Management</h2>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <!-- User Blacklist Form -->
+                        <div class="form-group">
+                            <label class="form-label">Blacklist User</label>
+                            <input id="blacklist_user_id" type="text" class="form-input" placeholder="Discord User ID (e.g. 123456789012345678)" style="margin-bottom: 8px;">
+                            <div class="form-row" style="margin-bottom: 8px;">
+                                <div class="form-group">
+                                    <select id="blacklist_user_duration" class="form-select">
+                                        <option value="permanent">Permanent Ban</option>
+                                        <option value="24h">24 Hours</option>
+                                        <option value="7d">7 Days</option>
+                                        <option value="30d">30 Days</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <input id="blacklist_user_reason" type="text" class="form-input" placeholder="Reason for blacklist..." style="margin-bottom: 12px;">
+                            <button id="btn_add_user_blacklist" type="button" class="btn-action btn-action-primary">
+                                <i class="fa-solid fa-user-xmark"></i> Ban User
+                            </button>
+                        </div>
+
+                        <!-- Guild Blacklist Form -->
+                        <div class="form-group">
+                            <label class="form-label">Blacklist Guild (Server)</label>
+                            <input id="blacklist_guild_id" type="text" class="form-input" placeholder="Discord Guild ID (e.g. 987654321098765432)" style="margin-bottom: 8px;">
+                            <div class="switch-item" style="margin-bottom: 8px;">
+                                <div class="switch-info">
+                                    <span class="switch-title">Auto-Leave Server</span>
+                                    <span class="switch-desc">Bot will immediately leave target server upon blacklist.</span>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="blacklist_guild_autoleave" checked="">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <input id="blacklist_guild_reason" type="text" class="form-input" placeholder="Reason for server blacklist..." style="margin-bottom: 12px;">
+                            <button id="btn_add_guild_blacklist" type="button" class="btn-action btn-action-primary">
+                                <i class="fa-solid fa-server"></i> Ban Guild
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Active Blacklists Records -->
+                    <div class="form-group" style="margin-top: 10px;">
+                        <label class="form-label">Active Blacklist Records</label>
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Target ID</th>
+                                        <th>Type</th>
+                                        <th>Duration</th>
+                                        <th>Reason</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="active_blacklists_tbody">
+                                    <tr>
+                                        <td colspan="5" class="table-empty">No active blacklists recorded in database.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. Logs & Diagnostic Trackers -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group">
+                        <div class="card-header-left">
+                            <i class="fa-solid fa-shield-virus card-header-icon"></i>
+                            <h2 class="card-header-title">Logs &amp; Diagnostics</h2>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Unhandled Exceptions &amp; Error Crash Logs</label>
+                            <div id="error_logs_console" class="console-box">[SYSTEM] Log listener initialized. Awaiting system events...</div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Admin Control Audit Trail</label>
+                            <div id="admin_audit_logs_console" class="console-box">[AUDIT] Session active. Tracking administrative changes...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 7. Emergency Controls & System Operations -->
+                <div class="settings-card full-width">
+                    <div class="card-header-group">
+                        <div class="card-header-left">
+                            <i class="fa-solid fa-triangle-exclamation card-header-icon"></i>
+                            <h2 class="card-header-title">Emergency Controls &amp; Maintenance Operations</h2>
+                        </div>
+                    </div>
+
+                    <div class="actions-row">
+                        <button id="btn_soft_reload" type="button" class="btn-action">
+                            <i class="fa-solid fa-rotate"></i> Soft Reload Commands &amp; Events
+                        </button>
+                        <button id="btn_clear_cache" type="button" class="btn-action">
+                            <i class="fa-solid fa-broom"></i> Clear Cache Memory
+                        </button>
+                        <button id="btn_manual_backup" type="button" class="btn-action">
+                            <i class="fa-solid fa-database"></i> Trigger Database Backup
+                        </button>
+                        <button id="btn_discord_broadcast" type="button" class="btn-action btn-action-primary">
+                            <i class="fa-solid fa-tower-broadcast"></i> Dispatch Global Discord Announcement
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Sticky Save Bar -->
+            <div class="save-changes-bar">
+                <span class="save-info-text">Careful — any unsaved modifications will be lost!</span>
+                <button class="save-btn state-default" disabled="">Save Changes</button>
+            </div>
+        </div>
+    </main>
+
+    <!-- JS Core Engine Script Binding -->
+    <script src="dashboard.js"></script>
+
+    <script>
+        (function () {
+            // Sanitize numeric Discord IDs for user/guild blacklist forms
+            const sanitizeIdInput = (inputEl) => {
+                if (!inputEl) return;
+                inputEl.addEventListener('input', () => {
+                    const cleaned = inputEl.value.replace(/\D/g, '').slice(0, 20);
+                    if (cleaned !== inputEl.value) inputEl.value = cleaned;
+                });
+            };
+
+            sanitizeIdInput(document.getElementById('blacklist_user_id'));
+            sanitizeIdInput(document.getElementById('blacklist_guild_id'));
+            sanitizeIdInput(document.getElementById('popup_target_user_id'));
+        })();
+    </script>
+
+</body></html>

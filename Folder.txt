@@ -1,0 +1,55 @@
+OMNIGUARD
+├── node_modules
+└── omniguard-web
+    ├── node_modules
+    ├── .gitignore
+    ├── .oxlintrc.json
+    ├── package-lock.json
+    ├── package.json
+    ├── README.md
+    ├── vite.config.js
+    ├── Page
+    │   ├── anti-alt.html
+    │   ├── auto-mod.html
+    │   ├── custom-messages.html
+    │   ├── dashboard.js
+    │   ├── general-settings.html
+    │   ├── home.html
+    │   ├── index.html
+    │   ├── leveling-system.html
+    │   ├── logging.html
+    │   ├── moderation-commands.html
+    │   ├── role-management.html
+    │   ├── staff-roles.html
+    │   ├── Supabasecodehere.txt
+    │   └── welcome-leave.html
+    └── src
+        ├── commands 
+        │       ├── AutoMod.js
+        │       ├── ban.js
+        │       ├── commandhandler.js
+        │       ├── delete.js
+        │       ├── kick.js
+        │       ├── mute.js
+        │       ├── roleadd.js
+        │       └── warn.js
+        ├── events
+        │   └── server.js
+        ├── moderation
+        │   ├── auth
+        │   │   ├── discordOAuth.js
+        │   │   └── sessionMiddleware.js
+        │   └── autoModEngine.js
+        ├── supabase
+        │   ├── apiRouter.js
+        │   ├── databaseQueries.js
+        │   ├── db.js
+        │   └── dbUtils.js
+        ├── apiServer.js
+        ├── client.js
+        ├── deploy-commands.js
+        ├── index.js
+        ├── slashCommandsHandler.js
+        ├── .env
+        ├── package-lock.json
+        └── package.json
