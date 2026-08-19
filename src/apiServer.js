@@ -14,7 +14,7 @@ const apiRouter = require('./supabase/apiRouter');
 const dbUtils = require('./supabase/dbUtils');
 // [SECURITY REWRITE] طبقة الهوية والصلاحيات الموحّدة (راجع authMiddleware.js) -
 // نفس التطبيق يستخدمه apiRouter.js كمان.
-const { attachDashboardUser, requireDiscordPermission, PermissionsBitField } = require('./supabase/authMiddleware');
+const { attachDashboardUser, requireDiscordPermission, dashboardCooldown, PermissionsBitField } = require('./supabase/authMiddleware');
 const DISCORD_API = 'https://discord.com/api/v10';
 const botHeaders = { Authorization: `Bot ${process.env.DISCORD_TOKEN}` };
 
@@ -123,7 +123,7 @@ app.get('/api/guild/:guildId/roles', attachDashboardUser, requireDiscordPermissi
  * Update Bot Nickname in a specific Guild
  * (محافظة على وظيفة التحديث الفوري للقب البوت)
  */
-app.put('/api/guild/:guildId/nickname', attachDashboardUser, requireDiscordPermission(PermissionsBitField.Flags.ManageGuild), async (req, res) => {
+app.put('/api/guild/:guildId/nickname', attachDashboardUser, dashboardCooldown, requireDiscordPermission(PermissionsBitField.Flags.ManageGuild), async (req, res) => {
     try {
         const { nickname } = req.body;
         const guildId = req.params.guildId;
@@ -156,6 +156,12 @@ app.put('/api/guild/:guildId/nickname', attachDashboardUser, requireDiscordPermi
 // Route database requests to the Supabase API Router
 // [SECURITY REWRITE] ما فيه authMiddleware (مفتاح ثابت) هنا بعد الآن -
 // كل route حساس جوه apiRouter.js يتحقق بنفسه الحين عبر requireDiscordPermission.
+// [NEW] كولداون الحفظ (dashboardCooldown) *ما* يحتاج يُضاف هنا - apiRouter.js
+// نفسه مسجّل عليه (`router.use(dashboardCooldown)` بأعلى ذاك الملف)، فيغطي
+// كل route جواه تلقائياً. لو انضاف مستقبلاً أي route كتابة (POST/PUT/DELETE)
+// *مباشر* هنا بـ apiServer.js (خارج apiRouter.js تماماً، زي /nickname فوق)،
+// لازم يُضاف dashboardCooldown لسلسلة الميدلويرات الخاصة فيه يدوياً - نفس
+// ما صار بالضبط بـ route الـ /nickname فوق.
 app.use('/api', attachDashboardUser, apiRouter);
 
 // ============================================

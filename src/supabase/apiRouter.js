@@ -67,7 +67,7 @@ const { syncMemberRoles } = require('../commands/roleSync');
 const { PermissionsBitField } = require('discord.js');
 // [SECURITY REWRITE] نفس ميدلوير الصلاحيات المستخدم بـ apiServer.js - تطبيق
 // موحّد واحد، بدل نسخة محلية مكررة هنا.
-const { requireDiscordPermission } = require('./authMiddleware');
+const { requireDiscordPermission, dashboardCooldown } = require('./authMiddleware');
 // [NEW] apiRouter.js موجود بـ src/supabase/ - نفس مجلد db.js، فالمسار ./db
 // (مطلوب للحظر الرجعي الفوري لعضو الطاقم بمسار ticket-blacklist تحت).
 const supabase = require('./db');
@@ -121,6 +121,20 @@ function parseDurationToTimestamp(input) {
 }
 
 
+
+// [NEW] كولداون 3 ثواني عام على كل عمليات الحفظ/التنفيذ بهذا الراوتر
+// (POST/PUT/DELETE فقط - GET يمر بدون أي فحص، راجع شرح كامل بـ
+// authMiddleware.js's dashboardCooldown). يعتمد على req.dashboardUser
+// اللي يفترض إنه انحط مسبقاً بـ attachDashboardUser على مستوى التطبيق
+// (app.js/apiServer.js) قبل ما يوصل لهذا الراوتر - نفس افتراض
+// requireDiscordPermission بالضبط.
+//
+// ⚠️ هذا يغطي كل الروتات المعرّفة بهذا الملف (apiRouter.js) فقط. لو فيه
+// روتات كتابة مباشرة (POST/PUT/DELETE) معرّفة بملف ثاني (apiServer.js حسب
+// تعليق authMiddleware.js's header عن "الروتات المباشرة")، لازم يُضاف نفس
+// السطر (`app.use(dashboardCooldown)` أو `router.use(dashboardCooldown)`
+// حسب البنية هناك) بذاك الملف كمان يدوياً - ما شفته لين الحين.
+router.use(dashboardCooldown);
 
 // ============================================================================
 // 1. LOGS & ACTIVITY (Specialized Endpoints)

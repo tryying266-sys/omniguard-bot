@@ -75,6 +75,15 @@ const { isChannelAllowed, isMemberCommandExempt } = require('./GRS');
 // Collection used to store commands in memory for fast lookup
 const commands = new Collection();
 
+// [NEW] كولداون 3 ثواني بين كل أمر والثاني من نفس الشخص - يشمل الجميع
+// بدون استثناء (بما فيهم صاحب السيرفر/الأونر، طلب صريح من المطور). مستقل
+// تماماً عن AutoMod.checkCommandSpam (نظام ثاني مخصص للمشرفين ضد سوء
+// استخدام الأعضاء العاديين، بإعدادات قابلة للتخصيص بقاعدة البيانات) - هذا
+// كولداون عام وثابت (3000ms) لكل شخص يستخدم البوت بغض النظر عن رتبته.
+const COMMAND_COOLDOWN_MS = 3000;
+const lastCommandAt = new Map(); // userId -> timestamp آخر أمر مقبول
+const cooldownWarned = new Set(); // userId المُنبَّه حالياً (لين ينجح بأمر جديد)
+
 /**
  * AUTO-LOADER INITIALIZATION
  * Scans the folder this file actually lives in for command files.
@@ -197,6 +206,26 @@ async function handleMessage(message, dbUtils, guildSettings) {
     }
 
     if (!command) return false;
+
+    // [NEW] كولداون 3 ثواني - يُفحص هنا بالذات (بعد التأكد إنه فعلاً أمر
+    // حقيقي، مو أي رسالة عادية) وقبل أي فحص ثاني (سبام المشرفين/الصلاحيات/
+    // الإعفاءات)، عشان يطبّق حتى لو الأمر أصلاً كان رح يُرفض لاحقاً لأي سبب
+    // - المهلة تحسب على "محاولة تنفيذ أمر"، مو على "أمر نجح فعلاً".
+    const now = Date.now();
+    const lastAt = lastCommandAt.get(message.author.id) || 0;
+
+    if (now - lastAt < COMMAND_COOLDOWN_MS) {
+        if (!cooldownWarned.has(message.author.id)) {
+            cooldownWarned.add(message.author.id);
+            await message.reply({ content: '⏳ Please wait a few seconds before using another command.' }).catch(() => {});
+        }
+        // بعد التنبيه الأول: سكوت تام لباقي المحاولات لين ينجح بأمر جديد
+        // بعد انتهاء المهلة (طلب صريح من المطور - "مرة يذكره بس، وبعدها ما يرد").
+        return false;
+    }
+
+    lastCommandAt.set(message.author.id, now);
+    cooldownWarned.delete(message.author.id);
 
     // [GRS] Channel check - guildSettings comes from index.js (the same
     // fetch already used for prefix/access_dashboard - no extra DB query).

@@ -159,84 +159,17 @@
         .save-info-text { font-size: 14px; color: var(--text-secondary); }
         .save-btn { background-color: var(--accent-red); color: var(--text-primary); border: none; padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color 0.2s; }
         .save-btn:hover { background-color: var(--accent-red-hover); }
-         /* --- header controls styling --- */
-        .header-controls {
-            display: flex;
-            align-items: center;
-            gap: 24px;
-        }
-
-        .guild-select {
-            background-color: var(--bg-tertiary);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 14px;
-            outline: none;
-            cursor: pointer;
-            transition: border-color 0.2s;
-        }
-
-        .guild-select:focus {
-            border-color: var(--accent-red);
-        }
-
-        .logout-btn {
-            background: none;
-            border: 1px solid var(--border-color);
-            color: var(--text-secondary);
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .logout-btn:hover {
-            color: var(--accent-red);
-            border-color: var(--accent-red);
-            background-color: rgba(255, 51, 68, 0.05);
-        }
-
-        #user-name {
-            font-size: 14px;
-            font-weight: 500;
-            color: var(--text-primary);
-        }
-
     </style>
 </head>
 <body>
 
-    <!-- Left Sidebar Navigation (Synced with index.html) -->
+    <!-- Left Sidebar Navigation -->
     <aside class="sidebar">
-        <!-- Bot Logo and Name -->
         <div class="logo-section">
             <i class="fa-solid fa-shield-halved logo-icon"></i>
             <span class="logo-text">OmniGuard</span>
         </div>
-        
-           <!-- SEARCH CATEGORY -->
-        <div class="category-container">
-            <div class="category-line"></div>
-            <span class="category-header">Search</span>
-            <div class="category-line"></div>
-        </div>
-        <ul class="menu-list">
-            <li class="menu-item">
-                <a href="search">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    Search
-                </a>
-            </li>
-        </ul>
 
-        <!-- HOME CATEGORY -->
         <div class="category-container">
             <div class="category-line"></div>
             <span class="category-header">Home</span>
@@ -244,14 +177,13 @@
         </div>
         <ul class="menu-list">
             <li class="menu-item">
-                <a href="index">
+                <a href="index.html">
                     <i class="fa-solid fa-house"></i>
                     Home
                 </a>
             </li>
         </ul>
 
-        <!-- CORE SETTINGS CATEGORY -->
         <div class="category-container">
             <div class="category-line"></div>
             <span class="category-header">Core Settings</span>
@@ -259,26 +191,25 @@
         </div>
         <ul class="menu-list">
             <li class="menu-item">
-                <a href="general-settings">
+                <a href="general-settings.html">
                     <i class="fa-solid fa-sliders"></i>
                     General Settings
                 </a>
             </li>
             <li class="menu-item">
-                <a href="welcome-leave">
+                <a href="welcome-leave.html">
                     <i class="fa-solid fa-door-open"></i>
                     Welcome & Leave
                 </a>
             </li>
             <li class="menu-item">
-                <a href="role-management">
+                <a href="role-management.html">
                     <i class="fa-solid fa-user-gear"></i>
                     Role Management
                 </a>
             </li>
         </ul>
 
-        <!-- MODERATION & SECURITY CATEGORY -->
         <div class="category-container">
             <div class="category-line"></div>
             <span class="category-header">Moderation & Security</span>
@@ -286,56 +217,25 @@
         </div>
         <ul class="menu-list">
             <li class="menu-item">
-                <a href="auto-mod">
+                <a href="auto-mod.html">
                     <i class="fa-solid fa-robot"></i>
                     Auto-Mod
                 </a>
             </li>
             <li class="menu-item">
-                <a href="anti-alt">
+                <a href="anti-alt.html">
                     <i class="fa-solid fa-user-shield"></i>
                     Anti-Alt
                 </a>
             </li>
             <li class="menu-item">
-                <a href="AutoRespond">
-                    <i class="fa-solid fa-reply-all"></i>
-                    Auto Respond
+                <a href="logging.html">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    Logging
                 </a>
             </li>
         </ul>
 
-        <!-- TICKET SYSTEM CATEGORY -->
-        <div class="category-container">
-            <div class="category-line"></div>
-            <span class="category-header">Ticket System</span>
-            <div class="category-line"></div>
-        </div>
-        <ul class="menu-list">
-            <li class="menu-item">
-                <a href="category">
-                    <i class="fa-solid fa-ticket"></i>
-                    Ticket Category
-                </a>
-            </li>
-            <li class="menu-item">
-                <a href="AutoLog">
-                    <i class="fa-solid fa-clock-rotate-left"></i>
-                    Ticket Auto Log
-                </a>
-            </li>
-        </ul>
-
-        </li>
-            <li class="menu-item">
-                <a href="Permissionspanel">
-                    <i class="fa-solid fa-sliders"></i>
-                    Ticket Panel
-                </a>
-            </li>
-        </ul>
-
-        <!-- MODULES & FEATURES CATEGORY -->
         <div class="category-container">
             <div class="category-line"></div>
             <span class="category-header">Modules & Features</span>
@@ -343,19 +243,19 @@
         </div>
         <ul class="menu-list">
             <li class="menu-item">
-                <a href="custom-messages">
+                <a href="custom-messages.html">
                     <i class="fa-solid fa-comment-dots"></i>
                     Custom Messages
                 </a>
             </li>
             <li class="menu-item">
-                <a href="Level">
+                <a href="leveling-system.html">
                     <i class="fa-solid fa-chart-simple"></i>
                     Leveling System
                 </a>
             </li>
             <li class="menu-item active">
-                <a href="commands">
+                <a href="command-aliases.html">
                     <i class="fa-solid fa-terminal"></i>
                     Command Customization
                 </a>
@@ -363,30 +263,15 @@
         </ul>
     </aside>
 
- <main class="main-content"> 
-    
     <!-- Main Content Area -->
-    <header>
+    <main class="main-content">
+        <header>
             <div class="header-title">Command Customization</div>
-            <div class="header-controls">
-                <!-- Guild / Server Selector Dropdown -->
-                <select id="guild-selector" class="guild-select">
-                    <option value="" disabled selected>Loading Servers...</option>
-                </select>
-
-                <!-- Dynamic User Profile -->
-                <div class="user-profile" id="user-profile">
-                    <span id="user-name">Loading...</span>
-                    <div class="avatar" id="user-avatar">OG</div>
-                </div>
-
-                <!-- Logout Button -->
-                <button id="logout-btn" class="logout-btn">
-                    <i class="fa-solid fa-right-from-bracket"></i>
-                    <span>Logout</span>
-                </button>
+            <div class="user-profile">
+                <span>Administrator</span>
+                <div class="avatar">OG</div>
             </div>
-    </header>
+        </header>
 
         <div class="content-body">
             <div class="settings-grid">
@@ -978,23 +863,35 @@
                         if (response.ok) return { cmdId, ok: true };
 
                         const err = await response.json().catch(() => ({}));
-                        return { cmdId, ok: false, error: err.error || 'Failed to save' };
+                        return { cmdId, ok: false, error: err.error || 'Failed to save', silent: !!err.silent };
                     } catch (networkErr) {
                         return { cmdId, ok: false, error: networkErr.message };
                     }
                 }));
 
                 const failed = results.filter(r => !r.ok);
+                // [NEW] الردود الصامتة (silent: true) = كولداون الداشبورد اتفعّل
+                // والمستخدم أصلاً انبّه بأول محاولة - المحاولات التالية بنفس
+                // نافذة الكولداون تُتجاهل بالكامل بدون أي إزعاج إضافي (طلب
+                // صريح من المطور: "ينبهه مرة، وبعدها ما يرد").
+                const realFailures = failed.filter(f => !f.silent);
 
                 if (failed.length === 0) {
                     // أخضر لمدة 2.5 ثانية ثم يرجع رمادي تلقائياً - نفس
                     // dashboard.js's markSaved() بالضبط.
                     if (typeof markSaved === 'function') markSaved();
+                } else if (realFailures.length === 0) {
+                    // كل الفشل هنا صامت (كولداون مكرر) - نعيد الزر لحالته
+                    // العادية بهدوء بدون أي حالة حمراء أو رسالة.
+                    if (saveBtn) {
+                        saveBtn.disabled = false;
+                        saveBtn.textContent = 'Save Changes';
+                    }
                 } else {
                     // نعرض رسالة الخطأ الحقيقية من السيرفر داخل صندوق
                     // التنبيه الموجود أصلاً لكل تبويب (بدل رسالة البريفكس
                     // الثابتة)، بالإضافة لتلوين الزر أحمر "Error - Retry".
-                    failed.forEach(f => {
+                    realFailures.forEach(f => {
                         console.error(`[Commands Page] Save Error - ${f.cmdId}:`, f.error);
                         const alertBox = document.getElementById(`${f.cmdId}-alert`);
                         if (alertBox) {

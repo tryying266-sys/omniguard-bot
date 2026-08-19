@@ -151,4 +151,71 @@ const guild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guil
     };
 }
 
-module.exports = { attachDashboardUser, requireDiscordPermission, PermissionsBitField };
+module.exports = { attachDashboardUser, requireDiscordPermission, dashboardCooldown, PermissionsBitField };
+
+// ============================================================================
+// [NEW] dashboardCooldown - كولداون 3 ثواني عام على كل عمليات الحفظ/التنفيذ
+// بالداشبورد (POST/PUT/DELETE فقط - طلبات القراءة/البحث/التنقل GET ما
+// تُفحص إطلاقاً، حتى لو مرّت من نفس الميدلوير - طلب صريح من المطور).
+//
+// [مهم] "عملية حفظ واحدة" ≠ "طلب HTTP واحد": صفحات زي commands.html ترسل
+// عدة طلبات PUT متوازية دفعة وحدة بضغطة Save وحدة (16 طلب لكل الأوامر مثلاً
+// عبر Promise.all بالفرونت). لو فحصنا كل طلب لحاله، أول ضغطة حفظ وحدها كانت
+// راح تفشل من نفسها. الحل: أي طلبات كتابة توصل خلال BURST_WINDOW_MS من
+// بعضها (من نفس المستخدم) تُعتبر "نفس عملية الحفظ" ولا تُحتسب أوامر منفصلة -
+// الكولداون الفعلي (DASHBOARD_COOLDOWN_MS) يُحسب بين بداية عملية حفظ
+// وبداية العملية اللي بعدها، مو بين كل HTTP request.
+//
+// [تنويه للتنبيه] نفس فلسفة كولداون أوامر الشات (commandhandler.js):
+// أول محاولة أثناء الكولداون تُرجع 429 مع رسالة واضحة (الفرونت يقدر يعرضها)،
+// وأي محاولة بعدها بنفس نافذة الكولداون تُرجع 429 صامت (silent: true) -
+// الفرونت يتجاهلها بدون إزعاج المستخدم مرة ثانية. تُعاد التهيئة تلقائياً
+// أول ما ينجح بحفظ جديد بعد انتهاء الكولداون.
+// ============================================================================
+
+const BURST_WINDOW_MS = 1500;      // طلبات ضمن هالمدة من بعض = نفس عملية الحفظ
+const DASHBOARD_COOLDOWN_MS = 3000; // الكولداون الفعلي بين عمليتي حفظ منفصلتين
+
+const lastSaveAt = new Map();   // discordId -> timestamp بداية آخر عملية حفظ مقبولة
+const dashboardWarned = new Set(); // discordId المُنبَّه حالياً (لين ينجح بحفظ جديد)
+
+function dashboardCooldown(req, res, next) {
+    // GET (بحث/تنقل/عرض) ما يُفحص إطلاقاً - طلب صريح من المطور، الكولداون
+    // بس على عمليات الكتابة الفعلية.
+    if (!['POST', 'PUT', 'DELETE'].includes(req.method)) return next();
+
+    // لو ما فيه هوية مستخدم لسه (توكن غير صالح/مفقود)، نسيب الرفض الفعلي
+    // لـ requireDiscordPermission اللي بيجي بعدها بنفس السلسلة - هذا
+    // الميدلوير مسؤول عن الكولداون بس، مو المصادقة.
+    const discordId = req.dashboardUser?.discordId;
+    if (!discordId) return next();
+
+    const now = Date.now();
+    const last = lastSaveAt.get(discordId);
+
+    if (last !== undefined) {
+        const elapsed = now - last;
+
+        // جزء من نفس عملية الحفظ الحالية (طلبات متوازية) - نمرّرها بدون
+        // أي تحديث لـ lastSaveAt (نخلي "بداية" العملية ثابتة).
+        if (elapsed < BURST_WINDOW_MS) return next();
+
+        // لسه داخل فترة الكولداون الفعلية (عملية حفظ جديدة قبل أوانها)
+        if (elapsed < DASHBOARD_COOLDOWN_MS) {
+            if (!dashboardWarned.has(discordId)) {
+                dashboardWarned.add(discordId);
+                return res.status(429).json({
+                    error: 'Please wait a few seconds before saving again.',
+                    cooldown: true
+                });
+            }
+            // نُبِّه مسبقاً بنفس نافذة الكولداون هذي - سكوت صامت من هنا
+            return res.status(429).json({ error: 'cooldown_active', silent: true });
+        }
+    }
+
+    // عملية حفظ جديدة مقبولة - نرسّخ بدايتها ونصفّر أي تنبيه سابق
+    lastSaveAt.set(discordId, now);
+    dashboardWarned.delete(discordId);
+    next();
+}
