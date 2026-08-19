@@ -46,7 +46,7 @@
 // [FIX 2 - Unified cooldown between !command and /command]
 //         commandhandler.js now exports checkCommandCooldown(userId), backed
 //         by a single shared in-memory Map/Set. This file calls the exact
-//         same function (same Map instance, via require('./commandhandler'))
+//         same function (same Map instance, via require('./commands/commandhandler'))
 //         so a person can't bypass the 3-second cooldown by switching
 //         between prefix and slash - same person, same cooldown window,
 //         regardless of which interface they used. This is intentionally
@@ -151,7 +151,7 @@ async function handleSlashCommand(interaction, dbUtils) {
     // [FIX 2] كولداون موحّد - نفس Map المشترك مع البريفكس (commandhandler.js).
     // *قبل* deferReply عمداً - راجع الشرح الكامل بأعلى الملف عن قيد ديسكورد
     // التقني (رد أول خلال 3 ثواني وإلا "This interaction failed" تلقائي).
-    const { checkCommandCooldown } = require('./commandhandler');
+    const { checkCommandCooldown } = require('./commands/commandhandler');
     const cooldown = checkCommandCooldown(interaction.user.id);
     if (cooldown.onCooldown) {
         if (cooldown.shouldWarn) {
@@ -179,7 +179,7 @@ async function handleSlashCommand(interaction, dbUtils) {
         // بمسار البريفكس بالضبط (commandhandler.js -> GRS.js). blacklist هي
         // المصدر الوحيد للمنع - whitelisted_channels متعمد ما يُستخدم هنا،
         // نفس قرار GRS.js. هذا يزيل التناقض القديم بين !command و/command.
-        const { isChannelAllowed } = require('./GRS');
+        const { isChannelAllowed } = require('./commands/GRS');
         if (!isChannelAllowed(settings, channel.id)) {
             return await interaction.editReply({
                 content: "❌ Prohibited: Management commands are disabled in this channel."
