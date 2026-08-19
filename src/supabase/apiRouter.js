@@ -742,194 +742,6 @@ router.delete('/guild/:guildId/auto-respond/:ruleId', requireGuildId, requireDis
 });
 
 // ============================================================================
-// 3.5.c LEVELING SYSTEM (v6.2 - Dashboard Page: Level.html)
-// ============================================================================
-// ⚠️ إعدادات تاب General (Global Multiplier, Cooldown, Growth System,
-// Notification Destination, Mention Toggle, Whitelist/Blacklist Channels,
-// Level Up Message) ما لها مسارات هنا إطلاقاً - كلها أعمدة على
-// setting_leveling (صف واحد لكل سيرفر) وتمر تلقائياً عبر Smart Binding
-// العام (/api/guild/:guildId/setting_leveling، موجود مسبقاً بالملف).
-// هذا القسم يغطي بس الأجزاء اللي تحتاج منطق خاص: مضاعفات الرتب (متعدد
-// الصفوف)، وMemory Override اليدوي (يحتاج جلب اسم/صورة العضو من ديسكورد
-// نفسه + حساب المستوى عبر levelingFormulas.js).
-
-const { getLevelFromTotalXp, xpForNextLevel, normalizeGrowthSystem } = require('./levelingFormulas');
-
-// --- Role XP Multipliers (عدة صفوف - نفس نمط auto-respond بالحرف) ---
-
-router.get('/guild/:guildId/role-xp-multipliers', requireGuildId, requireDiscordPermission(PermissionsBitField.Flags.ManageGuild), async (req, res) => {
-    try {
-        const rows = await queries.getRoleXpMultipliers(req.guildId);
-        res.json(rows);
-    } catch (err) {
-        console.error(`[API Router Error] GET /guild/${req.params.guildId}/role-xp-multipliers:`, err.message);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-router.post('/guild/:guildId/role-xp-multipliers', requireGuildId, requireDiscordPermission(PermissionsBitField.Flags.ManageGuild), async (req, res) => {
-    try {
-        const { roleId, multiplier } = req.body || {};
-        const parsedMultiplier = parseFloat(multiplier);
-
-        if (!roleId || typeof roleId !== 'string') {
-            return res.status(400).json({ error: 'Invalid Payload: roleId is required' });
-        }
-        if (!Number.isFinite(parsedMultiplier) || parsedMultiplier <= 0) {
-            return res.status(400).json({ error: 'Invalid Payload: multiplier must be a positive number' });
-        }
-
-        // Upsert (زر واحد "Add Multiplier" يغطي إضافة/تحديث - راجع تعليق
-        // upsertRoleXpMultiplier بـ databaseQueries.js)
-        const row = await queries.upsertRoleXpMultiplier(req.guildId, roleId, parsedMultiplier);
-        res.json({ success: true, multiplier: row });
-    } catch (err) {
-        console.error(`[API Router Error] POST /guild/${req.params.guildId}/role-xp-multipliers:`, err.message);
-        res.status(500).json({ error: 'Failed to save role multiplier' });
-    }
-});
-
-router.delete('/guild/:guildId/role-xp-multipliers/:roleId', requireGuildId, requireDiscordPermission(PermissionsBitField.Flags.ManageGuild), async (req, res) => {
-    try {
-        await queries.deleteRoleXpMultiplier(req.guildId, req.params.roleId);
-        res.json({ success: true });
-    } catch (err) {
-        console.error(`[API Router Error] DELETE /guild/${req.params.guildId}/role-xp-multipliers/${req.params.roleId}:`, err.message);
-        res.status(500).json({ error: 'Failed to delete role multiplier' });
-    }
-});
-
-// --- Tiered Ranks Brackets (فئات نظام Tiered - قابلة للتعديل بالكامل) ---
-
-router.get('/guild/:guildId/tiered-xp-brackets', requireGuildId, requireDiscordPermission(PermissionsBitField.Flags.ManageGuild), async (req, res) => {
-    try {
-        const rows = await queries.getTieredBrackets(req.guildId);
-        res.json(rows);
-    } catch (err) {
-        console.error(`[API Router Error] GET /guild/${req.params.guildId}/tiered-xp-brackets:`, err.message);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-router.post('/guild/:guildId/tiered-xp-brackets', requireGuildId, requireDiscordPermission(PermissionsBitField.Flags.ManageGuild), async (req, res) => {
-    try {
-        const { maxLevel, xpPerLevel, label } = req.body || {};
-        const parsedMaxLevel = parseInt(maxLevel, 10);
-        const parsedXpPerLevel = parseInt(xpPerLevel, 10);
-
-        if (!Number.isInteger(parsedMaxLevel) || parsedMaxLevel <= 0) {
-            return res.status(400).json({ error: 'Invalid Payload: maxLevel must be a positive integer' });
-        }
-        if (!Number.isInteger(parsedXpPerLevel) || parsedXpPerLevel <= 0) {
-            return res.status(400).json({ error: 'Invalid Payload: xpPerLevel must be a positive integer' });
-        }
-
-        const bracket = await queries.addTieredBracket(req.guildId, parsedMaxLevel, parsedXpPerLevel, label);
-        res.json({ success: true, bracket });
-    } catch (err) {
-        if (err.code === '23505') {
-            return res.status(409).json({ error: 'A bracket ending at this level already exists.' });
-        }
-        console.error(`[API Router Error] POST /guild/${req.params.guildId}/tiered-xp-brackets:`, err.message);
-        res.status(500).json({ error: 'Failed to create bracket' });
-    }
-});
-
-router.delete('/guild/:guildId/tiered-xp-brackets/:bracketId', requireGuildId, requireDiscordPermission(PermissionsBitField.Flags.ManageGuild), async (req, res) => {
-    try {
-        await queries.deleteTieredBracket(req.params.bracketId, req.guildId);
-        res.json({ success: true });
-    } catch (err) {
-        console.error(`[API Router Error] DELETE /guild/${req.params.guildId}/tiered-xp-brackets/${req.params.bracketId}:`, err.message);
-        res.status(500).json({ error: 'Failed to delete bracket' });
-    }
-});
-
-// --- Manual Member XP Override ---
-
-/**
- * GET /api/guild/:guildId/leveling/member/:userId
- * صندوق المعاينة تحت خانة User ID بالداشبورد - يرجّع اسم العضو + صورته من
- * ديسكورد نفسه (مو من القاعدة - لازم يكونوا حديثين 100%) + مستواه/نقاطه
- * الحالية من user_levels (صفر لو عضو جديد ما له سجل لسا - مو خطأ).
- */
-router.get('/guild/:guildId/leveling/member/:userId', requireGuildId, requireDiscordPermission(PermissionsBitField.Flags.ManageGuild), async (req, res) => {
-    try {
-        const client = require('../index');
-        const guild = await client.guilds.fetch(req.guildId).catch(() => null);
-        if (!guild) {
-            return res.status(404).json({ error: 'Bot is not in this guild' });
-        }
-
-        const member = await guild.members.fetch(req.params.userId).catch(() => null);
-        if (!member) {
-            return res.status(404).json({ error: 'Member not found in this guild (check the ID, or they may have left)' });
-        }
-
-        const levelRow = await queries.getUserLevel(req.guildId, req.params.userId);
-        const settings = await queries.universalGet('setting_leveling', req.guildId);
-        const growthSystem = normalizeGrowthSystem(settings?.xp_growth_system);
-        const tieredBrackets = (growthSystem === 'tiered') ? await queries.getTieredBrackets(req.guildId) : null;
-
-        const level = levelRow?.level ?? 0;
-        const xp = levelRow?.xp ?? 0;
-        const totalXp = levelRow?.total_xp ?? 0;
-
-        res.json({
-            userId: member.id,
-            username: member.user.username,
-            displayName: member.displayName,
-            avatarUrl: member.displayAvatarURL({ size: 64 }),
-            level,
-            xp,
-            totalXp,
-            xpForNextLevel: xpForNextLevel(level, growthSystem, tieredBrackets)
-        });
-    } catch (err) {
-        console.error(`[API Router Error] GET /guild/${req.params.guildId}/leveling/member/${req.params.userId}:`, err.message);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-/**
- * POST /api/guild/:guildId/leveling/member/:userId/override
- * body: { mode: 'add' | 'remove' | 'set', amount: number }
- */
-router.post('/guild/:guildId/leveling/member/:userId/override', requireGuildId, requireDiscordPermission(PermissionsBitField.Flags.ManageGuild), async (req, res) => {
-    try {
-        const { mode, amount } = req.body || {};
-        const parsedAmount = parseInt(amount, 10);
-
-        if (!['add', 'remove', 'set'].includes(mode)) {
-            return res.status(400).json({ error: 'Invalid Payload: mode must be add, remove, or set' });
-        }
-        if (!Number.isInteger(parsedAmount) || parsedAmount < 0) {
-            return res.status(400).json({ error: 'Invalid Payload: amount must be a non-negative integer' });
-        }
-
-        const client = require('../index');
-        const guild = await client.guilds.fetch(req.guildId).catch(() => null);
-        if (!guild) {
-            return res.status(404).json({ error: 'Bot is not in this guild' });
-        }
-        const member = await guild.members.fetch(req.params.userId).catch(() => null);
-        if (!member) {
-            return res.status(404).json({ error: 'Member not found in this guild (check the ID, or they may have left)' });
-        }
-
-        const settings = await queries.universalGet('setting_leveling', req.guildId);
-        const growthSystem = normalizeGrowthSystem(settings?.xp_growth_system);
-        const tieredBrackets = (growthSystem === 'tiered') ? await queries.getTieredBrackets(req.guildId) : null;
-
-        const updated = await queries.applyUserXpChange(req.guildId, req.params.userId, mode, parsedAmount, growthSystem, tieredBrackets);
-        res.json({ success: true, member: updated });
-    } catch (err) {
-        console.error(`[API Router Error] POST /guild/${req.params.guildId}/leveling/member/${req.params.userId}/override:`, err.message);
-        res.status(500).json({ error: 'Failed to apply XP change' });
-    }
-});
-
-// ============================================================================
 // 3.6 TICKET SYSTEM (Dashboard Pages: category-embed.html, automation-logs.html)
 // ============================================================================
 // [CHANGED] كانت كل الاستعلامات هنا مباشرة عبر require('./db') (لحد ما
@@ -1293,6 +1105,131 @@ router.delete('/guild/:guildId/ticket-auto-respond/:ruleId', requireGuildId, req
     } catch (err) {
         console.error(`[API Router Error] DELETE /guild/${req.params.guildId}/ticket-auto-respond/${req.params.ruleId}:`, err.message);
         res.status(500).json({ error: 'Failed to delete auto-respond rule' });
+    }
+});
+
+// ============================================================================
+// 3.8 COMMAND ALIASES (Dashboard Page: commands.html)
+// ============================================================================
+// command_alias_config: عدة صفوف لكل سيرفر (حتى Aliases.MAX_ALIASES_PER_COMMAND
+// لكل أمر). نفس سبب تسجيل auto-mod-rules/reaction-roles فوق Section 5
+// بالضبط: هذي المسارات 3-4 أجزاء، لازم تبقى فوق الـ catch-all العام وإلا
+// تنبلع بصمت (راجع شرح route shadowing بأعلى الملف).
+//
+// "زر حفظ واحد لكل كرت" (نفس فلسفة reaction-roles): كل PUT يستبدل *كامل*
+// قائمة aliases أمر واحد بالسيرفر دفعة وحدة - يطابق سلوك saveAllAliases()
+// بالواجهة اللي ترسل القائمة النهائية الكاملة لكل تبويب دفعة وحدة.
+//
+// [الحماية - Validation] كل شي يُفحص هنا من الصفر بالباك إند، بدون أي ثقة
+// بفلترة الفرونت إند (commands.html عندها فلترة مشابهة، لكنها شكلية فقط
+// وممكن تُتجاوز بسهولة بطلب مباشر للـ API):
+//   1) :commandName بمسار الـ URL لازم يطابق أمر مسجّل فعلياً بـ
+//      commandhandler.js (Aliases.isReservedName - نفس الـ Collection
+//      الحيّة، مو قائمة يدوية هنا قد تنسى تتحدث لو تغيّر اسم ملف/أمر).
+//   2) كل alias مُرسل: بدون مسافات، بدون رموز بريفكس، طول 1-32 حرف
+//      (Aliases.validateAliasFormat).
+//   3) alias ما يجوز يطابق أي اسم أمر/alias محجوز بالكود - **رفض كامل**،
+//      مو استبدال (طلب صريح من المطور).
+//   4) حد أقصى Aliases.MAX_ALIASES_PER_COMMAND (10) لكل أمر بكل سيرفر.
+//   5) لا تكرار لنفس الـ alias مرتين بنفس الطلب، ولا مع alias موجود فعلاً
+//      لأمر *آخر* بنفس السيرفر (لا علاقة بسيرفرات ثانية إطلاقاً - كل
+//      سيرفر معزول تماماً بعمود id_guild، حسب تأكيد المطور). عمود alias
+//      عليه UNIQUE(id_guild, alias) بالسكيما كطبقة حماية أخيرة (راجع
+//      command_alias_config.sql) - نفحصها هنا مسبقاً برضو عشان رسالة خطأ
+//      مفهومة بدل خطأ 23505 خام لو صار Race Condition نادر.
+
+/**
+ * GET /api/guild/:guildId/command-aliases
+ * يرجّع كل صفوف aliases السيرفر مسطّحة (id, command_name, alias) - الواجهة
+ * تجمّعها محلياً حسب command_name لكل تبويب بالكرت.
+ */
+router.get('/guild/:guildId/command-aliases', requireGuildId, requireDiscordPermission(PermissionsBitField.Flags.ManageGuild), async (req, res) => {
+    try {
+        const rows = await queries.getCommandAliases(req.guildId);
+        res.json(rows);
+    } catch (err) {
+        console.error(`[API Router Error] GET /guild/${req.params.guildId}/command-aliases:`, err.message);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+/**
+ * PUT /api/guild/:guildId/command-aliases/:commandName
+ * Expected body: { aliases: string[] } - القائمة النهائية الكاملة لهذا
+ * الأمر بالذات (فاضية [] = مسح كل aliases هذا الأمر لهذا السيرفر).
+ */
+router.put('/guild/:guildId/command-aliases/:commandName', requireGuildId, requireDiscordPermission(PermissionsBitField.Flags.ManageGuild), async (req, res) => {
+    try {
+        const Aliases = require('../commands/Aliases');
+        const commandName = String(req.params.commandName || '').toLowerCase();
+
+        // (1) الأمر نفسه لازم يكون أمر حقيقي مسجّل فعلياً بالبوت
+        if (!Aliases.isReservedName(commandName)) {
+            return res.status(400).json({ error: `"${commandName}" is not a recognized bot command.` });
+        }
+
+        const { aliases } = req.body;
+        if (!Array.isArray(aliases)) {
+            return res.status(400).json({ error: 'Invalid Payload: "aliases" must be an array' });
+        }
+
+        // (4) الحد الأقصى
+        if (aliases.length > Aliases.MAX_ALIASES_PER_COMMAND) {
+            return res.status(400).json({ error: `A maximum of ${Aliases.MAX_ALIASES_PER_COMMAND} aliases is allowed per command.` });
+        }
+
+        const normalized = [];
+        const seenInRequest = new Set();
+
+        for (const raw of aliases) {
+            // (2) فحص الشكل (مسافات / رموز بريفكس / الطول)
+            const formatError = Aliases.validateAliasFormat(raw);
+            if (formatError) {
+                return res.status(400).json({ error: `Invalid alias "${raw}": ${formatError}` });
+            }
+
+            const alias = Aliases.normalizeAlias(raw);
+
+            // (3) رفض كامل لو الاسم محجوز (أمر رئيسي أو alias ثابت بالكود)
+            if (Aliases.isReservedName(alias)) {
+                return res.status(400).json({ error: `"${alias}" is already used as a built-in command name and cannot be used as an alias.` });
+            }
+            // (5.أ) تكرار داخل نفس الطلب
+            if (seenInRequest.has(alias)) {
+                return res.status(400).json({ error: `"${alias}" was submitted more than once for this command.` });
+            }
+            seenInRequest.add(alias);
+            normalized.push(alias);
+        }
+
+        // (5.ب) تكرار مع aliases أوامر *ثانية* بنفس السيرفر (صفوف نفس
+        // الأمر الحالي بتنحذف وتتعوض بالكامل بأي حال، فما تتعارض مع نفسها)
+        if (normalized.length > 0) {
+            const existing = await queries.getCommandAliases(req.guildId);
+            const usedByOtherCommands = existing.filter(row => row.command_name !== commandName);
+            const conflictAlias = normalized.find(alias => usedByOtherCommands.some(row => row.alias === alias));
+            if (conflictAlias) {
+                const owner = usedByOtherCommands.find(row => row.alias === conflictAlias);
+                return res.status(409).json({ error: `"${conflictAlias}" is already used as an alias for "${owner.command_name}" in this server.` });
+            }
+        }
+
+        const saved = await queries.replaceCommandAliasesForCommand(req.guildId, commandName, normalized);
+
+        // مزامنة فورية لكاش الرام - بدون انتظار إعادة تشغيل البوت (نفس
+        // فلسفة GRS.enforceNickname الفورية بالضبط).
+        await Aliases.refreshGuildAliasCache(req.guildId);
+
+        res.json({ success: true, commandName, aliases: saved });
+    } catch (err) {
+        // احتياط أخير لو صار Race Condition نادر وصدم قيد UNIQUE(id_guild,
+        // alias) بالسكيما رغم الفحص اليدوي أعلاه (مثال: طلبين متزامنين
+        // بالضبط لنفس السيرفر بأمرين مختلفين).
+        if (err.code === '23505') {
+            return res.status(409).json({ error: 'One of these aliases is already used elsewhere in this server.' });
+        }
+        console.error(`[API Router Error] PUT /guild/${req.params.guildId}/command-aliases/${req.params.commandName}:`, err.message);
+        res.status(500).json({ error: 'Failed to save command aliases' });
     }
 });
 
@@ -1854,6 +1791,186 @@ router.post('/guild/:guildId/staff/self-register', requireGuildId, async (req, r
     } catch (err) {
         console.error(`[API Router Error] POST /guild/${req.params.guildId}/staff/self-register:`, err.message);
         res.status(500).json({ error: 'Failed to register staff access' });
+    }
+});
+
+// ============================================================================
+// 3.7 REACTION / BUTTON ROLES (Dashboard Page: role-management.html)
+// ============================================================================
+// نفس منطق تسجيل ticket-categories بالضبط: كل هالمسارات أجزاء مسارها
+// 3-4 أجزاء، لازم تبقى فوق الـ catch-all العام (Section 5) وإلا تنبلع
+// بصمت. جدولين reaction_role_embed/reaction_role_button (راجع Section 7
+// بـ databaseQueries.js) - كل كرت داشبورد = صف embed واحد + أزراره،
+// وله زر حفظ خاص فيه يرسل حالة الكرت **كاملة** بكل طلب (مو تعديل جزئي).
+//
+// حدود مفروضة من المطور: زر واحد على الأقل لازم قبل النشر، 15 زر كحد
+// أقصى بكل كرت، ورتبة وحدة ما تقدر تتكرر بأكثر من زر بنفس السيرفر
+// (سواء بنفس الكرت أو بكرت ثاني) - كل هذا يُفحص هنا قبل أي كتابة
+// بقاعدة البيانات أو ديسكورد.
+
+const VALID_BUTTON_STYLES = new Set(['primary', 'secondary', 'success', 'danger']);
+const MAX_REACTION_ROLE_BUTTONS = 15;
+
+/**
+ * يتحقق من شكل/محتوى مصفوفة الأزرار المرسلة من الداشبورد قبل أي كتابة.
+ * يرجّع نص خطأ (string) لو فيه مشكلة، أو null لو كله سليم.
+ */
+function validateReactionRoleButtonsPayload(buttons) {
+    if (!Array.isArray(buttons) || buttons.length === 0) {
+        return 'At least one button is required before this card can be saved.';
+    }
+    if (buttons.length > MAX_REACTION_ROLE_BUTTONS) {
+        return `A maximum of ${MAX_REACTION_ROLE_BUTTONS} buttons is allowed per card.`;
+    }
+
+    const seenRoleIds = new Set();
+    for (const btn of buttons) {
+        if (!btn || typeof btn !== 'object') return 'Invalid button payload.';
+        if (!btn.roleId || typeof btn.roleId !== 'string') return 'Every button must have a target role.';
+        if (!btn.label || typeof btn.label !== 'string' || !btn.label.trim()) return 'Every button must have a label.';
+        if (!VALID_BUTTON_STYLES.has(btn.style)) return `Invalid button style: "${btn.style}".`;
+        if (seenRoleIds.has(btn.roleId)) return 'The same role cannot be used on more than one button in this card.';
+        seenRoleIds.add(btn.roleId);
+    }
+
+    return null;
+}
+
+/**
+ * GET /api/guild/:guildId/reaction-roles
+ * يرجّع كل كروت الـ Embed للسيرفر مع أزرارها.
+ */
+router.get('/guild/:guildId/reaction-roles', requireGuildId, requireDiscordPermission(PermissionsBitField.Flags.ManageRoles), async (req, res) => {
+    try {
+        const embeds = await queries.getReactionRoleEmbeds(req.guildId);
+        res.json(embeds);
+    } catch (err) {
+        console.error(`[API Router Error] GET /guild/${req.params.guildId}/reaction-roles:`, err.message);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+/**
+ * POST /api/guild/:guildId/reaction-roles
+ * ينشئ كرت جديد + ينشره فوراً بديسكورد (شرط المطور: زر واحد ع الأقل).
+ * لو فشل النشر الفعلي بديسكورد بعد إنشاء الصف بقاعدة البيانات، نتراجع
+ * (rollback) ونحذف الصف - عشان ما يبقى كرت "موجود" بالداشبورد بدون رسالة
+ * فعلية بديسكورد (يخالف "تنشر فوراً" المتفق عليها).
+ * Expected body: { channelId, title, description, color, buttons: [{roleId, label, style, emoji}] }
+ */
+router.post('/guild/:guildId/reaction-roles', requireGuildId, requireDiscordPermission(PermissionsBitField.Flags.ManageRoles), async (req, res) => {
+    try {
+        const { channelId, title, description, color, buttons } = req.body || {};
+
+        if (!channelId || typeof channelId !== 'string') {
+            return res.status(400).json({ error: 'A target channel is required.' });
+        }
+
+        const validationError = validateReactionRoleButtonsPayload(buttons);
+        if (validationError) return res.status(400).json({ error: validationError });
+
+        const roleIds = buttons.map(b => b.roleId);
+        const duplicates = await queries.findDuplicateReactionRoles(req.guildId, roleIds);
+        if (duplicates.length > 0) {
+            return res.status(409).json({ error: 'One or more roles are already used by another button/card in this server.', roleIds: duplicates });
+        }
+
+        const created = await queries.createReactionRoleEmbed({
+            guildId: req.guildId, channelId, title, description, color, buttons
+        });
+
+        const client = require('../index');
+        try {
+            const { publishReactionRoleEmbed } = require('../events/reactionRolePanel');
+            const published = await publishReactionRoleEmbed(client, req.guildId, created);
+            await queries.setReactionRoleMessageId(created.id, req.guildId, published.channelId, published.messageId);
+            created.id_message = published.messageId;
+        } catch (publishErr) {
+            console.error(`[API Router Error] Failed to publish reaction-role embed ${created.id}, rolling back:`, publishErr.message);
+            await queries.deleteReactionRoleEmbed(created.id, req.guildId).catch(() => {});
+            return res.status(502).json({ error: `Failed to publish the message to Discord: ${publishErr.message}` });
+        }
+
+        res.json({ success: true, embed: created });
+    } catch (err) {
+        console.error(`[API Router Error] POST /guild/${req.params.guildId}/reaction-roles:`, err.message);
+        res.status(500).json({ error: 'Failed to create reaction-role card' });
+    }
+});
+
+/**
+ * PUT /api/guild/:guildId/reaction-roles/:embedId
+ * تعديل كامل لكرت موجود (كل الحقول + استبدال كل الأزرار) + مزامنة رسالة
+ * ديسكورد (تعديل بمكانها لو نفس القناة، أو حذف القديمة ونشر جديدة لو
+ * القناة تغيّرت - راجع syncReactionRoleMessage بـ reactionRolePanel.js).
+ */
+router.put('/guild/:guildId/reaction-roles/:embedId', requireGuildId, requireDiscordPermission(PermissionsBitField.Flags.ManageRoles), async (req, res) => {
+    try {
+        const { channelId, title, description, color, buttons } = req.body || {};
+
+        if (!channelId || typeof channelId !== 'string') {
+            return res.status(400).json({ error: 'A target channel is required.' });
+        }
+
+        const validationError = validateReactionRoleButtonsPayload(buttons);
+        if (validationError) return res.status(400).json({ error: validationError });
+
+        const roleIds = buttons.map(b => b.roleId);
+        const duplicates = await queries.findDuplicateReactionRoles(req.guildId, roleIds, req.params.embedId);
+        if (duplicates.length > 0) {
+            return res.status(409).json({ error: 'One or more roles are already used by another button/card in this server.', roleIds: duplicates });
+        }
+
+        const previous = await queries.getReactionRoleEmbedById(req.params.embedId, req.guildId);
+        if (!previous) return res.status(404).json({ error: 'Card not found for this server.' });
+
+        const updated = await queries.updateReactionRoleEmbedFull(req.params.embedId, req.guildId, {
+            channelId, title, description, color, buttons
+        });
+
+        const client = require('../index');
+        try {
+            const { syncReactionRoleMessage } = require('../events/reactionRolePanel');
+            const synced = await syncReactionRoleMessage(client, req.guildId, updated, previous.id_channel, previous.id_message);
+            await queries.setReactionRoleMessageId(updated.id, req.guildId, synced.channelId, synced.messageId);
+            updated.id_channel = synced.channelId;
+            updated.id_message = synced.messageId;
+        } catch (syncErr) {
+            console.error(`[API Router Error] Failed to sync reaction-role embed ${updated.id} to Discord:`, syncErr.message);
+            return res.status(502).json({ error: `Card was saved, but failed to update Discord: ${syncErr.message}` });
+        }
+
+        res.json({ success: true, embed: updated });
+    } catch (err) {
+        console.error(`[API Router Error] PUT /guild/${req.params.guildId}/reaction-roles/${req.params.embedId}:`, err.message);
+        res.status(500).json({ error: 'Failed to update reaction-role card' });
+    }
+});
+
+/**
+ * DELETE /api/guild/:guildId/reaction-roles/:embedId
+ * يحذف رسالة ديسكورد الفعلية (best-effort) ثم صف الكرت (والأزرار تُحذف
+ * تلقائياً عبر ON DELETE CASCADE).
+ */
+router.delete('/guild/:guildId/reaction-roles/:embedId', requireGuildId, requireDiscordPermission(PermissionsBitField.Flags.ManageRoles), async (req, res) => {
+    try {
+        const deleted = await queries.deleteReactionRoleEmbed(req.params.embedId, req.guildId);
+        if (!deleted) return res.status(404).json({ error: 'Card not found for this server.' });
+
+        try {
+            const client = require('../index');
+            const { deleteReactionRoleMessage } = require('../events/reactionRolePanel');
+            await deleteReactionRoleMessage(client, deleted);
+        } catch (discordErr) {
+            // best-effort فعلاً - الصف بقاعدة البيانات أصلاً انحذف، ما نفشّل
+            // الطلب كامل لمجرد إن حذف الرسالة بديسكورد تعثّر.
+            console.error(`[API Router Error] Failed to delete Discord message for embed ${req.params.embedId} (non-fatal):`, discordErr.message);
+        }
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error(`[API Router Error] DELETE /guild/${req.params.guildId}/reaction-roles/${req.params.embedId}:`, err.message);
+        res.status(500).json({ error: 'Failed to delete reaction-role card' });
     }
 });
 

@@ -93,16 +93,23 @@ const ARRAY_COLUMNS = new Set([
  * من init_guild_settings() ويحتاج upsert حقيقي، مو لأنه multi-row.
  */
 const MULTI_ROW_TABLES = new Set([
-    'role_delay_config',
+    // [REMOVED - Role Management v7.0] role_delay_config كان هنا (نظام
+    // "تأخير إزالة الرتبة التلقائية") - أُلغي بالكامل بقرار من المطور.
+    // الجدول نفسه محذوف من السكيما (راجع migration v7.0)، وRolemanagement.js
+    // ما عاد يتعامل معه إطلاقاً. reaction_role_embed/reaction_role_button
+    // الجديدين (نفس الميزة الجديدة - Reaction/Button Roles) **متعمّد** مو
+    // مسجّلين هنا: زي ticket_type_config بالضبط، عندهم مسارات API مخصصة
+    // بـ apiRouter.js (Section 3.7) بدل المسار العام، فما يحتاجون حماية
+    // MULTI_ROW_TABLES الدفاعية (المسار العام أصلاً ما يوصلهم).
     'auto_mod_rule_config',
     'ticket_type_config',
     'ticket_blacklist',
     'ticket_auto_respond',
     'ticket_record',
-    'auto_respond_rules',           // [NEW] راجع v6.1 delta - نفس سبب الحماية الدفاعية بالضبط
-    'role_xp_multipliers',          // [NEW] راجع v6.2 delta - PK = (id_guild, id_role)
-    'user_levels',                  // [NEW] راجع v6.2 delta - PK = (id_guild, id_user)
-    'tiered_xp_brackets'            // [NEW] راجع v6.2 delta - عدة فئات لكل سيرفر
+    'auto_respond_rules',          // [NEW] راجع v6.1 delta - نفس سبب الحماية الدفاعية بالضبط
+    'command_alias_config'         // [NEW] Command Aliases (Dashboard Page: commands.html) - نفس
+                                    // سبب الحماية الدفاعية بالضبط: مسارات مخصصة فقط
+                                    // (/guild/:guildId/command-aliases بـ apiRouter.js Section 3.8)
 ]);
 
 /**
@@ -777,171 +784,369 @@ async function deleteAutoRespondRule(ruleId, guildId) {
 }
 
 // ============================================
-// 6.5 LEVELING SYSTEM (v6.2 - Level.html)
+// 7. REACTION / BUTTON ROLES (v7.0 - جديد بالكامل)
 // ============================================
-const { getLevelFromTotalXp, normalizeGrowthSystem } = require('./levelingFormulas');
+// نفس فلسفة ticket_type_config بالضبط (Section 6 أعلاه): جدولين متعددي
+// الصفوف لكل سيرفر، ما يمرّان أبداً عبر المسار العام (universalGet/
+// universalUpdate) - مسارات مخصصة فقط بـ apiRouter.js (Section 3.7).
+//
+// reaction_role_embed: كرت/رسالة Embed واحدة مستقلة (id_guild, id_channel,
+//                       id_message, embed_title, embed_description,
+//                       embed_color).
+// reaction_role_button: زر واحد داخل كرت معيّن (id_embed FK -> embed.id
+//                       ON DELETE CASCADE, id_guild مكرر عمداً هنا فقط
+//                       عشان نقدر نفرض UNIQUE(id_guild, id_role) مباشر
+//                       بقاعدة البيانات - رتبة وحدة ما تتكرر بأكثر من زر
+//                       بنفس السيرفر، سواء بنفس الكرت أو بكرت ثاني).
+//
+// "كل كرت له زر حفظ خاص فيه" (تأكيد المطور) = الحفظ يرسل حالة الكرت
+// **كاملة** دفعة وحدة (العنوان/الوصف/اللون/القناة + كل الأزرار)، مو تعديل
+// جزئي لكل زر لحاله. لذلك upsertReactionRoleEmbedFull() تحذف كل أزرار
+// الكرت القديمة وتُدرج القائمة الجديدة كاملة داخل نفس العملية - أبسط
+// وأضمن من مقارنة/دمج (diff) صفوف قديمة مع جديدة، ويطابق تماماً سلوك
+// "زر حفظ واحد لكل كرت" المطلوب.
 
 /**
- * Tiered Ranks Brackets - فئات نظام Tiered قابلة للتعديل بالكامل من
- * الداشبورد (عدة صفوف لكل سيرفر، مرتبة تصاعدياً حسب max_level).
+ * يرجّع كل كروت الـ Embed لسيرفر معيّن، كل وحد مع أزراره مرتبة
+ * (sort_order) - يُستخدم لبناء الكروت وقت تحميل الصفحة.
  */
-async function getTieredBrackets(guildId) {
-    const { data, error } = await supabase
-        .from('tiered_xp_brackets')
-        .select('*')
-        .eq('id_guild', guildId)
-        .order('max_level', { ascending: true });
-
-    if (error) {
-        console.error('[Database Error] getTieredBrackets:', error.message);
-        throw error;
-    }
-    return data || [];
-}
-
-async function addTieredBracket(guildId, maxLevel, xpPerLevel, label) {
-    const { data, error } = await supabase
-        .from('tiered_xp_brackets')
-        .insert({ id_guild: guildId, max_level: maxLevel, xp_per_level: xpPerLevel, label: label || null })
-        .select()
-        .single();
-
-    if (error) {
-        console.error('[Database Error] addTieredBracket:', error.message);
-        throw error;
-    }
-    return data;
-}
-
-async function deleteTieredBracket(bracketId, guildId) {
-    const { error } = await supabase
-        .from('tiered_xp_brackets')
-        .delete()
-        .eq('id', bracketId)
-        .eq('id_guild', guildId);
-
-    if (error) {
-        console.error('[Database Error] deleteTieredBracket:', error.message);
-        throw error;
-    }
-    return true;
-}
-
-/**
- * Role XP Multipliers - عدة صفوف لكل سيرفر (PK: id_guild + id_role).
- */
-async function getRoleXpMultipliers(guildId) {
-    const { data, error } = await supabase
-        .from('role_xp_multipliers')
+async function getReactionRoleEmbeds(guildId) {
+    const { data: embeds, error } = await supabase
+        .from('reaction_role_embed')
         .select('*')
         .eq('id_guild', guildId)
         .order('created_at', { ascending: true });
 
     if (error) {
-        console.error('[Database Error] getRoleXpMultipliers:', error.message);
+        console.error('[Database Error] getReactionRoleEmbeds:', error.message);
         throw error;
     }
-    return (data || []).map(cleanRow);
-}
 
-/**
- * إضافة/تحديث مضاعف رتبة - Upsert بالحرف (نفس زر "Add Multiplier" الوحيد
- * بالتصميم يغطي الحالتين: رتبة جديدة، أو تحديث رتبة موجودة بنفس الاسم).
- */
-async function upsertRoleXpMultiplier(guildId, roleId, multiplier) {
-    const { data, error } = await supabase
-        .from('role_xp_multipliers')
-        .upsert({ id_guild: guildId, id_role: roleId, multiplier }, { onConflict: 'id_guild,id_role' })
-        .select()
-        .single();
+    if (!embeds || embeds.length === 0) return [];
 
-    if (error) {
-        console.error('[Database Error] upsertRoleXpMultiplier:', error.message);
-        throw error;
-    }
-    return cleanRow(data);
-}
-
-async function deleteRoleXpMultiplier(guildId, roleId) {
-    const { error } = await supabase
-        .from('role_xp_multipliers')
-        .delete()
-        .eq('id_guild', guildId)
-        .eq('id_role', roleId);
-
-    if (error) {
-        console.error('[Database Error] deleteRoleXpMultiplier:', error.message);
-        throw error;
-    }
-    return true;
-}
-
-/**
- * بيانات عضو واحد (level.html Manual Override preview box، وLevel.js
- * بالبوت لجلب حالته الحالية). يرجع null لو ما عنده أي سجل لسا (عضو جديد
- * صفر XP - حالة طبيعية جداً، مو خطأ).
- */
-async function getUserLevel(guildId, userId) {
-    const { data, error } = await supabase
-        .from('user_levels')
+    const embedIds = embeds.map(e => e.id);
+    const { data: buttons, error: btnError } = await supabase
+        .from('reaction_role_button')
         .select('*')
+        .in('id_embed', embedIds)
+        .order('sort_order', { ascending: true });
+
+    if (btnError) {
+        console.error('[Database Error] getReactionRoleEmbeds (buttons):', btnError.message);
+        throw btnError;
+    }
+
+    return embeds.map(embed => ({
+        ...embed,
+        buttons: (buttons || []).filter(b => b.id_embed === embed.id)
+    }));
+}
+
+/**
+ * فحص فرادة الرتبة: هل رتبة معيّنة مستخدمة فعلاً بزر آخر بنفس السيرفر؟
+ * excludeEmbedId يُستخدم وقت تعديل كرت موجود عشان الكرت نفسه ما يتعارض
+ * مع نفسه (نتجاهل أزراره القديمة بالفحص، لأنها بيتم استبدالها بأي حال).
+ * يرجّع مصفوفة الرتب المكرّرة (فاضية = كله سليم).
+ */
+async function findDuplicateReactionRoles(guildId, roleIds, excludeEmbedId = null) {
+    if (!roleIds || roleIds.length === 0) return [];
+
+    let query = supabase
+        .from('reaction_role_button')
+        .select('id_role')
         .eq('id_guild', guildId)
-        .eq('id_user', userId)
+        .in('id_role', roleIds);
+
+    if (excludeEmbedId) query = query.neq('id_embed', excludeEmbedId);
+
+    const { data, error } = await query;
+    if (error) {
+        console.error('[Database Error] findDuplicateReactionRoles:', error.message);
+        throw error;
+    }
+
+    return (data || []).map(r => r.id_role);
+}
+
+/**
+ * يرجّع كرت واحد بس (مع أزراره) بمعرّفه - تُستخدم من apiRouter.js قبل
+ * التعديل عشان تعرف القناة/الرسالة *القديمة* (قبل الاستبدال) وتقرر
+ * تعدّل الرسالة الحالية أو تحذفها وتنشر بمكان جديد (راجع syncReactionRoleMessage
+ * بـ reactionRolePanel.js).
+ */
+async function getReactionRoleEmbedById(embedId, guildId) {
+    const { data: embed, error } = await supabase
+        .from('reaction_role_embed')
+        .select('*')
+        .eq('id', embedId)
+        .eq('id_guild', guildId)
         .maybeSingle();
 
     if (error) {
-        console.error('[Database Error] getUserLevel:', error.message);
+        console.error('[Database Error] getReactionRoleEmbedById:', error.message);
         throw error;
     }
-    return cleanRow(data);
+    if (!embed) return null;
+
+    const { data: buttons, error: btnError } = await supabase
+        .from('reaction_role_button')
+        .select('*')
+        .eq('id_embed', embedId)
+        .order('sort_order', { ascending: true });
+
+    if (btnError) {
+        console.error('[Database Error] getReactionRoleEmbedById (buttons):', btnError.message);
+        throw btnError;
+    }
+
+    return { ...embed, buttons: buttons || [] };
 }
 
 /**
- * القلب الحسابي المشترك بين Manual Override (apiRouter.js) ومحرك البوت
- * (commands/Level.js) - أي تغيير بنقاط عضو (طبيعي من رسالة، أو يدوي من
- * الداشبورد) يمر من هنا، فمستحيل يصير تعارض حسابي بين الطرفين.
- *
- * mode: 'add' (يضيف amount) | 'remove' (يطرح amount، لا يقل عن صفر) |
- *       'set' (يثبّت total_xp بالضبط على amount).
- *
- * level/xp (التقدّم بالمستوى الحالي) يُعاد حسابهم دايماً من total_xp حسب
- * growthSystem الحالي - يعني لو المشرف غيّر نظام الصعوبة، أول تعديل جديد
- * لأي عضو يصحح مستواه تلقائياً (راجع تعليق التصميم بـ levelingFormulas.js).
+ * ينشئ كرت Embed جديد + أزراره دفعة وحدة (صف الـ embed أول، وبعدين
+ * الأزرار مرتبطة بـ id الناتج). لا يلمس ديسكورد إطلاقاً - النشر الفعلي
+ * (postOrUpdateReactionRoleMessage) مسؤولية apiRouter.js بعد نجاح هالدالة.
  */
-async function applyUserXpChange(guildId, userId, mode, amount, growthSystem, tieredBrackets) {
-    const current = await getUserLevel(guildId, userId);
-    const currentTotal = current ? Number(current.total_xp) : 0;
-
-    let newTotal;
-    if (mode === 'add') newTotal = currentTotal + amount;
-    else if (mode === 'remove') newTotal = Math.max(0, currentTotal - amount);
-    else if (mode === 'set') newTotal = Math.max(0, amount);
-    else throw new Error(`Invalid mode: ${mode}`);
-
-    const { level, xp } = getLevelFromTotalXp(newTotal, normalizeGrowthSystem(growthSystem), tieredBrackets);
-
-    const { data, error } = await supabase
-        .from('user_levels')
-        .upsert({
+async function createReactionRoleEmbed({ guildId, channelId, title, description, color, buttons }) {
+    const { data: embed, error } = await supabase
+        .from('reaction_role_embed')
+        .insert({
             id_guild: guildId,
-            id_user: userId,
-            total_xp: newTotal,
-            level,
-            xp,
-            updated_at: new Date().toISOString()
-        }, { onConflict: 'id_guild,id_user' })
+            id_channel: channelId,
+            embed_title: title || null,
+            embed_description: description || null,
+            embed_color: color || '#ff3344'
+        })
         .select()
         .single();
 
     if (error) {
-        console.error('[Database Error] applyUserXpChange:', error.message);
+        console.error('[Database Error] createReactionRoleEmbed:', error.message);
         throw error;
     }
-    return cleanRow(data);
+
+    const insertedButtons = await replaceReactionRoleButtons(embed.id, guildId, buttons);
+    return { ...embed, buttons: insertedButtons };
+}
+
+/**
+ * تعديل كامل لكرت موجود: تحديث حقول الـ Embed نفسها + استبدال كل أزراره
+ * بالقائمة الجديدة (حذف القديمة بالكامل ثم إدراج الجديدة - راجع شرح
+ * "زر حفظ واحد لكل كرت" بأعلى القسم). يرجّع null لو الكرت مو موجود أصلاً
+ * لهذا السيرفر (apiRouter.js يحوّلها 404).
+ */
+async function updateReactionRoleEmbedFull(embedId, guildId, { channelId, title, description, color, buttons }) {
+    const { data: embed, error } = await supabase
+        .from('reaction_role_embed')
+        .update({
+            id_channel: channelId,
+            embed_title: title || null,
+            embed_description: description || null,
+            embed_color: color || '#ff3344',
+            updated_at: new Date().toISOString()
+        })
+        .eq('id', embedId)
+        .eq('id_guild', guildId)
+        .select()
+        .maybeSingle();
+
+    if (error) {
+        console.error('[Database Error] updateReactionRoleEmbedFull:', error.message);
+        throw error;
+    }
+    if (!embed) return null;
+
+    const insertedButtons = await replaceReactionRoleButtons(embedId, guildId, buttons);
+    return { ...embed, buttons: insertedButtons };
+}
+
+/**
+ * Helper مشتركة بين create/update: تحذف كل أزرار الكرت الحالية وتدرج
+ * القائمة الجديدة كاملة (بترتيب sort_order = ترتيب العناصر بالمصفوفة
+ * المرسلة من الواجهة). id_guild يُخزّن مكرراً بكل زر عمداً - راجع شرح
+ * UNIQUE(id_guild, id_role) بأعلى القسم.
+ */
+async function replaceReactionRoleButtons(embedId, guildId, buttons) {
+    const { error: deleteError } = await supabase
+        .from('reaction_role_button')
+        .delete()
+        .eq('id_embed', embedId);
+
+    if (deleteError) {
+        console.error('[Database Error] replaceReactionRoleButtons (delete):', deleteError.message);
+        throw deleteError;
+    }
+
+    if (!buttons || buttons.length === 0) return [];
+
+    const rows = buttons.map((btn, index) => ({
+        id_embed: embedId,
+        id_guild: guildId,
+        id_role: btn.roleId,
+        button_label: btn.label,
+        button_style: btn.style,
+        button_emoji: btn.emoji || null,
+        sort_order: index
+    }));
+
+    const { data, error: insertError } = await supabase
+        .from('reaction_role_button')
+        .insert(rows)
+        .select();
+
+    if (insertError) {
+        console.error('[Database Error] replaceReactionRoleButtons (insert):', insertError.message);
+        throw insertError;
+    }
+
+    return data || [];
+}
+
+/**
+ * يخزّن معرّف رسالة ديسكورد الفعلية بعد النشر/التحديث الناجح (id_message +
+ * id_channel النهائي - قد يكون تغيّر لو المستخدم بدّل القناة المستهدفة).
+ * best-effort من طرف apiRouter.js: لو فشل النشر بديسكورد، هذي الدالة ما
+ * تُستدعى أصلاً (الصف يبقى بدون id_message، يُعتبر "غير منشور").
+ */
+async function setReactionRoleMessageId(embedId, guildId, channelId, messageId) {
+    const { error } = await supabase
+        .from('reaction_role_embed')
+        .update({ id_channel: channelId, id_message: messageId, updated_at: new Date().toISOString() })
+        .eq('id', embedId)
+        .eq('id_guild', guildId);
+
+    if (error) {
+        console.error('[Database Error] setReactionRoleMessageId:', error.message);
+        throw error;
+    }
+}
+
+/**
+ * حذف كرت كامل (الأزرار تنحذف تلقائياً عبر ON DELETE CASCADE بالسكيما).
+ * يرجّع صف الـ embed المحذوف (قبل الحذف) عشان apiRouter.js يقدر يحذف
+ * رسالة ديسكورد المقابلة لها (يحتاج id_channel/id_message منه).
+ */
+async function deleteReactionRoleEmbed(embedId, guildId) {
+    const { data: embed, error: fetchError } = await supabase
+        .from('reaction_role_embed')
+        .select('*')
+        .eq('id', embedId)
+        .eq('id_guild', guildId)
+        .maybeSingle();
+
+    if (fetchError) {
+        console.error('[Database Error] deleteReactionRoleEmbed (fetch):', fetchError.message);
+        throw fetchError;
+    }
+    if (!embed) return null;
+
+    const { error: deleteError } = await supabase
+        .from('reaction_role_embed')
+        .delete()
+        .eq('id', embedId)
+        .eq('id_guild', guildId);
+
+    if (deleteError) {
+        console.error('[Database Error] deleteReactionRoleEmbed (delete):', deleteError.message);
+        throw deleteError;
+    }
+
+    return embed;
 }
 
 // ============================================
-// 7. SYSTEM INITIALIZATION
+// 9. COMMAND ALIASES (Dashboard Page: commands.html)
+// ============================================
+// command_alias_config: عدة صفوف لكل سيرفر (حتى Aliases.MAX_ALIASES_PER_COMMAND
+// لكل أمر - راجع Aliases.js). نفس فلسفة "زر حفظ واحد لكل كرت" المستخدمة
+// بـ reaction_role_button (القسم 7 أعلاه): replaceCommandAliasesForCommand()
+// تحذف كل aliases الأمر الحالي بهذا السيرفر وتدرج القائمة الجديدة كاملة
+// دفعة وحدة - يطابق تماماً سلوك saveAllAliases() بالواجهة اللي ترسل القائمة
+// النهائية الكاملة لكل تبويب، مو تعديل جزئي.
+
+/**
+ * يرجّع كل صفوف aliases سيرفر معيّن (كل الأوامر سوا) - apiRouter.js يستخدمها
+ * لعرض الصفحة كاملة (GET) ولفحص تعارض alias مع أمر *آخر* بنفس السيرفر
+ * قبل أي PUT.
+ * @param {string} guildId
+ */
+async function getCommandAliases(guildId) {
+    const { data, error } = await supabase
+        .from('command_alias_config')
+        .select('*')
+        .eq('id_guild', guildId)
+        .order('command_name', { ascending: true });
+
+    if (error) {
+        console.error('[Database Error] getCommandAliases:', error.message);
+        throw error;
+    }
+    return data || [];
+}
+
+/**
+ * يرجّع aliases *كل* السيرفرات دفعة وحدة - تُستخدم فقط وقت إقلاع البوت
+ * لبناء الكاش الكامل بالرام (Aliases.js's initAliasCache). ما تُستخدم بأي
+ * نقطة استدعاء ثانية - أي طلب لسيرفر وحد يروح عبر getCommandAliases أعلاه.
+ */
+async function getAllCommandAliases() {
+    const { data, error } = await supabase
+        .from('command_alias_config')
+        .select('*');
+
+    if (error) {
+        console.error('[Database Error] getAllCommandAliases:', error.message);
+        throw error;
+    }
+    return data || [];
+}
+
+/**
+ * تعديل كامل لقائمة aliases أمر واحد بسيرفر معيّن: حذف كل الصفوف الحالية
+ * لهذا (id_guild + command_name) بالضبط، ثم إدراج القائمة الجديدة كاملة
+ * (نفس نمط replaceReactionRoleButtons بالقسم 7 بالحرف). كل فحوصات الصحة
+ * (شكل الـ alias، الأسماء المحجوزة، الحد الأقصى 10، التعارض مع أمر آخر
+ * بنفس السيرفر) تصير *قبل* هذا الاستدعاء بـ apiRouter.js - هذي الدالة
+ * تفترض إن aliases وصلتها نظيفة وجاهزة للتخزين مباشرة.
+ * @param {string} guildId
+ * @param {string} commandName - الاسم الرسمي للأمر (lowercase)
+ * @param {string[]} aliases - القائمة النهائية الكاملة (فاضية = مسح الكل)
+ */
+async function replaceCommandAliasesForCommand(guildId, commandName, aliases) {
+    const { error: deleteError } = await supabase
+        .from('command_alias_config')
+        .delete()
+        .eq('id_guild', guildId)
+        .eq('command_name', commandName);
+
+    if (deleteError) {
+        console.error('[Database Error] replaceCommandAliasesForCommand (delete):', deleteError.message);
+        throw deleteError;
+    }
+
+    if (!aliases || aliases.length === 0) return [];
+
+    const rows = aliases.map(alias => ({
+        id_guild: guildId,
+        command_name: commandName,
+        alias
+    }));
+
+    const { data, error: insertError } = await supabase
+        .from('command_alias_config')
+        .insert(rows)
+        .select();
+
+    if (insertError) {
+        console.error('[Database Error] replaceCommandAliasesForCommand (insert):', insertError.message);
+        throw insertError;
+    }
+
+    return data || [];
+}
+
+// ============================================
+// 10. SYSTEM INITIALIZATION
 // ============================================
 // ✅ تحقّقت: دالة init_guild_settings(p_guild_id TEXT) موجودة بالضبط بنفس
 // الاسم واسم المعامل بالسكيما، وتُنشئ صفوف افتراضية بست جداول الإعدادات.
@@ -1012,15 +1217,19 @@ module.exports = {
     updateAutoRespondRule,
     deleteAutoRespondRule,
 
-    // Leveling System (v6.2)
-    getRoleXpMultipliers,
-    upsertRoleXpMultiplier,
-    deleteRoleXpMultiplier,
-    getTieredBrackets,
-    addTieredBracket,
-    deleteTieredBracket,
-    getUserLevel,
-    applyUserXpChange,
+    // Reaction / Button Roles (v7.0)
+    getReactionRoleEmbeds,
+    getReactionRoleEmbedById,
+    findDuplicateReactionRoles,
+    createReactionRoleEmbed,
+    updateReactionRoleEmbedFull,
+    setReactionRoleMessageId,
+    deleteReactionRoleEmbed,
+
+    // Command Aliases (Dashboard Page: commands.html)
+    getCommandAliases,
+    getAllCommandAliases,
+    replaceCommandAliasesForCommand,
 
     // System
     initGuildSettings,

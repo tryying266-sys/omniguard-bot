@@ -122,17 +122,25 @@ function matchesRule(rule, rawContent) {
 }
 
 /**
- * Whitelist (لو موجودة) تتجاوز الـ Blacklist بالكامل. لو Whitelist
- * فاضية، كل شي مسموح إلا الموجود بالـ Blacklist.
+ * منطق الوايت/بلاك لست الصحيح (تم تصحيحه):
+ * - أي عنصر موجود بالـ Whitelist صراحةً => مسموح (حتى لو نفس العنصر
+ *   موجود بالـ Blacklist بالغلط - الـ Whitelist لها الأولوية).
+ * - أي عنصر موجود بالـ Blacklist (وما كان بالـ Whitelist) => ممنوع.
+ * - أي عنصر مو موجود بأي من القائمتين => مسموح افتراضياً.
+ * (سابقاً كان لو الـ Whitelist فيها أي عنصر، يصير بس عناصر الـ
+ * Whitelist مسموحة وكل شي ثاني يُمنع - هذا كان غلط، تم تصحيحه هنا).
  */
 function isAllowedByLists(whitelist, blacklist, candidateIds) {
     const wl = whitelist || [];
     const bl = blacklist || [];
 
-    if (wl.length > 0) {
-        return candidateIds.some(id => wl.includes(id));
+    if (wl.length > 0 && candidateIds.some(id => wl.includes(id))) {
+        return true;
     }
-    return !candidateIds.some(id => bl.includes(id));
+    if (bl.length > 0 && candidateIds.some(id => bl.includes(id))) {
+        return false;
+    }
+    return true;
 }
 
 function isOnCooldown(rule, userId) {
