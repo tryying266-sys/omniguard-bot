@@ -85,6 +85,34 @@ const lastCommandAt = new Map(); // userId -> timestamp آخر أمر مقبول
 const cooldownWarned = new Set(); // userId المُنبَّه حالياً (لين ينجح بأمر جديد)
 
 /**
+ * [FIX - v1.1] شكل موحّد للكولداون - مُصدَّرة الآن (كانت التعليقات القديمة
+ * تدّعي إنها مُصدَّرة أصلاً وتُستخدم بـ slashCommandsHandler.js عبر
+ * require('./commandhandler'), لكنها فعلياً ما كانت موجودة كدالة منفصلة
+ * إطلاقاً - المنطق كان حبيس جوا handleMessage() بالأسفل فقط، فكان أي
+ * استدعاء من مسار السلاش يفشل بـ "checkCommandCooldown is not a function".
+ * صارت الآن نقطة الحقيقة الوحيدة (single source of truth) لكل من مسار
+ * البريفكس (handleMessage بالأسفل يستدعيها هي بالضبط) ومسار السلاش
+ * (slashCommandsHandler.js) - نفس الـ Map/Set بالضبط، مو نسخة موازية.
+ *
+ * @param {string} userId
+ * @returns {{onCooldown: boolean, shouldWarn: boolean}}
+ */
+function checkCommandCooldown(userId) {
+    const now = Date.now();
+    const lastAt = lastCommandAt.get(userId) || 0;
+
+    if (now - lastAt < COMMAND_COOLDOWN_MS) {
+        const shouldWarn = !cooldownWarned.has(userId);
+        if (shouldWarn) cooldownWarned.add(userId);
+        return { onCooldown: true, shouldWarn };
+    }
+
+    lastCommandAt.set(userId, now);
+    cooldownWarned.delete(userId);
+    return { onCooldown: false, shouldWarn: false };
+}
+
+/**
  * AUTO-LOADER INITIALIZATION
  * Scans the folder this file actually lives in for command files.
  */
@@ -211,21 +239,18 @@ async function handleMessage(message, dbUtils, guildSettings) {
     // حقيقي، مو أي رسالة عادية) وقبل أي فحص ثاني (سبام المشرفين/الصلاحيات/
     // الإعفاءات)، عشان يطبّق حتى لو الأمر أصلاً كان رح يُرفض لاحقاً لأي سبب
     // - المهلة تحسب على "محاولة تنفيذ أمر"، مو على "أمر نجح فعلاً".
-    const now = Date.now();
-    const lastAt = lastCommandAt.get(message.author.id) || 0;
-
-    if (now - lastAt < COMMAND_COOLDOWN_MS) {
-        if (!cooldownWarned.has(message.author.id)) {
-            cooldownWarned.add(message.author.id);
+    // [FIX v1.1] نفس دالة checkCommandCooldown المُصدَّرة بالأعلى - بدل
+    // منطق منفصل محلي هنا، عشان يكون فعلياً "نفس Map instance" كما تدّعي
+    // التعليقات، مو مجرد ادّعاء بدون تطبيق فعلي.
+    const cooldown = checkCommandCooldown(message.author.id);
+    if (cooldown.onCooldown) {
+        if (cooldown.shouldWarn) {
             await message.reply({ content: '⏳ Please wait a few seconds before using another command.' }).catch(() => {});
         }
         // بعد التنبيه الأول: سكوت تام لباقي المحاولات لين ينجح بأمر جديد
         // بعد انتهاء المهلة (طلب صريح من المطور - "مرة يذكره بس، وبعدها ما يرد").
         return false;
     }
-
-    lastCommandAt.set(message.author.id, now);
-    cooldownWarned.delete(message.author.id);
 
     // [GRS] Channel check - guildSettings comes from index.js (the same
     // fetch already used for prefix/access_dashboard - no extra DB query).
@@ -309,5 +334,6 @@ async function handleMessage(message, dbUtils, guildSettings) {
 
 module.exports = {
     handleMessage,
+    checkCommandCooldown, // [FIX v1.1] الآن مُصدَّرة فعلياً - يستخدمها slashCommandsHandler.js
     commands // Export the Collection for later use (e.g. slash command sync)
 };
