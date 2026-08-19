@@ -169,6 +169,84 @@ const commands = [
         .setDefaultMemberPermissions(0),
 
     // ------------------------------------------------------------------
+    // [NEW] Previously dead code - lock/unlock/serverinfo/checkpermissions
+    // were already fully implemented and verified inside
+    // slashCommandsHandler.js's switch statement, but had NO matching
+    // registration here, so Discord never showed them as slash commands
+    // and those cases could never fire. Registered now per explicit
+    // request. Option shapes below match exactly what the handler already
+    // builds for each (see slashCommandsHandler.js's own verified comments
+    // on each case - no changes were needed there for these four).
+    // ------------------------------------------------------------------
+
+    // --- Moderation: LOCK ---
+    new SlashCommandBuilder()
+        .setName('lock')
+        .setDescription('Lock a channel (prevent @everyone from sending messages)')
+        .addChannelOption(option =>
+            option.setName('channel')
+                .setDescription('Target channel (defaults to the current channel)')
+                .addChannelTypes(ChannelType.GuildText)
+                .setRequired(false))
+        .addStringOption(option =>
+            option.setName('reason')
+                .setDescription('Reason for locking this channel')
+                .setRequired(false))
+        .setDefaultMemberPermissions(0),
+
+    // --- Moderation: UNLOCK ---
+    new SlashCommandBuilder()
+        .setName('unlock')
+        .setDescription('Unlock a channel (restore @everyone send permissions)')
+        .addChannelOption(option =>
+            option.setName('channel')
+                .setDescription('Target channel (defaults to the current channel)')
+                .addChannelTypes(ChannelType.GuildText)
+                .setRequired(false))
+        .addStringOption(option =>
+            option.setName('reason')
+                .setDescription('Reason for unlocking this channel')
+                .setRequired(false))
+        .setDefaultMemberPermissions(0),
+
+    // --- Utility: SERVERINFO ---
+    new SlashCommandBuilder()
+        .setName('serverinfo')
+        .setDescription('Show information about this server'),
+
+    // --- Utility: CHECKPERMISSIONS ---
+    new SlashCommandBuilder()
+        .setName('checkpermissions')
+        .setDescription("Check a member's or channel's permissions")
+        .addUserOption(option =>
+            option.setName('user')
+                .setDescription('The member to check (optional)')
+                .setRequired(false))
+        .addChannelOption(option =>
+            option.setName('channel')
+                .setDescription('The channel to check against (optional)')
+                .setRequired(false))
+        .setDefaultMemberPermissions(0),
+
+    // --- Utility: USERINFO ---
+    // [NEW] userinfo.js exists as a fully implemented prefix command but
+    // had ZERO slash support before (no case in slashCommandsHandler.js,
+    // no registration here). userinfo.js's run() reads an optional target
+    // arg (mention or raw ID via resolveTargetMember()), defaulting to the
+    // command sender when omitted - matched below with an optional user
+    // option. Its permission check (ModerateMembers) is enforced inside
+    // userinfo.js's own run(), so no extra permission gate is duplicated
+    // here beyond the standard setDefaultMemberPermissions(0) baseline.
+    new SlashCommandBuilder()
+        .setName('userinfo')
+        .setDescription('Display information about a server member')
+        .addUserOption(option =>
+            option.setName('user')
+                .setDescription('Whose info to show (defaults to yourself)')
+                .setRequired(false))
+        .setDefaultMemberPermissions(0),
+
+    // ------------------------------------------------------------------
     // [NEW] Utility Bundle (Anothercommands.js) - slowmode/unslow/nick/
     // removenick/poll/endpoll/avatar/invites. These prefix commands had
     // NO slash equivalent before - added now per explicit request.

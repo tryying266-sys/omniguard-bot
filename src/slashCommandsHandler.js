@@ -67,6 +67,23 @@
 //         possible) - Discord's own timeout UI is what the user sees after
 //         that, not a message from this bot.
 //
+// [v5.2 CHANGES]
+//
+// [FIX 4 - dead code activated] lock, unlock, serverinfo, checkpermissions
+// are now registered in deploy-commands.js (they were fully implemented
+// and verified below already, just never reachable from Discord). No
+// changes were needed to their switch-cases themselves - only the
+// registration file changed. See deploy-commands.js's own comments.
+//
+// [NEW - userinfo] Added slash support for userinfo.js, which previously
+// had NO case here at all and NO registration in deploy-commands.js.
+// userinfo.js's run() reads an optional target arg via
+// resolveTargetMember() (accepts a mention OR a raw ID string, both
+// handled by the same regex inside that file), defaulting to the sender
+// when omitted. The permission check (ModerateMembers) lives inside
+// userinfo.js's own run() already, so it is NOT duplicated here - same
+// "Fake Message Bridge" philosophy as every other case in this file.
+//
 // [STILL UNVERIFIED] roleadd.js's 'demote' branch itself (order confirmed
 // correct - see FIX 3 above, this is about a separate detail): its usage
 // string mentions an optional role argument (`demote <@member> [@role]
@@ -77,14 +94,9 @@
 // into the current deploy-commands.js definition, not a bug - flagged in
 // case manual role selection via slash is wanted later.
 //
-// [STILL DEAD CODE - not registered in deploy-commands.js at all, so these
-// switch-cases below never actually fire from a real Discord interaction]
-//         lock, unlock, serverinfo, checkpermissions - all four are fully
-//         implemented and verified in this file's switch statement, but
-//         Discord has no matching slash command definition to send them.
-//         Also missing entirely: userinfo (no case AND no registration).
-//         Add SlashCommandBuilder entries for these in deploy-commands.js
-//         to actually enable them - say the word and I'll add them.
+// [RESOLVED as of v5.2] lock, unlock, serverinfo, checkpermissions are now
+// registered in deploy-commands.js and reachable from real Discord
+// interactions. userinfo now has both a case (below) and a registration.
 // ============================================================================
 
 const { EmbedBuilder, PermissionsBitField } = require('discord.js');
@@ -510,6 +522,25 @@ async function handleSlashCommand(interaction, dbUtils) {
                 const fakeMessage = buildFakeMessage(interaction, content, target || null);
                 const utilModule = require(path.join(COMMANDS_PATH, 'Anothercommands.js'));
                 return await utilModule.run(fakeMessage, dbUtils);
+            }
+
+            // ----------------------------------------------------------
+            // ✅ [NEW v5.2] userinfo.js reviewed: run() reads an OPTIONAL
+            // single target token (mention or raw ID, both handled inside
+            // resolveTargetMember()'s regex) and defaults to the sender
+            // when omitted. Matched below with an optional user option -
+            // when absent, no target token is appended at all, so
+            // resolveTargetMember(message, undefined) hits its own
+            // "no arg -> message.member" branch exactly as the prefix path
+            // does.
+            // ----------------------------------------------------------
+            case 'userinfo': {
+                const target = options.getUser('user');
+                const content = target ? `userinfo <@${target.id}>` : 'userinfo';
+
+                const fakeMessage = buildFakeMessage(interaction, content, target || null);
+                const userInfoModule = require(path.join(COMMANDS_PATH, 'userinfo.js'));
+                return await userInfoModule.run(fakeMessage, dbUtils);
             }
 
             case 'settings':
