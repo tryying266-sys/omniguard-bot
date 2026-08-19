@@ -7,7 +7,7 @@
 // to ensure only authorized staff can see/use them by default.
 // ============================================================================
 
-const { REST, Routes, SlashCommandBuilder } = require('discord.js');
+const { REST, Routes, SlashCommandBuilder, ChannelType } = require('discord.js');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
@@ -167,6 +167,136 @@ const commands = [
                 .setMinValue(1)
                 .setMaxValue(100))
         .setDefaultMemberPermissions(0),
+
+    // ------------------------------------------------------------------
+    // [NEW] Utility Bundle (Anothercommands.js) - slowmode/unslow/nick/
+    // removenick/poll/endpoll/avatar/invites. These prefix commands had
+    // NO slash equivalent before - added now per explicit request.
+    //
+    // [ASSUMPTION - poll option slots] pollPanel.js's exact MAX_POLL_OPTIONS
+    // value was not available when this was written. 5 option slots below
+    // is a reasonable middle ground for a slash UI (Discord's option list
+    // gets unwieldy well before 10), NOT a hard technical limit copied from
+    // pollPanel.js. If MAX_POLL_OPTIONS there is different, this can be
+    // adjusted freely - it only affects how many optionN fields exist here.
+    // ------------------------------------------------------------------
+
+    // --- Utility: SLOWMODE ---
+    new SlashCommandBuilder()
+        .setName('slowmode')
+        .setDescription('Set slowmode (rate limit) for a channel')
+        .addStringOption(option =>
+            option.setName('duration')
+                .setDescription('Delay (e.g., 30s, 10m, 2h, or a plain number of seconds). 0 disables it.')
+                .setRequired(true))
+        .addChannelOption(option =>
+            option.setName('channel')
+                .setDescription('Target channel (defaults to the current channel)')
+                .addChannelTypes(ChannelType.GuildText)
+                .setRequired(false))
+        .addStringOption(option =>
+            option.setName('reason')
+                .setDescription('Reason for this change')
+                .setRequired(false))
+        .setDefaultMemberPermissions(0),
+
+    // --- Utility: UNSLOW ---
+    new SlashCommandBuilder()
+        .setName('unslow')
+        .setDescription('Disable slowmode for a channel')
+        .addChannelOption(option =>
+            option.setName('channel')
+                .setDescription('Target channel (defaults to the current channel)')
+                .addChannelTypes(ChannelType.GuildText)
+                .setRequired(false))
+        .addStringOption(option =>
+            option.setName('reason')
+                .setDescription('Reason for this change')
+                .setRequired(false))
+        .setDefaultMemberPermissions(0),
+
+    // --- Utility: NICK ---
+    new SlashCommandBuilder()
+        .setName('nick')
+        .setDescription("Change a member's nickname")
+        .addUserOption(option =>
+            option.setName('user')
+                .setDescription('The member to rename')
+                .setRequired(true))
+        .addStringOption(option =>
+            option.setName('nickname')
+                .setDescription('The new nickname (leave empty to reset it)')
+                .setRequired(false))
+        .setDefaultMemberPermissions(0),
+
+    // --- Utility: REMOVENICK ---
+    new SlashCommandBuilder()
+        .setName('removenick')
+        .setDescription("Reset a member's nickname back to their username")
+        .addUserOption(option =>
+            option.setName('user')
+                .setDescription('The member to reset')
+                .setRequired(true))
+        .setDefaultMemberPermissions(0),
+
+    // --- Utility: POLL ---
+    // [DESIGN NOTE] The prefix version accepts a free-form, quote-delimited,
+    // unlimited-ish option list ("Q" "Opt1" "Opt2" ...) which has no direct
+    // 1:1 slash equivalent (slash options are a fixed, static set - they
+    // can't repeat dynamically). This exposes a fixed number of optional
+    // option slots instead - see slashCommandsHandler.js's 'poll' case for
+    // exactly how these get bridged back into that same quote-based parser
+    // (100% reused, not reimplemented).
+    new SlashCommandBuilder()
+        .setName('poll')
+        .setDescription('Create a poll with button voting (leave all options empty for a quick Yes/No poll)')
+        .addStringOption(option =>
+            option.setName('question')
+                .setDescription('The poll question (max 256 characters)')
+                .setRequired(true))
+        .addStringOption(option => option.setName('option1').setDescription('Option 1 (e.g. "🍕 Pepperoni") - leave all options empty for Yes/No').setRequired(false))
+        .addStringOption(option => option.setName('option2').setDescription('Option 2').setRequired(false))
+        .addStringOption(option => option.setName('option3').setDescription('Option 3').setRequired(false))
+        .addStringOption(option => option.setName('option4').setDescription('Option 4').setRequired(false))
+        .addStringOption(option => option.setName('option5').setDescription('Option 5').setRequired(false))
+        .addStringOption(option =>
+            option.setName('time')
+                .setDescription('Auto-close after this long (e.g. 30s, 10m, 2h, 1d)')
+                .setRequired(false))
+        .addBooleanOption(option =>
+            option.setName('anonymous')
+                .setDescription('Hide voter identities in the results')
+                .setRequired(false)),
+
+    // --- Utility: ENDPOLL ---
+    // [NOTE] The prefix version can infer the target poll from a message
+    // reply (`message.reference`). Slash interactions have no equivalent of
+    // "replying to a message", so the message ID is a required option here.
+    new SlashCommandBuilder()
+        .setName('endpoll')
+        .setDescription('Close a poll early and post the final results')
+        .addStringOption(option =>
+            option.setName('message_id')
+                .setDescription('The ID of the poll message to close')
+                .setRequired(true)),
+
+    // --- Utility: AVATAR ---
+    new SlashCommandBuilder()
+        .setName('avatar')
+        .setDescription("Show a member's avatar")
+        .addUserOption(option =>
+            option.setName('user')
+                .setDescription('Whose avatar to show (defaults to yourself)')
+                .setRequired(false)),
+
+    // --- Utility: INVITES ---
+    new SlashCommandBuilder()
+        .setName('invites')
+        .setDescription("Show a member's active invite links and total uses")
+        .addUserOption(option =>
+            option.setName('user')
+                .setDescription('Whose invite stats to show (defaults to yourself)')
+                .setRequired(false)),
 
     // --- System: SETTINGS ---
     new SlashCommandBuilder()
