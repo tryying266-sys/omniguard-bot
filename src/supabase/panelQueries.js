@@ -48,10 +48,18 @@ async function updateBotState(updates, updatedByDiscordId) {
  * يرجّع الـ 15 فلاق لنطاق معيّن. لو scope='user' ومافيه صفوف مخصصة له بعد،
  * يرجع صفوف الـ global كـ fallback (نفس فلسفة "الافتراضي يسري لين يُستثنى").
  */
+// [FIX] target_user_id بقاعدة البيانات NOT NULL - '' هو سنتينل "لا يوجد
+// مستخدم محدد" (راجع تعليق panel_schema_delta.sql للسبب الكامل: عمود
+// داخل PRIMARY KEY يصير NOT NULL تلقائياً، وupsert(onConflict:...) بمكتبة
+// Supabase JS ما يدعم Partial Unique Index). كل الدوال هنا تحوّل تلقائياً
+// بين null (بمنطق التطبيق بباقي الملفات: panelRouter.js/Adminpanel.js)
+// و '' (بقاعدة البيانات فعلياً) - لا حاجة لأي تغيير بأي ملف ثاني.
+const NO_TARGET_SENTINEL = '';
+
 async function getFeatureFlags(scope = 'global', targetUserId = null) {
     const query = supabase.from('panel_feature_flags').select('*').eq('scope', scope);
     const { data, error } = scope === 'user'
-        ? await query.eq('target_user_id', targetUserId)
+        ? await query.eq('target_user_id', targetUserId || NO_TARGET_SENTINEL)
         : await query;
 
     if (error) {
@@ -74,7 +82,7 @@ async function getFeatureFlags(scope = 'global', targetUserId = null) {
 async function setFeatureFlags(scope, targetUserId, flagsMap) {
     const rows = Object.entries(flagsMap).map(([flag_key, enabled]) => ({
         scope,
-        target_user_id: scope === 'global' ? null : targetUserId,
+        target_user_id: scope === 'global' ? NO_TARGET_SENTINEL : targetUserId,
         flag_key,
         enabled,
         at_updated: new Date().toISOString()
