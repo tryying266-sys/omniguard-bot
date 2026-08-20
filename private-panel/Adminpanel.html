@@ -11,8 +11,9 @@
     </style>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="dashboard-api-key" content="dK8#mP2$vxL9!zQ5@wR3*tY7^bN1&amp;cX4_uJ6+eA0-fG8~hM2?sK9&lt;pL1&gt;qW5%zX8">
-    <meta name="dashboard-guild-id" content="REPLACE_WITH_YOUR_GUILD_ID">
+    <!-- [SECURITY REWRITE] المفتاح الثابت المكشوف (dashboard-api-key) حُذف نهائياً.
+         الحماية الفعلية الحين: مسار سري بالسيرفر + requirePanelOwner على كل
+         نداء API (راجع authMiddleware.js / apiServer.js). -->
     <title>OmniGuard - Admin Control Panel</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet">
@@ -59,7 +60,8 @@
         .header-title { font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
         .header-badge { font-size: 11px; background-color: rgba(255, 51, 68, 0.15); color: var(--accent-red); padding: 3px 8px; border-radius: 4px; border: 1px solid rgba(255, 51, 68, 0.3); font-weight: 700; }
         .user-profile { display: flex; align-items: center; gap: 10px; cursor: pointer; }
-        .avatar { width: 32px; height: 32px; border-radius: 50%; background-color: var(--accent-red); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
+        .avatar { width: 32px; height: 32px; border-radius: 50%; background-color: var(--accent-red); display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; overflow: hidden; }
+        .avatar img { width: 100%; height: 100%; object-fit: cover; }
 
         .content-body { padding: 40px; max-width: 1200px; width: 100%; margin: 0 auto; }
 
@@ -80,9 +82,11 @@
         @media (max-width: 768px) { .form-row { flex-direction: column; } }
         .form-group { flex: 1; display: flex; flex-direction: column; gap: 8px; position: relative; }
         .form-label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+        .form-hint { font-size: 11px; color: var(--text-secondary); margin-top: -4px; }
 
         .form-input, .form-select, .form-textarea { width: 100%; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 12px 16px; border-radius: 8px; font-size: 14px; outline: none; transition: border-color 0.2s; }
         .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent-red); }
+        .form-input:disabled, .form-select:disabled { opacity: 0.45; cursor: not-allowed; }
         .form-select { cursor: pointer; }
         .form-textarea { resize: vertical; min-height: 80px; }
 
@@ -100,75 +104,48 @@
         input:checked + .slider { background-color: rgba(255, 51, 68, 0.2); border-color: var(--accent-red); }
         input:checked + .slider:before { transform: translateX(20px); background-color: var(--accent-red); }
 
-        /* Search Layout Styles (from Search.html) */
-        .search-input-wrapper {
-            position: relative;
-            display: flex;
-            align-items: center;
-            width: 100%;
-        }
+        .flags-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        @media (max-width: 992px) { .flags-grid { grid-template-columns: repeat(2, 1fr); } }
+        .flag-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; gap: 8px; }
+        .flag-item .switch-title { font-size: 13px; }
 
-        .search-icon {
-            position: absolute;
-            left: 16px;
-            color: var(--text-secondary);
-            font-size: 15px;
-            pointer-events: none;
-            transition: color 0.2s;
-        }
+        /* Search Layout */
+        .search-input-wrapper { position: relative; display: flex; align-items: center; width: 100%; }
+        .search-icon { position: absolute; left: 16px; color: var(--text-secondary); font-size: 15px; pointer-events: none; transition: color 0.2s; }
+        .search-input-wrapper .form-input { padding-left: 44px; }
+        .search-input-wrapper .form-input:focus + .search-icon { color: var(--accent-red); }
 
-        .search-input-wrapper .form-input {
-            padding-left: 44px;
-        }
+        .search-quick-actions { display: flex; gap: 10px; }
+        .chip-btn { background-color: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-secondary); padding: 8px 16px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .chip-btn:hover { border-color: var(--accent-red); color: var(--text-primary); }
+        .chip-btn.chip-active { background-color: rgba(255, 51, 68, 0.15); border-color: var(--accent-red); color: var(--accent-red); }
 
-        .search-input-wrapper .form-input:focus + .search-icon {
-            color: var(--accent-red);
-        }
+        .results-wrapper { width: 100%; display: flex; flex-direction: column; gap: 8px; margin-top: 8px; max-height: 280px; overflow-y: auto; }
+        .search-empty-state { padding: 30px 20px; text-align: center; color: var(--text-secondary); font-size: 13px; border: 1px dashed var(--border-color); border-radius: 8px; background-color: rgba(24, 24, 28, 0.4); }
 
-        .results-wrapper {
-            width: 100%;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin-top: 8px;
-        }
+        .result-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+        .result-row:hover { border-color: var(--accent-red); }
+        .result-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background-color: var(--bg-primary); flex-shrink: 0; }
+        .result-avatar.square { border-radius: 8px; }
+        .result-info { display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0; }
+        .result-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .result-meta { font-size: 11px; color: var(--text-secondary); }
+        .result-type-badge { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; flex-shrink: 0; }
+        .result-type-badge.type-user { background-color: rgba(0, 176, 244, 0.15); color: var(--accent-blue); }
+        .result-type-badge.type-server { background-color: rgba(250, 166, 26, 0.15); color: var(--accent-amber); }
 
-        .search-empty-state {
-            padding: 30px 20px;
-            text-align: center;
-            color: var(--text-secondary);
-            font-size: 13px;
-            border: 1px dashed var(--border-color);
-            border-radius: 8px;
-            background-color: rgba(24, 24, 28, 0.4);
-        }
+        /* Current Target Bar */
+        .target-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; background-color: rgba(255, 51, 68, 0.08); border: 1px solid rgba(255, 51, 68, 0.35); border-radius: 10px; margin-top: 4px; }
+        .target-bar-info { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .target-bar-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+        .target-bar-text { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .target-bar-clear { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 13px; flex-shrink: 0; }
+        .target-bar-clear:hover { color: var(--accent-red); }
 
         /* Dashboard Notice Message Preview Box */
-        .dashboard-preview-card {
-            background-color: var(--bg-tertiary);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
-
-        .preview-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .preview-badge {
-            font-size: 11px;
-            font-weight: 700;
-            padding: 4px 10px;
-            border-radius: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
+        .dashboard-preview-card { background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); }
+        .preview-header { display: flex; align-items: center; justify-content: space-between; }
+        .preview-badge { font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }
 
         .badge-red { background-color: rgba(255, 51, 68, 0.15); color: #ff3344; border: 1px solid rgba(255, 51, 68, 0.3); }
         .badge-yellow { background-color: rgba(250, 166, 26, 0.15); color: #faa61a; border: 1px solid rgba(250, 166, 26, 0.3); }
@@ -183,9 +160,14 @@
         .preview-footer { display: flex; justify-content: flex-end; margin-top: 4px; }
         .preview-btn { background-color: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
 
+        /* DM Failures list */
+        .dm-failure-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; background-color: var(--bg-tertiary); border: 1px solid var(--accent-amber); border-radius: 8px; font-size: 12px; }
+        .dm-failure-row span.meta { color: var(--text-secondary); }
+
         /* Buttons & Actions */
         .btn-action { background-color: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
         .btn-action:hover { background-color: rgba(255, 51, 68, 0.15); border-color: var(--accent-red); color: var(--accent-red); }
+        .btn-action:disabled { opacity: 0.4; cursor: not-allowed; }
         .btn-action-primary { background-color: var(--accent-red); border: 1px solid var(--accent-red); color: var(--text-primary); }
         .btn-action-primary:hover { background-color: var(--accent-red-hover); color: white; }
         .actions-row { display: flex; gap: 12px; flex-wrap: wrap; }
@@ -211,109 +193,22 @@
             <span class="logo-text">OmniGuard</span>
         </div>
 
-        <!-- HOME CATEGORY -->
         <div class="category-container">
             <div class="category-line"></div>
             <span class="category-header">Home</span>
             <div class="category-line"></div>
         </div>
         <ul class="menu-list">
-            <li class="menu-item">
-                <a href="index.html">
-                    <i class="fa-solid fa-house"></i>
-                    Home
-                </a>
-            </li>
+            <li class="menu-item"><a href="/index.html"><i class="fa-solid fa-house"></i> Home</a></li>
         </ul>
 
-        <!-- CORE SETTINGS CATEGORY -->
-        <div class="category-container">
-            <div class="category-line"></div>
-            <span class="category-header">Core Settings</span>
-            <div class="category-line"></div>
-        </div>
-        <ul class="menu-list">
-            <li class="menu-item">
-                <a href="general-settings.html">
-                    <i class="fa-solid fa-sliders"></i>
-                    General Settings
-                </a>
-            </li>
-            <li class="menu-item">
-                <a href="welcome-leave.html">
-                    <i class="fa-solid fa-door-open"></i>
-                    Welcome &amp; Leave
-                </a>
-            </li>
-            <li class="menu-item">
-                <a href="role-management.html">
-                    <i class="fa-solid fa-user-gear"></i>
-                    Role Management
-                </a>
-            </li>
-        </ul>
-
-        <!-- MODERATION & SECURITY CATEGORY -->
-        <div class="category-container">
-            <div class="category-line"></div>
-            <span class="category-header">Moderation &amp; Security</span>
-            <div class="category-line"></div>
-        </div>
-        <ul class="menu-list">
-            <li class="menu-item">
-                <a href="auto-mod.html">
-                    <i class="fa-solid fa-robot"></i>
-                    Auto-Mod
-                </a>
-            </li>
-            <li class="menu-item">
-                <a href="anti-alt.html">
-                    <i class="fa-solid fa-user-shield"></i>
-                    Anti-Alt
-                </a>
-            </li>
-            <li class="menu-item">
-                <a href="AutoRespond">
-                    <i class="fa-solid fa-reply-all"></i>
-                    Auto Respond
-                </a>
-            </li>
-        </ul>
-
-        <!-- MODULES & FEATURES CATEGORY -->
-        <div class="category-container">
-            <div class="category-line"></div>
-            <span class="category-header">Modules &amp; Features</span>
-            <div class="category-line"></div>
-        </div>
-        <ul class="menu-list">
-            <li class="menu-item">
-                <a href="custom-messages.html">
-                    <i class="fa-solid fa-comment-dots"></i>
-                    Custom Messages
-                </a>
-            </li>
-            <li class="menu-item">
-                <a href="leveling-system.html">
-                    <i class="fa-solid fa-chart-simple"></i>
-                    Leveling System
-                </a>
-            </li>
-        </ul>
-
-        <!-- ADMINISTRATION CATEGORY -->
         <div class="category-container">
             <div class="category-line"></div>
             <span class="category-header">Administration</span>
             <div class="category-line"></div>
         </div>
         <ul class="menu-list">
-            <li class="menu-item active">
-                <a href="admin-control.html">
-                    <i class="fa-solid fa-user-ninja"></i>
-                    Control Panel
-                </a>
-            </li>
+            <li class="menu-item active"><a href="#" onclick="return false;"><i class="fa-solid fa-user-ninja"></i> Control Panel</a></li>
         </ul>
     </aside>
 
@@ -325,15 +220,15 @@
                 <span class="header-badge">Super Admin</span>
             </div>
             <div class="user-profile">
-                <span>Administrator</span>
-                <div class="avatar">OG</div>
+                <span id="panel_owner_label">Administrator</span>
+                <div class="avatar" id="panel_owner_avatar">OG</div>
             </div>
         </header>
 
         <div class="content-body">
             <div class="settings-grid">
 
-                <!-- 1. Global Search System (Replaces Live System Metrics) -->
+                <!-- 1. Global Search System -->
                 <div class="settings-card full-width">
                     <div class="card-header-group">
                         <div class="card-header-left">
@@ -345,16 +240,34 @@
                     <div class="form-group">
                         <label class="form-label">Search Query</label>
                         <div class="search-input-wrapper">
-                            <input id="global_search_input" type="text" class="form-input" placeholder="Search members by username or ID..." autocomplete="off">
+                            <input id="global_search_input" type="text" class="form-input" placeholder="Type a username, user ID, server name, or server ID..." autocomplete="off">
                             <i class="fa-solid fa-magnifying-glass search-icon"></i>
                         </div>
                     </div>
 
-                    <!-- Dynamic Container for Results (Empty State - Ready for JS) -->
+                    <div class="search-quick-actions">
+                        <button type="button" class="chip-btn" id="chip_all_users">
+                            <i class="fa-solid fa-users"></i> All Users
+                        </button>
+                        <button type="button" class="chip-btn" id="chip_all_servers">
+                            <i class="fa-solid fa-server"></i> All Servers
+                        </button>
+                    </div>
+
+                    <!-- Dynamic Container for Autocomplete Results -->
                     <div id="search_results_container" class="results-wrapper">
-                        <div class="search-empty-state">
-                            Enter a query above to display results.
+                        <div class="search-empty-state">Start typing to see live suggestions.</div>
+                    </div>
+
+                    <!-- Currently Selected Target - drives every card below -->
+                    <div id="target_bar" class="target-bar" style="display:none;">
+                        <div class="target-bar-info">
+                            <img id="target_bar_avatar" class="target-bar-avatar" src="" alt="" style="display:none;">
+                            <span class="target-bar-text" id="target_bar_text">No target selected</span>
                         </div>
+                        <button type="button" class="target-bar-clear" id="target_bar_clear">
+                            <i class="fa-solid fa-xmark"></i> Clear
+                        </button>
                     </div>
                 </div>
 
@@ -366,12 +279,11 @@
                             <h2 class="card-header-title">Bot State &amp; Maintenance</h2>
                         </div>
                     </div>
-                    
+
                     <div class="switch-container">
-                        <!-- Full Shutdown Switch Added Above Maintenance Mode -->
                         <div class="switch-item">
                             <div class="switch-info">
-                                <span class="switch-title">Full Shutdown / الإغلاق الكامل</span>
+                                <span class="switch-title">Full Shutdown</span>
                                 <span class="switch-desc">Completely shut down all bot processes and operations.</span>
                             </div>
                             <label class="toggle-switch">
@@ -383,7 +295,7 @@
                         <div class="switch-item">
                             <div class="switch-info">
                                 <span class="switch-title">Maintenance Mode</span>
-                                <span class="switch-desc">Restrict all bot commands to super administrators.</span>
+                                <span class="switch-desc">Restrict all bot commands to the super administrator only.</span>
                             </div>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="maintenance_enabled">
@@ -397,34 +309,18 @@
                         <input id="maintenance_message" type="text" class="form-input" placeholder="OmniGuard is currently under scheduled maintenance. Please try again later.">
                     </div>
 
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Online Status</label>
-                            <select id="bot_online_status" class="form-select">
-                                <option value="online">Online</option>
-                                <option value="idle">Idle</option>
-                                <option value="dnd">Do Not Disturb</option>
-                                <option value="invisible">Invisible</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Activity Type</label>
-                            <select id="bot_activity_type" class="form-select">
-                                <option value="PLAYING">Playing</option>
-                                <option value="WATCHING">Watching</option>
-                                <option value="LISTENING">Listening</option>
-                                <option value="COMPETING">Competing</option>
-                            </select>
-                        </div>
-                    </div>
-
                     <div class="form-group">
-                        <label class="form-label">Activity Text</label>
-                        <input id="bot_activity_text" type="text" class="form-input" placeholder="e.g. Protecting Servers | !help">
+                        <label class="form-label">Online Status</label>
+                        <select id="bot_online_status" class="form-select">
+                            <option value="online">Online</option>
+                            <option value="idle">Idle</option>
+                            <option value="dnd">Do Not Disturb</option>
+                            <option value="invisible">Invisible</option>
+                        </select>
                     </div>
                 </div>
 
-                <!-- 3. Feature Flags / Global Toggles -->
+                <!-- 3. Feature Flags -->
                 <div class="settings-card">
                     <div class="card-header-group">
                         <div class="card-header-left">
@@ -432,66 +328,14 @@
                             <h2 class="card-header-title">Feature Flags</h2>
                         </div>
                     </div>
+                    <p class="form-hint" id="flags_scope_hint">Applies to: All Users (Global default)</p>
 
-                    <div class="switch-container">
-                        <div class="switch-item">
-                            <div class="switch-info">
-                                <span class="switch-title">Auto-Mod Rules</span>
-                                <span class="switch-desc">Global toggle for spam &amp; link filter execution.</span>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="flag_automod" checked="">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-
-                        <div class="switch-item">
-                            <div class="switch-info">
-                                <span class="switch-title">Anti-Alt System</span>
-                                <span class="switch-desc">Global toggle for alt account detection on join.</span>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="flag_antialt" checked="">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-
-                        <div class="switch-item">
-                            <div class="switch-info">
-                                <span class="switch-title">Welcome &amp; Leave Dispatcher</span>
-                                <span class="switch-desc">Global toggle for greeting message generation.</span>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="flag_welcome" checked="">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-
-                        <div class="switch-item">
-                            <div class="switch-info">
-                                <span class="switch-title">Leveling &amp; XP System</span>
-                                <span class="switch-desc">Global toggle for tracking user XP &amp; level ups.</span>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="flag_leveling" checked="">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
-
-                        <div class="switch-item">
-                            <div class="switch-info">
-                                <span class="switch-title">Custom Messages Module</span>
-                                <span class="switch-desc">Global toggle for automated trigger responses.</span>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="flag_custom_messages" checked="">
-                                <span class="slider"></span>
-                            </label>
-                        </div>
+                    <div class="flags-grid" id="feature_flags_grid">
+                        <!-- Populated dynamically by Adminpanel.js from the 15 known flag_key values -->
                     </div>
                 </div>
 
-                <!-- 4. User Actions & Dashboard Alerts (Replaces Website Banners & Targeted Alerts) -->
+                <!-- 4. User Actions & Dashboard Notices -->
                 <div class="settings-card full-width">
                     <div class="card-header-group">
                         <div class="card-header-left">
@@ -505,61 +349,66 @@
                         <div class="form-group" style="flex:1.2; display: flex; flex-direction: column; gap: 14px;">
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label class="form-label">Target User ID / معرف المستخدم</label>
-                                    <input id="action_target_user_id" type="text" class="form-input" placeholder="User ID (e.g. 123456789012345678)">
+                                    <label class="form-label">Action Type</label>
+                                    <select id="action_type_select" class="form-select">
+                                        <option value="alert">Alert</option>
+                                        <option value="update">Update</option>
+                                        <option value="note">Note</option>
+                                        <option value="ban">Ban</option>
+                                    </select>
                                 </div>
                                 <div class="form-group">
-                                    <label class="form-label">Action Type / نوع الإجراء</label>
-                                    <select id="action_type_select" class="form-select">
-                                        <option value="alert">Alert / تنبيه</option>
-                                        <option value="update">Update / تحديث</option>
-                                        <option value="note">Note / ملاحظة</option>
-                                        <option value="kick">Kick / طرد</option>
-                                        <option value="ban">Ban / حظر</option>
+                                    <label class="form-label">Badge Color</label>
+                                    <select id="action_color_select" class="form-select">
+                                        <option value="red">Red</option>
+                                        <option value="yellow">Yellow</option>
+                                        <option value="green">Green</option>
+                                        <option value="black">Black</option>
+                                        <option value="white">White</option>
+                                        <option value="orange">Orange</option>
                                     </select>
                                 </div>
                             </div>
 
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label class="form-label">Badge Color / اللون</label>
-                                    <select id="action_color_select" class="form-select">
-                                        <option value="red">Red / أحمر</option>
-                                        <option value="yellow">Yellow / أصفر</option>
-                                        <option value="green">Green / أخضر</option>
-                                        <option value="black">Black / أسود</option>
-                                        <option value="white">White / أبيض</option>
-                                        <option value="orange">Orange / برتقالي</option>
+                                    <label class="form-label">Delivery Channel</label>
+                                    <select id="action_delivery_select" class="form-select">
+                                        <option value="dashboard">Dashboard Only</option>
+                                        <option value="dm">Direct Message Only</option>
+                                        <option value="both">Both (DM + Dashboard)</option>
                                     </select>
                                 </div>
-                                <div class="form-group">
-                                    <label class="form-label">Action Duration / مدة الإجراء</label>
-                                    <input id="action_duration_input" type="text" class="form-input" placeholder="e.g. 7 Days / Permanent / 2 Hours">
+                                <div class="form-group" id="action_duration_group">
+                                    <label class="form-label">Ban Duration (Ban only)</label>
+                                    <input id="action_duration_input" type="text" class="form-input" placeholder="e.g. 1h, 1d, 1w, 1mo, 1y — leave empty for permanent" disabled>
+                                    <span class="form-hint">Format: 1s / 1m / 1h / 1d / 1w / 1mo / 1y</span>
                                 </div>
                             </div>
 
                             <div class="form-group">
-                                <label class="form-label">Notice Title / عنوان الرسالة</label>
-                                <input id="action_title_input" type="text" class="form-input" placeholder="Title for user notice">
+                                <label class="form-label">Notice Title</label>
+                                <input id="action_title_input" type="text" class="form-input" placeholder="Title for the user notice">
                             </div>
 
                             <div class="form-group">
-                                <label class="form-label">Notice Content / نص الرسالة</label>
-                                <textarea id="action_message_input" class="form-textarea" placeholder="Detailed message displayed on target user dashboard..."></textarea>
+                                <label class="form-label">Notice Content</label>
+                                <textarea id="action_message_input" class="form-textarea" placeholder="Detailed message displayed on the target's dashboard..."></textarea>
                             </div>
 
-                            <button id="btn_send_user_action" type="button" class="btn-action btn-action-primary" style="margin-top: 4px;">
+                            <button id="btn_send_user_action" type="button" class="btn-action btn-action-primary" style="margin-top: 4px;" disabled>
                                 <i class="fa-solid fa-paper-plane"></i> Dispatch Action
                             </button>
+                            <span class="form-hint" id="dispatch_hint">Select a target (or "All") from Global Search above first.</span>
                         </div>
 
                         <!-- Right Side Live Message Preview -->
                         <div class="form-group" style="flex:1; min-width: 280px;">
-                            <label class="form-label">Dashboard Preview / شكل الرسالة في الداش بورد</label>
+                            <label class="form-label">Account Action Notice (live preview - exactly what the user sees)</label>
                             <div class="dashboard-preview-card" id="dashboard_notice_preview">
                                 <div class="preview-header">
-                                    <div class="preview-badge badge-red" id="preview_badge">Alert</div>
-                                    <span class="preview-duration" id="preview_duration">Duration: Permanent</span>
+                                    <div class="preview-badge badge-red" id="preview_badge"><i class="fa-solid fa-triangle-exclamation"></i> Alert</div>
+                                    <span class="preview-duration" id="preview_duration">Permanent</span>
                                 </div>
                                 <h3 class="preview-title" id="preview_title">Account Action Notice</h3>
                                 <p class="preview-message" id="preview_message">Your notification message text will be displayed here exactly as seen by the user on the dashboard.</p>
@@ -571,28 +420,16 @@
                     </div>
                 </div>
 
-                <!-- 5. Emergency Controls & System Operations -->
+                <!-- 5. DM Delivery Failures -->
                 <div class="settings-card full-width">
                     <div class="card-header-group">
                         <div class="card-header-left">
-                            <i class="fa-solid fa-triangle-exclamation card-header-icon"></i>
-                            <h2 class="card-header-title">Emergency Controls &amp; Maintenance Operations</h2>
+                            <i class="fa-solid fa-envelope-circle-check card-header-icon"></i>
+                            <h2 class="card-header-title">DM Delivery Failures</h2>
                         </div>
                     </div>
-
-                    <div class="actions-row">
-                        <button id="btn_soft_reload" type="button" class="btn-action">
-                            <i class="fa-solid fa-rotate"></i> Soft Reload Commands &amp; Events
-                        </button>
-                        <button id="btn_clear_cache" type="button" class="btn-action">
-                            <i class="fa-solid fa-broom"></i> Clear Cache Memory
-                        </button>
-                        <button id="btn_manual_backup" type="button" class="btn-action">
-                            <i class="fa-solid fa-database"></i> Trigger Database Backup
-                        </button>
-                        <button id="btn_discord_broadcast" type="button" class="btn-action btn-action-primary">
-                            <i class="fa-solid fa-tower-broadcast"></i> Dispatch Global Discord Announcement
-                        </button>
+                    <div id="dm_failures_container" style="display:flex; flex-direction:column; gap:8px;">
+                        <div class="search-empty-state">No failed DM deliveries.</div>
                     </div>
                 </div>
 
@@ -601,28 +438,15 @@
             <!-- Sticky Save Bar -->
             <div class="save-changes-bar">
                 <span class="save-info-text">Careful — any unsaved modifications will be lost!</span>
-                <button class="save-btn state-default" disabled="">Save Changes</button>
+                <button id="panel_save_btn" class="save-btn state-default" disabled>Save Changes</button>
             </div>
         </div>
     </main>
 
-    <!-- JS Core Engine Script Binding -->
-    <script src="dashboard.js"></script>
-
-    <script>
-        (function () {
-            // Sanitize numeric Discord IDs
-            const sanitizeIdInput = (inputEl) => {
-                if (!inputEl) return;
-                inputEl.addEventListener('input', () => {
-                    const cleaned = inputEl.value.replace(/\D/g, '').slice(0, 20);
-                    if (cleaned !== inputEl.value) inputEl.value = cleaned;
-                });
-            };
-
-            sanitizeIdInput(document.getElementById('action_target_user_id'));
-        })();
-    </script>
+    <!-- Supabase JS SDK - required by Adminpanel.js's session bridge (same as other dashboard pages) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Adminpanel.js - المنطق الكامل مستقل تماماً عن dashboard.js المشترك -->
+    <script src="Adminpanel.js"></script>
 
 </body>
 </html>
