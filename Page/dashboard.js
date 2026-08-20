@@ -231,7 +231,7 @@ const FEATURE_FLAG_PAGE_MAP = {
     'autorespond.html': 'auto_respond',
     'category.html': 'ticket_category',
     'autolog.html': 'ticket_auto_log',
-    'Permissionspanel.html': 'ticket_panel',
+    'permissionspanel.html': 'ticket_panel',
     'custom-messages.html': 'custom_messages',
     'level.html': 'level_system',
     'commands.html': 'command_customization'
@@ -263,10 +263,43 @@ async function applyFeatureFlagVisibility() {
         }
     });
 
+    // [NEW] إخفاء عنوان الفئة (Category Header) لو كل روابطها تحتها اتخفت
+    document.querySelectorAll('.category-container').forEach(header => {
+        const list = header.nextElementSibling;
+        if (!list || !list.classList.contains('menu-list')) return;
+        const items = Array.from(list.querySelectorAll('.menu-item'));
+        const allHidden = items.length > 0 && items.every(li => li.style.display === 'none');
+        if (allHidden) {
+            header.style.display = 'none';
+            list.style.display = 'none';
+        }
+    });
+
     // 2) منع الوصول المباشر بالرابط للصفحة الحالية لو هي نفسها مقفولة
-    const currentFlagKey = FEATURE_FLAG_PAGE_MAP[getPageKey()];
+    const currentPageKey = getPageKey();
+    const currentFlagKey = FEATURE_FLAG_PAGE_MAP[currentPageKey];
     if (currentFlagKey && flags[currentFlagKey] === false) {
-        window.location.href = 'index';
+        // [FIX] لو "Home" نفسها مقفولة، لا نروح لها - كان يسبب حلقة تحميل
+        // لا نهائية (index يفحص، يشوفها مقفولة، يرجع لـ index، يفحص من
+        // جديد... إلخ). بدلها نلقى أول صفحة متاحة فعلياً من الخريطة ونروح
+        // لها؛ ولو ما فيه ولا صفحة متاحة إطلاقاً، نوقف بدون أي تحويل (نعرض
+        // رسالة بدل حلقة تحميل).
+        const firstAvailablePage = Object.entries(FEATURE_FLAG_PAGE_MAP)
+            .find(([pageKey, flagKey]) => pageKey !== currentPageKey && flags[flagKey] !== false);
+
+        if (firstAvailablePage) {
+            const [pageKey] = firstAvailablePage;
+            window.location.href = pageKey.replace('.html', '');
+        } else {
+            document.body.innerHTML = `
+                <div style="display:flex; align-items:center; justify-content:center; height:100vh; font-family:'Inter',sans-serif; color:#8e9297; text-align:center; padding:20px;">
+                    <div>
+                        <h2 style="color:#ffffff; margin-bottom:8px;">No Pages Available</h2>
+                        <p>Your dashboard access has been restricted. Contact the administrator.</p>
+                    </div>
+                </div>`;
+        }
+        return;
     }
 }
 
@@ -305,28 +338,31 @@ async function renderAccountActionNotice() {
     const color = NOTICE_BADGE_COLORS[notice.badge_color] || NOTICE_BADGE_COLORS.red;
     const icon = NOTICE_BADGE_ICONS[notice.action_type] || 'fa-circle-info';
 
-    const banner = document.createElement('div');
-    banner.id = 'omniguard_account_notice';
-    banner.style.cssText = `
-        position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
-        background-color: #111115; border-bottom: 2px solid ${color};
-        padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;
-        gap: 16px; font-family: 'Inter', sans-serif; color: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    const overlay = document.createElement('div');
+    overlay.id = 'omniguard_account_notice_overlay';
+    overlay.style.cssText = `
+        position: fixed; inset: 0; z-index: 9999; background-color: rgba(0,0,0,0.65);
+        display: flex; align-items: center; justify-content: center; padding: 20px;
+        font-family: 'Inter', sans-serif;
     `;
-    banner.innerHTML = `
-        <div style="display:flex; align-items:center; gap:12px; min-width:0;">
-            <i class="fa-solid ${icon}" style="color:${color}; font-size:18px; flex-shrink:0;"></i>
-            <div style="min-width:0;">
-                <div style="font-weight:700; font-size:14px;">${escapeHtmlSafe(notice.title)}</div>
-                <div style="font-size:13px; color:#8e9297; margin-top:2px;">${escapeHtmlSafe(notice.message)}</div>
-            </div>
-        </div>
-        <button id="omniguard_notice_ack_btn" style="flex-shrink:0; background-color:${color}; border:none; color:#0a0a0c; font-weight:700; padding:8px 18px; border-radius:6px; cursor:pointer; font-size:13px;">
+
+    const modal = document.createElement('div');
+    modal.id = 'omniguard_account_notice';
+    modal.style.cssText = `
+        background-color: #111115; border: 1px solid ${color}; border-radius: 12px;
+        padding: 28px; max-width: 440px; width: 100%; color: #ffffff;
+        box-shadow: 0 12px 40px rgba(0,0,0,0.5); text-align: center;
+    `;
+    modal.innerHTML = `
+        <i class="fa-solid ${icon}" style="color:${color}; font-size:34px; margin-bottom:14px; display:block;"></i>
+        <div style="font-weight:700; font-size:17px; margin-bottom:10px;">${escapeHtmlSafe(notice.title)}</div>
+        <div style="font-size:14px; color:#8e9297; line-height:1.6; margin-bottom:22px; white-space:pre-wrap;">${escapeHtmlSafe(notice.message)}</div>
+        <button id="omniguard_notice_ack_btn" style="background-color:${color}; border:none; color:#0a0a0c; font-weight:700; padding:10px 28px; border-radius:8px; cursor:pointer; font-size:14px;">
             ${notice.requires_ack ? 'I Understand' : 'Dismiss'}
         </button>
     `;
-    document.body.prepend(banner);
-    document.body.style.paddingTop = `${banner.offsetHeight}px`;
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
 
     document.getElementById('omniguard_notice_ack_btn').addEventListener('click', async () => {
         try {
@@ -337,8 +373,7 @@ async function renderAccountActionNotice() {
         } catch (err) {
             console.error('[OmniGuard Dashboard] Failed to acknowledge notice:', err.message);
         }
-        banner.remove();
-        document.body.style.paddingTop = '';
+        overlay.remove();
     });
 }
 
