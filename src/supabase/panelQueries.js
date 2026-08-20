@@ -245,11 +245,44 @@ async function acknowledgeNotice(actionId, userId) {
     return true;
 }
 
+/**
+ * [NEW] يرجّع خريطة مسطّحة {flag_key: enabled} فعلية لمستخدم معيّن - يفضّل
+ * أي صف مخصص له (scope='user') على القيمة العامة (scope='global') لنفس
+ * الـ flag_key، ويكمّل الباقي من العام. يُستخدم من endpoint خفيف عام
+ * (/api/feature-flags/effective) تقدر أي صفحة داشبورد عادية تناديه.
+ */
+async function getEffectiveFlagsForUser(discordId) {
+    const { data: globalRows, error: globalErr } = await supabase
+        .from('panel_feature_flags')
+        .select('flag_key, enabled')
+        .eq('scope', 'global');
+
+    if (globalErr) {
+        console.error('[PanelQueries] getEffectiveFlagsForUser (global) failed:', globalErr.message);
+        return {};
+    }
+
+    const map = Object.fromEntries((globalRows || []).map(r => [r.flag_key, r.enabled]));
+
+    if (discordId) {
+        const { data: userRows } = await supabase
+            .from('panel_feature_flags')
+            .select('flag_key, enabled')
+            .eq('scope', 'user')
+            .eq('target_user_id', discordId);
+
+        (userRows || []).forEach(r => { map[r.flag_key] = r.enabled; });
+    }
+
+    return map;
+}
+
 module.exports = {
     getBotState,
     updateBotState,
     getFeatureFlags,
     setFeatureFlags,
+    getEffectiveFlagsForUser,
     getUserBan,
     banUser,
     unbanUser,

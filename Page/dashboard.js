@@ -146,6 +146,7 @@ async function initSupabaseSessionBridge() {
     if (session) {
         cachedUserToken = session.access_token;
         initGlobalHeader(session);
+        applyFeatureFlagVisibility(); // [NEW] Adminpanel Feature Flags enforcement
     } else {
         // [الحماية المركزية] إذا لم تكن في صفحة تسجيل الدخول ولا توجد جلسة، اخرج فوراً
         if (!window.location.pathname.includes('Login.html')) {
@@ -205,6 +206,62 @@ function getPageKey() {
         path += '.html';
     }
     return path;
+}
+
+// ============================================================================
+// [NEW] Feature Flags Enforcement (Adminpanel.html Feature Flags)
+// ============================================================================
+// خريطة اسم الصفحة (نفس مخرجات getPageKey - lowercase + .html) <-> flag_key
+// المطابق بجدول panel_feature_flags. مبنية من روابط الشريط الجانبي الفعلية
+// (general-settings.html) - أي صفحة جديدة تُضاف مستقبلاً لازم تُضاف هنا يدوياً.
+//
+// [ملاحظة صدق] 'ticket_panel' مربوطة بـ Permissionspanel كأقرب تخمين منطقي
+// (ما وضح لي اسم صفحة "Ticket Panel" الفعلي بالمشروع) - و'ticket' نفسها
+// (بدون لاحقة) ما لها صفحة واضحة بالشريط الجانبي اللي شفته، فتفضل بدون
+// تطبيق فعلي لين توضح لي أي صفحة بالضبط تقصدها.
+const FEATURE_FLAG_PAGE_MAP = {
+    'search.html': 'search',
+    'index.html': 'home',
+    'general-settings.html': 'general_settings',
+    'welcome-leave.html': 'welcome',
+    'role-management.html': 'role_management',
+    'auto-mod.html': 'auto_mod',
+    'anti-alt.html': 'anti_alt',
+    'autorespond.html': 'auto_respond',
+    'category.html': 'ticket_category',
+    'autolog.html': 'ticket_auto_log',
+    'permissionspanel.html': 'ticket_panel',
+    'custom-messages.html': 'custom_messages',
+    'level.html': 'level_system',
+    'commands.html': 'command_customization'
+};
+
+async function applyFeatureFlagVisibility() {
+    let flags;
+    try {
+        const response = await fetch(`${window.location.origin}/api/feature-flags/effective`, { headers: getHeaders() });
+        if (!response.ok) return; // فشل صامت - ما نكسر باقي الصفحة عشان هذا فقط
+        flags = await response.json();
+    } catch (err) {
+        console.error('[OmniGuard Dashboard] Failed to load feature flags:', err.message);
+        return;
+    }
+
+    // 1) إخفاء أي رابط بالشريط الجانبي مقفول لهذا المستخدم
+    document.querySelectorAll('.menu-item a[href]').forEach(link => {
+        const hrefKey = link.getAttribute('href').split('/').pop().toLowerCase() + '.html';
+        const flagKey = FEATURE_FLAG_PAGE_MAP[hrefKey];
+        if (flagKey && flags[flagKey] === false) {
+            const li = link.closest('.menu-item');
+            if (li) li.style.display = 'none';
+        }
+    });
+
+    // 2) منع الوصول المباشر بالرابط للصفحة الحالية لو هي نفسها مقفولة
+    const currentFlagKey = FEATURE_FLAG_PAGE_MAP[getPageKey()];
+    if (currentFlagKey && flags[currentFlagKey] === false) {
+        window.location.href = 'index';
+    }
 }
 
 function getHeaders() {

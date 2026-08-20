@@ -249,6 +249,25 @@ app.post('/api/account-notice/:id/ack', attachDashboardUser, async (req, res) =>
 });
 
 // ============================================
+// 3.7 [NEW] Effective Feature Flags - endpoint عام لكل مستخدم داشبورد عادي
+// ============================================
+// يرجّع الفلاقات الفعلية للمستخدم المسجّل دخول حالياً (استثناء فردي له لو
+// موجود، وإلا الافتراضي العام) - dashboard.js يناديه بكل صفحة عشان يخفي
+// عناصر الشريط الجانبي المقفولة + يمنع الوصول المباشر بالرابط للصفحة نفسها.
+app.get('/api/feature-flags/effective', attachDashboardUser, async (req, res) => {
+    if (!req.dashboardUser?.discordId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    try {
+        const flags = await panelQueries.getEffectiveFlagsForUser(req.dashboardUser.discordId);
+        res.json(flags);
+    } catch (error) {
+        console.error('[API Error] Fetch Effective Feature Flags:', error.message);
+        res.status(500).json({ error: 'Failed to load feature flags' });
+    }
+});
+
+// ============================================
 // 4. Static File Hosting
 // ============================================
 const staticFolder = path.join(__dirname, '..', 'Page');
