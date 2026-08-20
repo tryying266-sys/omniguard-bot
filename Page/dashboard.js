@@ -147,6 +147,7 @@ async function initSupabaseSessionBridge() {
         cachedUserToken = session.access_token;
         initGlobalHeader(session);
         applyFeatureFlagVisibility(); // [NEW] Adminpanel Feature Flags enforcement
+        renderAccountActionNotice(); // [NEW] Adminpanel Alert/Update/Note display
     } else {
         // [الحماية المركزية] إذا لم تكن في صفحة تسجيل الدخول ولا توجد جلسة، اخرج فوراً
         if (!window.location.pathname.includes('Login.html')) {
@@ -230,7 +231,7 @@ const FEATURE_FLAG_PAGE_MAP = {
     'autorespond.html': 'auto_respond',
     'category.html': 'ticket_category',
     'autolog.html': 'ticket_auto_log',
-    'permissionspanel.html': 'ticket_panel',
+    'Permissionspanel.html': 'ticket_panel',
     'custom-messages.html': 'custom_messages',
     'level.html': 'level_system',
     'commands.html': 'command_customization'
@@ -240,8 +241,13 @@ async function applyFeatureFlagVisibility() {
     let flags;
     try {
         const response = await fetch(`${window.location.origin}/api/feature-flags/effective`, { headers: getHeaders() });
-        if (!response.ok) return; // فشل صامت - ما نكسر باقي الصفحة عشان هذا فقط
+        if (!response.ok) {
+            const body = await response.text().catch(() => '');
+            console.error(`[OmniGuard Dashboard] feature-flags/effective returned ${response.status}: ${body}`);
+            return;
+        }
         flags = await response.json();
+        console.log('[OmniGuard Dashboard] Effective feature flags:', flags);
     } catch (err) {
         console.error('[OmniGuard Dashboard] Failed to load feature flags:', err.message);
         return;
@@ -262,6 +268,84 @@ async function applyFeatureFlagVisibility() {
     if (currentFlagKey && flags[currentFlagKey] === false) {
         window.location.href = 'index';
     }
+}
+
+// ============================================================================
+// [NEW] Account Action Notice Display (Alert / Update / Note)
+// ============================================================================
+// كان هذا الجزء ناقص بالكامل - الـ Backend يخزّن الإشعار ويرسل DM، لكن ولا
+// كود بالداشبورد كان يجيب ويعرض الإشعار الفعّال لصاحبه. هذا يفسر ليش كان
+// "يشتغل بالـ DM أحياناً" بس الداشبورد فاضي دايماً - ما فيه شي يجيبه أصلاً.
+const NOTICE_BADGE_ICONS = {
+    alert: 'fa-triangle-exclamation',
+    update: 'fa-arrow-up-right-dots',
+    note: 'fa-note-sticky'
+};
+const NOTICE_BADGE_COLORS = {
+    red: '#ff3344', yellow: '#faa61a', green: '#3ba55d',
+    black: '#8e9297', white: '#ffffff', orange: '#ff8000'
+};
+
+async function renderAccountActionNotice() {
+    let notice;
+    try {
+        const response = await fetch(`${window.location.origin}/api/account-notice`, { headers: getHeaders() });
+        if (!response.ok) {
+            console.error(`[OmniGuard Dashboard] account-notice returned ${response.status}`);
+            return;
+        }
+        notice = await response.json();
+    } catch (err) {
+        console.error('[OmniGuard Dashboard] Failed to load account notice:', err.message);
+        return;
+    }
+
+    if (!notice) return; // ما فيه إشعار فعّال لهذا المستخدم
+
+    const color = NOTICE_BADGE_COLORS[notice.badge_color] || NOTICE_BADGE_COLORS.red;
+    const icon = NOTICE_BADGE_ICONS[notice.action_type] || 'fa-circle-info';
+
+    const banner = document.createElement('div');
+    banner.id = 'omniguard_account_notice';
+    banner.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+        background-color: #111115; border-bottom: 2px solid ${color};
+        padding: 14px 24px; display: flex; align-items: center; justify-content: space-between;
+        gap: 16px; font-family: 'Inter', sans-serif; color: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    `;
+    banner.innerHTML = `
+        <div style="display:flex; align-items:center; gap:12px; min-width:0;">
+            <i class="fa-solid ${icon}" style="color:${color}; font-size:18px; flex-shrink:0;"></i>
+            <div style="min-width:0;">
+                <div style="font-weight:700; font-size:14px;">${escapeHtmlSafe(notice.title)}</div>
+                <div style="font-size:13px; color:#8e9297; margin-top:2px;">${escapeHtmlSafe(notice.message)}</div>
+            </div>
+        </div>
+        <button id="omniguard_notice_ack_btn" style="flex-shrink:0; background-color:${color}; border:none; color:#0a0a0c; font-weight:700; padding:8px 18px; border-radius:6px; cursor:pointer; font-size:13px;">
+            ${notice.requires_ack ? 'I Understand' : 'Dismiss'}
+        </button>
+    `;
+    document.body.prepend(banner);
+    document.body.style.paddingTop = `${banner.offsetHeight}px`;
+
+    document.getElementById('omniguard_notice_ack_btn').addEventListener('click', async () => {
+        try {
+            await fetch(`${window.location.origin}/api/account-notice/${notice.id}/ack`, {
+                method: 'POST',
+                headers: getHeaders()
+            });
+        } catch (err) {
+            console.error('[OmniGuard Dashboard] Failed to acknowledge notice:', err.message);
+        }
+        banner.remove();
+        document.body.style.paddingTop = '';
+    });
+}
+
+function escapeHtmlSafe(str) {
+    const div = document.createElement('div');
+    div.textContent = str ?? '';
+    return div.innerHTML;
 }
 
 function getHeaders() {
