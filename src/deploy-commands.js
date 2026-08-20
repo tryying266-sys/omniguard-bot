@@ -247,6 +247,130 @@ const commands = [
         .setDefaultMemberPermissions(0),
 
     // ------------------------------------------------------------------
+    // [NEW] Ticket System Bundle (ticketsystem.js, module name: 'claim') -
+    // claim/unclaim/transfer/add/remove/bump/close/ticket-blacklist/
+    // ticket-unblacklist/rename. None of these 10 had any slash equivalent
+    // before - ticketsystem.js itself documents this as prefix-only for
+    // now. Registered per explicit request.
+    //
+    // [DESIGN NOTE - permissions] Authorization for claim/unclaim/transfer/
+    // add/remove/bump/close/rename is fully dynamic (per-ticket-type
+    // staff_roles read from the DB inside run(), via isTicketStaff()) -
+    // NOT a static Discord permission, exactly as ticketsystem.js's own
+    // header comment explains ("a single static permission value can't
+    // correctly cover all of them... authorization is done manually inside
+    // run()"). setDefaultMemberPermissions(0) below only controls default
+    // visibility (hidden until a server admin explicitly grants access via
+    // Integrations), matching this project's existing convention for every
+    // other staff-tier command (ban/kick/mute/etc.) - the real enforcement
+    // stays exactly where ticketsystem.js already puts it, unchanged.
+    //
+    // [DESIGN NOTE - ping-user] 'bump' and 'ping-user' are the exact same
+    // switch-case in ticketsystem.js's run() (identical behavior, no
+    // difference at all). Only 'bump' is registered as a slash command to
+    // avoid a pointless duplicate; 'ping-user' remains a prefix-only alias.
+    // ------------------------------------------------------------------
+
+    // --- Ticket: CLAIM ---
+    new SlashCommandBuilder()
+        .setName('claim')
+        .setDescription('Claim this ticket as the assigned staff member')
+        .setDefaultMemberPermissions(0),
+
+    // --- Ticket: UNCLAIM ---
+    new SlashCommandBuilder()
+        .setName('unclaim')
+        .setDescription('Release your claim on this ticket')
+        .setDefaultMemberPermissions(0),
+
+    // --- Ticket: TRANSFER ---
+    new SlashCommandBuilder()
+        .setName('transfer')
+        .setDescription('Transfer this ticket to another staff member')
+        .addUserOption(option =>
+            option.setName('user')
+                .setDescription('The staff member to transfer this ticket to')
+                .setRequired(true))
+        .setDefaultMemberPermissions(0),
+
+    // --- Ticket: ADD ---
+    // [NOTE] Mentionable, not User - the prefix version accepts EITHER a
+    // user or a role (resolveMemberOrRole() checks the role cache first),
+    // matched here with addMentionableOption instead of addUserOption.
+    new SlashCommandBuilder()
+        .setName('add')
+        .setDescription('Add a user or role to this ticket')
+        .addMentionableOption(option =>
+            option.setName('target')
+                .setDescription('The user or role to add to this ticket')
+                .setRequired(true))
+        .setDefaultMemberPermissions(0),
+
+    // --- Ticket: REMOVE ---
+    new SlashCommandBuilder()
+        .setName('remove')
+        .setDescription('Remove a user or role from this ticket')
+        .addMentionableOption(option =>
+            option.setName('target')
+                .setDescription('The user or role to remove from this ticket')
+                .setRequired(true))
+        .setDefaultMemberPermissions(0),
+
+    // --- Ticket: BUMP ---
+    new SlashCommandBuilder()
+        .setName('bump')
+        .setDescription('Ping the ticket opener to check if they are still there')
+        .setDefaultMemberPermissions(0),
+
+    // --- Ticket: CLOSE ---
+    new SlashCommandBuilder()
+        .setName('close')
+        .setDescription('Technically close this ticket (locks it, does not delete it)')
+        .addStringOption(option =>
+            option.setName('reason')
+                .setDescription('Reason for closing this ticket')
+                .setRequired(false))
+        .setDefaultMemberPermissions(0),
+
+    // --- Ticket: TICKET-BLACKLIST ---
+    new SlashCommandBuilder()
+        .setName('ticket-blacklist')
+        .setDescription('Block a user from opening new tickets')
+        .addUserOption(option =>
+            option.setName('user')
+                .setDescription('The user to blacklist')
+                .setRequired(true))
+        .addStringOption(option =>
+            option.setName('duration')
+                .setDescription('Blacklist duration (e.g., 1d, 1w, permanent)')
+                .setRequired(false))
+        .addStringOption(option =>
+            option.setName('reason')
+                .setDescription('Reason for the blacklist')
+                .setRequired(false))
+        .setDefaultMemberPermissions(0),
+
+    // --- Ticket: TICKET-UNBLACKLIST ---
+    new SlashCommandBuilder()
+        .setName('ticket-unblacklist')
+        .setDescription('Allow a previously blacklisted user to open tickets again')
+        .addUserOption(option =>
+            option.setName('user')
+                .setDescription('The user to remove from the ticket blacklist')
+                .setRequired(true))
+        .setDefaultMemberPermissions(0),
+
+    // --- Ticket: RENAME ---
+    new SlashCommandBuilder()
+        .setName('rename')
+        .setDescription("Rename this ticket's channel")
+        .addStringOption(option =>
+            option.setName('name')
+                .setDescription('The new channel name')
+                .setRequired(true))
+        .setDefaultMemberPermissions(0),
+
+    // ------------------------------------------------------------------
     // [NEW] Utility Bundle (Anothercommands.js) - slowmode/unslow/nick/
     // removenick/poll/endpoll/avatar/invites. These prefix commands had
     // NO slash equivalent before - added now per explicit request.
@@ -375,6 +499,14 @@ const commands = [
             option.setName('user')
                 .setDescription('Whose invite stats to show (defaults to yourself)')
                 .setRequired(false)),
+
+    // --- Public: HELP ---
+    // [NEW] help.js - أمر معلوماتي مفتوح للجميع (Everyone) عمداً، بدون
+    // setDefaultMemberPermissions(0) - نفس فلسفة serverinfo/poll/avatar
+    // بالأسفل، راجع تعليق help.js نفسه لتفاصيل أكثر.
+    new SlashCommandBuilder()
+        .setName('help')
+        .setDescription('Displays every available command, its usage, and required permission'),
 
     // --- System: SETTINGS ---
     new SlashCommandBuilder()

@@ -1,4 +1,6 @@
-<html lang="en"><head><style id="omniguard-fallback-styles">
+<html lang="en">
+<head>
+    <style id="omniguard-fallback-styles">
         .save-btn.state-default { background-color: var(--bg-tertiary, #18181c); color: var(--text-secondary, #8e9297); cursor: not-allowed; }
         .save-btn.state-dirty { background-color: var(--accent-red, #ff3344); color: var(--text-primary, #ffffff); }
         .save-btn.state-dirty:hover { background-color: var(--accent-red-hover, #ff5566); }
@@ -98,17 +100,88 @@
         input:checked + .slider { background-color: rgba(255, 51, 68, 0.2); border-color: var(--accent-red); }
         input:checked + .slider:before { transform: translateX(20px); background-color: var(--accent-red); }
 
-        /* Live Metrics Cards */
-        .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-        @media (max-width: 768px) { .metrics-grid { grid-template-columns: repeat(2, 1fr); } }
-        .metric-card { background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; text-align: center; display: flex; flex-direction: column; gap: 6px; }
-        .metric-value { font-size: 20px; font-weight: 700; color: var(--text-primary); }
-        .metric-label { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
+        /* Search Layout Styles (from Search.html) */
+        .search-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            width: 100%;
+        }
 
-        /* Log Console Viewers */
-        .console-box { background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; font-family: monospace; font-size: 12px; color: var(--text-secondary); height: 160px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5; }
-        .console-box::-webkit-scrollbar { width: 4px; }
-        .console-box::-webkit-scrollbar-thumb { background: var(--border-color); }
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            color: var(--text-secondary);
+            font-size: 15px;
+            pointer-events: none;
+            transition: color 0.2s;
+        }
+
+        .search-input-wrapper .form-input {
+            padding-left: 44px;
+        }
+
+        .search-input-wrapper .form-input:focus + .search-icon {
+            color: var(--accent-red);
+        }
+
+        .results-wrapper {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 8px;
+        }
+
+        .search-empty-state {
+            padding: 30px 20px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 13px;
+            border: 1px dashed var(--border-color);
+            border-radius: 8px;
+            background-color: rgba(24, 24, 28, 0.4);
+        }
+
+        /* Dashboard Notice Message Preview Box */
+        .dashboard-preview-card {
+            background-color: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .preview-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .preview-badge {
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-red { background-color: rgba(255, 51, 68, 0.15); color: #ff3344; border: 1px solid rgba(255, 51, 68, 0.3); }
+        .badge-yellow { background-color: rgba(250, 166, 26, 0.15); color: #faa61a; border: 1px solid rgba(250, 166, 26, 0.3); }
+        .badge-green { background-color: rgba(59, 165, 93, 0.15); color: #3ba55d; border: 1px solid rgba(59, 165, 93, 0.3); }
+        .badge-black { background-color: rgba(255, 255, 255, 0.05); color: #8e9297; border: 1px solid #2a2b30; }
+        .badge-white { background-color: rgba(255, 255, 255, 0.9); color: #0a0a0c; border: 1px solid #ffffff; }
+        .badge-orange { background-color: rgba(255, 128, 0, 0.15); color: #ff8000; border: 1px solid rgba(255, 128, 0, 0.3); }
+
+        .preview-duration { font-size: 11px; color: var(--text-secondary); font-weight: 500; }
+        .preview-title { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+        .preview-message { font-size: 13px; color: var(--text-secondary); line-height: 1.5; white-space: pre-wrap; }
+        .preview-footer { display: flex; justify-content: flex-end; margin-top: 4px; }
+        .preview-btn { background-color: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
 
         /* Buttons & Actions */
         .btn-action { background-color: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
@@ -116,14 +189,6 @@
         .btn-action-primary { background-color: var(--accent-red); border: 1px solid var(--accent-red); color: var(--text-primary); }
         .btn-action-primary:hover { background-color: var(--accent-red-hover); color: white; }
         .actions-row { display: flex; gap: 12px; flex-wrap: wrap; }
-
-        /* Dynamic Table Container */
-        .table-container { width: 100%; overflow-x: auto; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; }
-        .data-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
-        .data-table th { background-color: rgba(0,0,0,0.2); padding: 12px 16px; color: var(--text-secondary); font-weight: 600; border-bottom: 1px solid var(--border-color); text-transform: uppercase; font-size: 11px; }
-        .data-table td { padding: 12px 16px; border-bottom: 1px solid var(--border-color); color: var(--text-primary); }
-        .data-table tr:last-child td { border-bottom: none; }
-        .table-empty { padding: 20px; text-align: center; color: var(--text-secondary); font-size: 13px; }
 
         /* Save Bar */
         .save-changes-bar { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; bottom: 20px; z-index: 10; }
@@ -139,7 +204,7 @@
 </head>
 <body>
 
-    <!-- Left Sidebar Navigation - Identical Layout -->
+    <!-- Left Sidebar Navigation -->
     <aside class="sidebar">
         <div class="logo-section">
             <i class="fa-solid fa-shield-halved logo-icon"></i>
@@ -268,46 +333,27 @@
         <div class="content-body">
             <div class="settings-grid">
 
-                <!-- 1. Live System Monitoring & Health -->
+                <!-- 1. Global Search System (Replaces Live System Metrics) -->
                 <div class="settings-card full-width">
                     <div class="card-header-group">
                         <div class="card-header-left">
-                            <i class="fa-solid fa-chart-line card-header-icon"></i>
-                            <h2 class="card-header-title">Live System Metrics</h2>
+                            <i class="fa-solid fa-magnifying-glass card-header-icon"></i>
+                            <h2 class="card-header-title">Global Search</h2>
                         </div>
                     </div>
-                    <div class="metrics-grid">
-                        <div class="metric-card">
-                            <span class="metric-label">Bot Latency</span>
-                            <span id="metric_latency" class="metric-value">-- ms</span>
+
+                    <div class="form-group">
+                        <label class="form-label">Search Query</label>
+                        <div class="search-input-wrapper">
+                            <input id="global_search_input" type="text" class="form-input" placeholder="Search members by username or ID..." autocomplete="off">
+                            <i class="fa-solid fa-magnifying-glass search-icon"></i>
                         </div>
-                        <div class="metric-card">
-                            <span class="metric-label">CPU Usage</span>
-                            <span id="metric_cpu" class="metric-value">-- %</span>
-                        </div>
-                        <div class="metric-card">
-                            <span class="metric-label">RAM Memory</span>
-                            <span id="metric_ram" class="metric-value">-- MB</span>
-                        </div>
-                        <div class="metric-card">
-                            <span class="metric-label">Database Status</span>
-                            <span id="metric_db_status" class="metric-value" style="font-size:14px; color: var(--accent-green);">Connected</span>
-                        </div>
-                        <div class="metric-card">
-                            <span class="metric-label">Total Guilds</span>
-                            <span id="metric_guilds" class="metric-value">0</span>
-                        </div>
-                        <div class="metric-card">
-                            <span class="metric-label">Total Users</span>
-                            <span id="metric_users" class="metric-value">0</span>
-                        </div>
-                        <div class="metric-card">
-                            <span class="metric-label">Commands Today</span>
-                            <span id="metric_commands_today" class="metric-value">0</span>
-                        </div>
-                        <div class="metric-card">
-                            <span class="metric-label">Active Blacklists</span>
-                            <span id="metric_blacklists_count" class="metric-value">0</span>
+                    </div>
+
+                    <!-- Dynamic Container for Results (Empty State - Ready for JS) -->
+                    <div id="search_results_container" class="results-wrapper">
+                        <div class="search-empty-state">
+                            Enter a query above to display results.
                         </div>
                     </div>
                 </div>
@@ -322,6 +368,18 @@
                     </div>
                     
                     <div class="switch-container">
+                        <!-- Full Shutdown Switch Added Above Maintenance Mode -->
+                        <div class="switch-item">
+                            <div class="switch-info">
+                                <span class="switch-title">Full Shutdown / الإغلاق الكامل</span>
+                                <span class="switch-desc">Completely shut down all bot processes and operations.</span>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="full_shutdown_enabled">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+
                         <div class="switch-item">
                             <div class="switch-info">
                                 <span class="switch-title">Maintenance Mode</span>
@@ -433,162 +491,87 @@
                     </div>
                 </div>
 
-                <!-- 4. Global Website Banners & User Notices -->
+                <!-- 4. User Actions & Dashboard Alerts (Replaces Website Banners & Targeted Alerts) -->
                 <div class="settings-card full-width">
                     <div class="card-header-group">
                         <div class="card-header-left">
                             <i class="fa-solid fa-bullhorn card-header-icon"></i>
-                            <h2 class="card-header-title">Website Banners &amp; Targeted Alerts</h2>
+                            <h2 class="card-header-title">User Actions &amp; Dashboard Notices</h2>
                         </div>
                     </div>
 
-                    <div class="form-row">
-                        <!-- Global Website Banner -->
-                        <div class="form-group" style="flex:1.2;">
-                            <label class="form-label">Global Top Banner Notice</label>
-                            <div class="switch-item" style="margin-bottom: 10px;">
-                                <div class="switch-info">
-                                    <span class="switch-title">Display Banner on Dashboard</span>
-                                    <span class="switch-desc">Renders an alert strip at the top of all user web pages.</span>
-                                </div>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="banner_enabled">
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
-                            <div class="form-row" style="margin-bottom: 10px;">
+                    <div class="form-row" style="align-items: flex-start;">
+                        <!-- Left Side Inputs Form -->
+                        <div class="form-group" style="flex:1.2; display: flex; flex-direction: column; gap: 14px;">
+                            <div class="form-row">
                                 <div class="form-group">
-                                    <label class="form-label">Banner Style</label>
-                                    <select id="banner_type" class="form-select">
-                                        <option value="info">Informational (Blue)</option>
-                                        <option value="warning">Warning (Yellow)</option>
-                                        <option value="error">Critical Incident (Red)</option>
+                                    <label class="form-label">Target User ID / معرف المستخدم</label>
+                                    <input id="action_target_user_id" type="text" class="form-input" placeholder="User ID (e.g. 123456789012345678)">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Action Type / نوع الإجراء</label>
+                                    <select id="action_type_select" class="form-select">
+                                        <option value="alert">Alert / تنبيه</option>
+                                        <option value="update">Update / تحديث</option>
+                                        <option value="note">Note / ملاحظة</option>
+                                        <option value="kick">Kick / طرد</option>
+                                        <option value="ban">Ban / حظر</option>
                                     </select>
                                 </div>
                             </div>
-                            <input id="banner_text" type="text" class="form-input" placeholder="e.g. Scheduled maintenance window in 2 hours.">
-                        </div>
 
-                        <!-- Targeted User Popup -->
-                        <div class="form-group" style="flex:1;">
-                            <label class="form-label">User-Targeted Login Popup</label>
-                            <input id="popup_target_user_id" type="text" class="form-input" placeholder="Target User Discord ID" style="margin-bottom: 8px;">
-                            <input id="popup_title" type="text" class="form-input" placeholder="Popup Title" style="margin-bottom: 8px;">
-                            <textarea id="popup_message" class="form-textarea" placeholder="Detailed message displayed on target user login..." style="margin-bottom: 8px;"></textarea>
-                            <div class="switch-item" style="margin-bottom: 12px;">
-                                <div class="switch-info">
-                                    <span class="switch-title">Force Dismissal</span>
-                                    <span class="switch-desc">User must click "I Understand" to proceed.</span>
-                                </div>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="popup_force_dismiss" checked="">
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
-                            <button id="btn_send_user_popup" type="button" class="btn-action btn-action-primary">
-                                <i class="fa-solid fa-paper-plane"></i> Dispatch User Notice
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 5. Access Control & Blacklist Management -->
-                <div class="settings-card full-width">
-                    <div class="card-header-group">
-                        <div class="card-header-left">
-                            <i class="fa-solid fa-user-slash card-header-icon"></i>
-                            <h2 class="card-header-title">Access Control &amp; Blacklist Management</h2>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <!-- User Blacklist Form -->
-                        <div class="form-group">
-                            <label class="form-label">Blacklist User</label>
-                            <input id="blacklist_user_id" type="text" class="form-input" placeholder="Discord User ID (e.g. 123456789012345678)" style="margin-bottom: 8px;">
-                            <div class="form-row" style="margin-bottom: 8px;">
+                            <div class="form-row">
                                 <div class="form-group">
-                                    <select id="blacklist_user_duration" class="form-select">
-                                        <option value="permanent">Permanent Ban</option>
-                                        <option value="24h">24 Hours</option>
-                                        <option value="7d">7 Days</option>
-                                        <option value="30d">30 Days</option>
+                                    <label class="form-label">Badge Color / اللون</label>
+                                    <select id="action_color_select" class="form-select">
+                                        <option value="red">Red / أحمر</option>
+                                        <option value="yellow">Yellow / أصفر</option>
+                                        <option value="green">Green / أخضر</option>
+                                        <option value="black">Black / أسود</option>
+                                        <option value="white">White / أبيض</option>
+                                        <option value="orange">Orange / برتقالي</option>
                                     </select>
                                 </div>
-                            </div>
-                            <input id="blacklist_user_reason" type="text" class="form-input" placeholder="Reason for blacklist..." style="margin-bottom: 12px;">
-                            <button id="btn_add_user_blacklist" type="button" class="btn-action btn-action-primary">
-                                <i class="fa-solid fa-user-xmark"></i> Ban User
-                            </button>
-                        </div>
-
-                        <!-- Guild Blacklist Form -->
-                        <div class="form-group">
-                            <label class="form-label">Blacklist Guild (Server)</label>
-                            <input id="blacklist_guild_id" type="text" class="form-input" placeholder="Discord Guild ID (e.g. 987654321098765432)" style="margin-bottom: 8px;">
-                            <div class="switch-item" style="margin-bottom: 8px;">
-                                <div class="switch-info">
-                                    <span class="switch-title">Auto-Leave Server</span>
-                                    <span class="switch-desc">Bot will immediately leave target server upon blacklist.</span>
+                                <div class="form-group">
+                                    <label class="form-label">Action Duration / مدة الإجراء</label>
+                                    <input id="action_duration_input" type="text" class="form-input" placeholder="e.g. 7 Days / Permanent / 2 Hours">
                                 </div>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="blacklist_guild_autoleave" checked="">
-                                    <span class="slider"></span>
-                                </label>
                             </div>
-                            <input id="blacklist_guild_reason" type="text" class="form-input" placeholder="Reason for server blacklist..." style="margin-bottom: 12px;">
-                            <button id="btn_add_guild_blacklist" type="button" class="btn-action btn-action-primary">
-                                <i class="fa-solid fa-server"></i> Ban Guild
+
+                            <div class="form-group">
+                                <label class="form-label">Notice Title / عنوان الرسالة</label>
+                                <input id="action_title_input" type="text" class="form-input" placeholder="Title for user notice">
+                            </div>
+
+                            <div class="form-group">
+                                <label class="form-label">Notice Content / نص الرسالة</label>
+                                <textarea id="action_message_input" class="form-textarea" placeholder="Detailed message displayed on target user dashboard..."></textarea>
+                            </div>
+
+                            <button id="btn_send_user_action" type="button" class="btn-action btn-action-primary" style="margin-top: 4px;">
+                                <i class="fa-solid fa-paper-plane"></i> Dispatch Action
                             </button>
                         </div>
-                    </div>
 
-                    <!-- Active Blacklists Records -->
-                    <div class="form-group" style="margin-top: 10px;">
-                        <label class="form-label">Active Blacklist Records</label>
-                        <div class="table-container">
-                            <table class="data-table">
-                                <thead>
-                                    <tr>
-                                        <th>Target ID</th>
-                                        <th>Type</th>
-                                        <th>Duration</th>
-                                        <th>Reason</th>
-                                        <th>Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="active_blacklists_tbody">
-                                    <tr>
-                                        <td colspan="5" class="table-empty">No active blacklists recorded in database.</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <!-- Right Side Live Message Preview -->
+                        <div class="form-group" style="flex:1; min-width: 280px;">
+                            <label class="form-label">Dashboard Preview / شكل الرسالة في الداش بورد</label>
+                            <div class="dashboard-preview-card" id="dashboard_notice_preview">
+                                <div class="preview-header">
+                                    <div class="preview-badge badge-red" id="preview_badge">Alert</div>
+                                    <span class="preview-duration" id="preview_duration">Duration: Permanent</span>
+                                </div>
+                                <h3 class="preview-title" id="preview_title">Account Action Notice</h3>
+                                <p class="preview-message" id="preview_message">Your notification message text will be displayed here exactly as seen by the user on the dashboard.</p>
+                                <div class="preview-footer">
+                                    <button type="button" class="preview-btn">Acknowledge</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 6. Logs & Diagnostic Trackers -->
-                <div class="settings-card full-width">
-                    <div class="card-header-group">
-                        <div class="card-header-left">
-                            <i class="fa-solid fa-shield-virus card-header-icon"></i>
-                            <h2 class="card-header-title">Logs &amp; Diagnostics</h2>
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label class="form-label">Unhandled Exceptions &amp; Error Crash Logs</label>
-                            <div id="error_logs_console" class="console-box">[SYSTEM] Log listener initialized. Awaiting system events...</div>
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">Admin Control Audit Trail</label>
-                            <div id="admin_audit_logs_console" class="console-box">[AUDIT] Session active. Tracking administrative changes...</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 7. Emergency Controls & System Operations -->
+                <!-- 5. Emergency Controls & System Operations -->
                 <div class="settings-card full-width">
                     <div class="card-header-group">
                         <div class="card-header-left">
@@ -628,7 +611,7 @@
 
     <script>
         (function () {
-            // Sanitize numeric Discord IDs for user/guild blacklist forms
+            // Sanitize numeric Discord IDs
             const sanitizeIdInput = (inputEl) => {
                 if (!inputEl) return;
                 inputEl.addEventListener('input', () => {
@@ -637,10 +620,9 @@
                 });
             };
 
-            sanitizeIdInput(document.getElementById('blacklist_user_id'));
-            sanitizeIdInput(document.getElementById('blacklist_guild_id'));
-            sanitizeIdInput(document.getElementById('popup_target_user_id'));
+            sanitizeIdInput(document.getElementById('action_target_user_id'));
         })();
     </script>
 
-</body></html>
+</body>
+</html>

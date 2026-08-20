@@ -151,7 +151,39 @@ const guild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guil
     };
 }
 
-module.exports = { attachDashboardUser, requireDiscordPermission, dashboardCooldown, PermissionsBitField };
+// ============================================================================
+// [NEW] requirePanelOwner - حماية Adminpanel.html فقط
+// ============================================================================
+// مستقل تماماً عن requireDiscordPermission/dashboard_staff عمداً: ذاك النظام
+// "هل هذا العضو staff بسيرفر معيّن؟" (per-guild)، وهذا "هل هذا بالضبط أنت؟"
+// (شخص واحد، عبر كل السيرفرات). يقارن req.dashboardUser.discordId (المُحلَّل
+// مسبقاً بـ attachDashboardUser من توكن Supabase الحقيقي) مع SUPER_ADMIN_DISCORD_ID
+// الثابت بـ .env - مو جدول قاعدة بيانات، عشان ما يحتاج استعلام إضافي بكل
+// طلب وما يصير قابل للتعديل من أي مكان غير الملقّم نفسه.
+//
+// [مهم] أي فشل هنا (بدون هوية، أو هوية ما تطابق) يرجّع 404 بالضبط - نفس
+// شكل route غير موجود إطلاقاً - مو 401/403. الهدف: أي حد غيرك يحاول يوصل
+// لأي route تحت هذا الميدلوير ما يعرف حتى إن فيه شي هناك أصلاً.
+// ============================================================================
+function requirePanelOwner(req, res, next) {
+    const ownerId = process.env.SUPER_ADMIN_DISCORD_ID;
+
+    if (!ownerId) {
+        // فشل إعداد بالسيرفر نفسه (متغير البيئة ناقص) - ما نكشف السبب للطالب،
+        // بس نسجل بالكونسول عشان صاحب السيرفر يلاحظ فوراً.
+        console.error('[Panel Security] SUPER_ADMIN_DISCORD_ID is not set in .env - Adminpanel is fully locked out.');
+        return res.status(404).end();
+    }
+
+    const discordId = req.dashboardUser?.discordId;
+    if (!discordId || discordId !== ownerId) {
+        return res.status(404).end();
+    }
+
+    next();
+}
+
+module.exports = { attachDashboardUser, requireDiscordPermission, requirePanelOwner, dashboardCooldown, PermissionsBitField };
 
 // ============================================================================
 // [NEW] dashboardCooldown - كولداون 3 ثواني عام على كل عمليات الحفظ/التنفيذ

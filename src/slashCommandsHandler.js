@@ -97,9 +97,28 @@
 // [RESOLVED as of v5.2] lock, unlock, serverinfo, checkpermissions are now
 // registered in deploy-commands.js and reachable from real Discord
 // interactions. userinfo now has both a case (below) and a registration.
+//
+// [v5.3 CHANGES]
+//
+// [NEW] Added slash support for the 10 ticket-system commands bundled in
+// ticketsystem.js (module name: 'claim') - claim, unclaim, transfer, add,
+// remove, bump, close, ticket-blacklist, ticket-unblacklist, rename. None
+// of these had any slash case or registration before (ticketsystem.js's
+// own header explicitly says "prefix commands only for now"). 'ping-user'
+// (an alias of 'bump') was intentionally left prefix-only - see the 'bump'
+// case's comment and deploy-commands.js's notes on this bundle.
 // ============================================================================
 
-const { EmbedBuilder, PermissionsBitField } = require('discord.js');
+// [v5.4 CHANGES]
+//
+// [NEW] Added slash support for help.js - a brand new command (not a
+// pre-existing prefix command being bridged). Public/Everyone by design,
+// no permission gate on either side (matches serverinfo/poll/avatar's
+// existing pattern) - see help.js's own header for the full reasoning
+// on its embed content and permission labels.
+// ============================================================================
+
+const { EmbedBuilder, PermissionsBitField, Role } = require('discord.js');
 const path = require('path');
 
 // Define the absolute path to the commands folder (src/commands)
@@ -147,6 +166,19 @@ function buildFakeMessage(interaction, content, targetUser = null, targetChannel
  */
 async function handleSlashCommand(interaction, dbUtils) {
     const { commandName, guild, channel, options } = interaction;
+
+    // [NEW] Panel Gate - Maintenance Mode + Bot-Wide Ban
+    // ------------------------------------------------------------------
+    // نفس checkPanelGate المُصدَّرة من commandhandler.js بالضبط (مصدر حقيقة
+    // واحد مشترك مع مسار البريفكس) - *قبل* حتى فحص الكولداون عمداً، عشان
+    // مستخدم محظور أو وضع الصيانة يوقف كل شي فوراً بدون أي منطق إضافي.
+    // Full Shutdown ما يُفحص هنا - يُبتلع أعلى بكثير بـ client.js نفسه.
+    const { checkPanelGate } = require('./commands/commandhandler');
+    const gate = checkPanelGate(interaction.user.id);
+    if (gate.blocked) {
+        if (gate.silent) return; // بان صامت - بدون أي رد إطلاقاً (يفشل تلقائياً بعد 3 ثواني، نفس فلسفة سكوت الكولداون تحت)
+        return interaction.reply({ content: gate.message, ephemeral: true }).catch(() => {});
+    }
 
     // [FIX 2] كولداون موحّد - نفس Map المشترك مع البريفكس (commandhandler.js).
     // *قبل* deferReply عمداً - راجع الشرح الكامل بأعلى الملف عن قيد ديسكورد
@@ -541,6 +573,144 @@ async function handleSlashCommand(interaction, dbUtils) {
                 const fakeMessage = buildFakeMessage(interaction, content, target || null);
                 const userInfoModule = require(path.join(COMMANDS_PATH, 'userinfo.js'));
                 return await userInfoModule.run(fakeMessage, dbUtils);
+            }
+
+            // ============================================================
+            // [NEW v5.3] Ticket System Bundle (ticketsystem.js, module
+            // name: 'claim') - claim/unclaim/transfer/add/remove/bump/
+            // close/ticket-blacklist/ticket-unblacklist/rename. All 10
+            // content strings below were built by tracing ticketsystem.js's
+            // run() switch statement branch-by-branch - see that file's
+            // own comments and deploy-commands.js's notes on this bundle
+            // for the reasoning (especially 'add'/'remove', which accept a
+            // Mentionable - user OR role - and 'ticket-blacklist', where an
+            // explicit 'permanent' fallback is required to avoid the same
+            // duration/reason ambiguity mute.js's slash bridge already
+            // avoids the same way).
+            // ============================================================
+
+            // ✅ run(): 'claim' branch takes no arguments at all.
+            case 'claim': {
+                const content = 'claim';
+                const fakeMessage = buildFakeMessage(interaction, content, null);
+                const ticketModule = require(path.join(COMMANDS_PATH, 'ticketsystem.js'));
+                return await ticketModule.run(fakeMessage, dbUtils);
+            }
+
+            // ✅ run(): 'unclaim' branch takes no arguments at all.
+            case 'unclaim': {
+                const content = 'unclaim';
+                const fakeMessage = buildFakeMessage(interaction, content, null);
+                const ticketModule = require(path.join(COMMANDS_PATH, 'ticketsystem.js'));
+                return await ticketModule.run(fakeMessage, dbUtils);
+            }
+
+            // ✅ run(): 'transfer' branch reads a single required target
+            // member at args[0] via resolveMember() (mention or raw ID).
+            case 'transfer': {
+                const target = options.getUser('user');
+                const content = `transfer <@${target.id}>`;
+                const fakeMessage = buildFakeMessage(interaction, content, target);
+                const ticketModule = require(path.join(COMMANDS_PATH, 'ticketsystem.js'));
+                return await ticketModule.run(fakeMessage, dbUtils);
+            }
+
+            // ✅ run(): 'add' branch reads args[0] via resolveMemberOrRole(),
+            // which checks the role cache FIRST, then falls back to a
+            // member fetch. A Mentionable option can resolve to either a
+            // GuildMember/User or a Role, so we branch on which one came
+            // back and rebuild the exact matching mention syntax
+            // (<@id> for a user, <@&id> for a role) that resolveMemberOrRole
+            // expects to strip.
+            case 'add': {
+                const mentionable = options.getMentionable('target');
+                const isRole = mentionable instanceof Role;
+                const content = isRole ? `add <@&${mentionable.id}>` : `add <@${mentionable.id}>`;
+                const fakeMessage = buildFakeMessage(interaction, content, isRole ? null : mentionable);
+                const ticketModule = require(path.join(COMMANDS_PATH, 'ticketsystem.js'));
+                return await ticketModule.run(fakeMessage, dbUtils);
+            }
+
+            // ✅ run(): 'remove' branch - identical shape to 'add' above.
+            case 'remove': {
+                const mentionable = options.getMentionable('target');
+                const isRole = mentionable instanceof Role;
+                const content = isRole ? `remove <@&${mentionable.id}>` : `remove <@${mentionable.id}>`;
+                const fakeMessage = buildFakeMessage(interaction, content, isRole ? null : mentionable);
+                const ticketModule = require(path.join(COMMANDS_PATH, 'ticketsystem.js'));
+                return await ticketModule.run(fakeMessage, dbUtils);
+            }
+
+            // ✅ run(): 'bump'/'ping-user' branch takes no arguments.
+            // 'ping-user' is intentionally NOT registered as a separate
+            // slash command - see deploy-commands.js's note on this bundle.
+            case 'bump': {
+                const content = 'bump';
+                const fakeMessage = buildFakeMessage(interaction, content, null);
+                const ticketModule = require(path.join(COMMANDS_PATH, 'ticketsystem.js'));
+                return await ticketModule.run(fakeMessage, dbUtils);
+            }
+
+            // ✅ run(): 'close' branch joins all remaining args as the
+            // reason, falling back to 'No reason provided' when empty -
+            // matched by omitting the reason token entirely when absent.
+            case 'close': {
+                const reason = options.getString('reason');
+                const content = reason ? `close ${reason}` : 'close';
+                const fakeMessage = buildFakeMessage(interaction, content, null);
+                const ticketModule = require(path.join(COMMANDS_PATH, 'ticketsystem.js'));
+                return await ticketModule.run(fakeMessage, dbUtils);
+            }
+
+            // ✅ run(): 'ticket-blacklist' branch reads args[0] = target ID,
+            // then attempts to parse args[1] as a duration; if that parse
+            // fails, EVERYTHING from args[1] onward (including what would
+            // have been the duration slot) is treated as the reason instead,
+            // and durationArg is forced to 'permanent'. To avoid this same
+            // ambiguity when the slash 'duration' option is omitted (a
+            // reason that happens to start with something duration-shaped
+            // would otherwise be silently swallowed as a duration), we
+            // explicitly send 'permanent' as the duration token whenever
+            // the option is absent - identical fallback strategy to the
+            // existing 'mute' case's '28d' default.
+            case 'ticket-blacklist': {
+                const target = options.getUser('user');
+                const duration = options.getString('duration');
+                const reason = options.getString('reason') || 'No reason provided';
+                const content = `ticket-blacklist <@${target.id}> ${duration || 'permanent'} ${reason}`;
+                const fakeMessage = buildFakeMessage(interaction, content, target);
+                const ticketModule = require(path.join(COMMANDS_PATH, 'ticketsystem.js'));
+                return await ticketModule.run(fakeMessage, dbUtils);
+            }
+
+            // ✅ run(): 'ticket-unblacklist' branch reads only args[0] =
+            // target ID, no reason or duration involved.
+            case 'ticket-unblacklist': {
+                const target = options.getUser('user');
+                const content = `ticket-unblacklist <@${target.id}>`;
+                const fakeMessage = buildFakeMessage(interaction, content, target);
+                const ticketModule = require(path.join(COMMANDS_PATH, 'ticketsystem.js'));
+                return await ticketModule.run(fakeMessage, dbUtils);
+            }
+
+            // ✅ run(): 'rename' branch joins all remaining args as the new
+            // channel name - matched by a single required string option.
+            case 'rename': {
+                const newName = options.getString('name');
+                const content = `rename ${newName}`;
+                const fakeMessage = buildFakeMessage(interaction, content, null);
+                const ticketModule = require(path.join(COMMANDS_PATH, 'ticketsystem.js'));
+                return await ticketModule.run(fakeMessage, dbUtils);
+            }
+
+            // ✅ run(): 'help' branch takes no arguments and has no
+            // permission check at all - matches its public registration
+            // (no setDefaultMemberPermissions call) in deploy-commands.js.
+            case 'help': {
+                const content = 'help';
+                const fakeMessage = buildFakeMessage(interaction, content, null);
+                const helpModule = require(path.join(COMMANDS_PATH, 'help.js'));
+                return await helpModule.run(fakeMessage, dbUtils);
             }
 
             case 'settings':

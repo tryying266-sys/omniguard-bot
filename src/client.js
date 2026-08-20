@@ -44,5 +44,35 @@ client.commands = new Collection();
  */
 client.cooldowns = new Collection();
 
+/**
+ * [NEW] FULL SHUTDOWN GATE - نقطة اختناق واحدة لكل أحداث ديسكورد
+ * ----------------------------------------------------------------------
+ * discord.js يستدعي داخلياً client.emit('messageCreate', ...) / ('guildMemberAdd', ...)
+ * / ('interactionCreate', ...) إلخ لكل حدث حي يوصل من الـ Gateway - وكل
+ * الأنظمة (ترحيب، تذاكر، ردود تلقائية، أوامر، AntiAlt...) مسجّلة كـ .on()
+ * على هذي الأحداث بملفات منفصلة. بدل ما نروح نضيف فحص بكل ملف منها (خطر
+ * ونشر تغييرات بكل مكان)، نغلّف .emit() نفسه هنا - قبل أي ملف ثاني يسجل
+ * أي listener - فلو Full Shutdown مفعّل، الحدث يُبتلع بصمت من هنا ولا توصل
+ * ولا وحدة من الأنظمة تشتغل إطلاقاً. البوت "ميت" فعلياً بكل وظائفه، تمامًا
+ * حسب الطلب - بدون أي لمسة على welcome.js/ticketAutomation.js/autoRespond.js/
+ * AutoMod.js/AntiAlt.js.
+ *
+ * [استثناء وحيد] 'ready' يمر دايماً - البوت لازم يبقى متصل بالـ Gateway
+ * (عشان الداشبورد يقدر يطفي الإغلاق لاحقاً عبر require('./index') بدون
+ * الحاجة لإعادة تشغيل العملية كاملة)، فقط ردوده/أفعاله تتوقف، مو اتصاله.
+ *
+ * [ملاحظة معمارية] getBotState() هنا Sync بالكامل (كاش بالذاكرة يتحدّث دوري
+ * من botState.js) - عمداً، عشان ما نبطئ ولا حدث واحد بـ await فعلي.
+ */
+const { getBotState } = require('./supabase/botState');
+
+const originalEmit = client.emit.bind(client);
+client.emit = function (event, ...args) {
+    if (event !== 'ready' && getBotState().fullShutdownEnabled) {
+        return false; // ابتلاع صامت - ولا listener هيشوف هذا الحدث إطلاقاً
+    }
+    return originalEmit(event, ...args);
+};
+
 // Export the client instance as a singleton
 module.exports = client;

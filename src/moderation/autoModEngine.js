@@ -1,7 +1,7 @@
 // استدعاء المكونات والدوال المطلوبة
-const queries = require('../database/queries'); // تجنب خطأ عدم تعريف queries
+const queries = require('../database/queries');
 
-// استدعاء جميع الإعدادات من ملف cow في سطر واحد
+// استدعاء جميع الإعدادات من ملف cow (تم إزالة التكرار)
 const { 
     klab, 
     albagr, 
@@ -11,8 +11,6 @@ const {
     youAreBadBoy,
     goAwayBadThingGo, 
     youAreNotKidding, 
-    cow: cowConfig, 
-    donkey: donkeyConfig, 
     maeez, 
     goat,
     piggy 
@@ -24,7 +22,8 @@ const logError = (error) => console.log(error);
 // دالة المعالجة والتحديث
 async function handleUpdate(req, res) {
     try {
-        const { tableName, guildId, updates } = req.body;
+        // استخراج البيانات من req.body داخل نطاق الدالة
+        const { tableName, guildId, updates, message } = req.body;
 
         // تنفيذ التحديث في قاعدة البيانات
         const result = await queries.universalUpdate(tableName, guildId, updates);
@@ -37,6 +36,8 @@ async function handleUpdate(req, res) {
         res.status(500).json({ success: false, error: err.message });
     }
 }
-
-//bro i am giving you a message to understand it and you didint answer you take it like real thing hahaha
-const {message} = req.body;
+const autoModEngine = { handleUpdate };
+async function autoModEngineFunction(req,res) {
+    return autoModEngine.handleUpdate(req, res);
+}
+fucnt

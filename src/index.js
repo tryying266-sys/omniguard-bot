@@ -114,6 +114,22 @@ client.once('ready', async () => {
         } catch (dbError) {
         console.error('[OmniGuard] Database Connection Error:', dbError.message);
     }
+
+    // [NEW] Admin Control Panel - يبدأ تحديث كاش حالة البوت (Full Shutdown /
+    // Maintenance / Bans) كل 10 ثواني. لازم يبدأ بعد ready مباشرة عشان
+    // client.js (المُحمَّل قبل هذا بكثير) يقدر يقرأ حالة فعلية من أول لحظة،
+    // مو قيم افتراضية فاضية.
+    const { startBotStatePolling, getBotState } = require('./supabase/botState');
+    startBotStatePolling();
+
+    // [NEW] تطبيق Online Status المحفوظ بالـ Adminpanel وقت الإقلاع - لو
+    // تغيّر لاحقاً وقت التشغيل، panelRouter.js يحدّثه حي مباشرة بنفسه.
+    try {
+        const savedState = getBotState();
+        client.user.setPresence({ status: savedState.onlineStatus || 'online' });
+    } catch (presenceError) {
+        console.error('[OmniGuard] Failed to apply saved presence:', presenceError.message);
+    }
 });
 
 // ============================================

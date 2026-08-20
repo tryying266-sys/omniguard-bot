@@ -71,6 +71,7 @@ const fs = require('fs');
 const path = require('path');
 const { Collection } = require('discord.js');
 const { isChannelAllowed, isMemberCommandExempt } = require('./GRS');
+const { getBotState, isUserBotBanned } = require('../supabase/botState');
 
 // Collection used to store commands in memory for fast lookup
 const commands = new Collection();
@@ -110,6 +111,34 @@ function checkCommandCooldown(userId) {
     lastCommandAt.set(userId, now);
     cooldownWarned.delete(userId);
     return { onCooldown: false, shouldWarn: false };
+}
+
+/**
+ * [NEW] checkPanelGate - نقطة الحقيقة الوحيدة لبوابة Maintenance Mode +
+ * Bot-Wide Ban (Adminpanel). مُصدَّرة ومُستخدمة من هنا (handleMessage) *و*
+ * slashCommandsHandler.js معاً - نفس checkPanelGate بالضبط، مو نسخة موازية،
+ * بنفس فلسفة checkCommandCooldown فوق بالضبط.
+ *
+ * Full Shutdown عمداً *غير* مفحوص هنا - يُبتلع أعلى بكثير (client.js
+ * emit-wrapper)، فهذي الدالة أصلاً ما توصلها استدعاءات لو Full Shutdown شغّال.
+ *
+ * @param {string} userId - discord.js message.author.id أو interaction.user.id
+ * @returns {{blocked: boolean, silent?: boolean, message?: string}}
+ */
+function checkPanelGate(userId) {
+    const state = getBotState();
+
+    // 1) بان بوت-وايد - له الأولوية، ويُفحص حتى لو الصيانة مطفية
+    if (isUserBotBanned(userId)) {
+        return { blocked: true, silent: true }; // بدون رد - المستخدم المحظور ما يشوف حتى تأكيد إنه محظور
+    }
+
+    // 2) وضع الصيانة - صاحب اللوحة (Adminpanel owner) يعدّي دايماً
+    if (state.maintenanceEnabled && userId !== process.env.SUPER_ADMIN_DISCORD_ID) {
+        return { blocked: true, silent: false, message: state.maintenanceMessage };
+    }
+
+    return { blocked: false };
 }
 
 /**
@@ -200,6 +229,20 @@ console.log('--------------------------------------------------');
 async function handleMessage(message, dbUtils, guildSettings) {
     // Basic safety checks first
     if (message.author.bot || !message.guild) return false;
+
+    // [NEW] Panel Gate - Maintenance Mode + Bot-Wide Ban
+    // ------------------------------------------------------------------
+    // ملاحظة: Full Shutdown ما يُفحص هنا إطلاقاً - يُبتلع أعلى بكثير بـ
+    // client.js (client.emit override)، فهذا الكود أصلاً ما يوصله الاستدعاء
+    // لو Full Shutdown مفعّل. هذا الفحص فقط لحالتين: Maintenance Mode (يعدّي
+    // بس صاحب الـ Adminpanel، الباقي يشوف رسالة التنبيه) وBan البوت-وايد
+    // (يمنع مستخدم معيّن بغض النظر عن حالة الصيانة).
+    const gate = checkPanelGate(message.author.id);
+    if (gate.blocked) {
+        if (gate.silent) return false; // بان صامت - بدون أي رد إطلاقاً
+        message.reply({ content: gate.message }).catch(() => {});
+        return false;
+    }
 
     // We only need the command name here to pick the right file
     // (each command file re-parses message.content by itself to get args).
@@ -335,5 +378,6 @@ async function handleMessage(message, dbUtils, guildSettings) {
 module.exports = {
     handleMessage,
     checkCommandCooldown, // [FIX v1.1] الآن مُصدَّرة فعلياً - يستخدمها slashCommandsHandler.js
+    checkPanelGate, // [NEW] Maintenance/Ban - يستخدمها slashCommandsHandler.js بنفس الطريقة
     commands // Export the Collection for later use (e.g. slash command sync)
 };

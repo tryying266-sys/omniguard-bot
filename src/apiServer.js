@@ -14,7 +14,9 @@ const apiRouter = require('./supabase/apiRouter');
 const dbUtils = require('./supabase/dbUtils');
 // [SECURITY REWRITE] طبقة الهوية والصلاحيات الموحّدة (راجع authMiddleware.js) -
 // نفس التطبيق يستخدمه apiRouter.js كمان.
-const { attachDashboardUser, requireDiscordPermission, dashboardCooldown, PermissionsBitField } = require('./supabase/authMiddleware');
+const { attachDashboardUser, requireDiscordPermission, requirePanelOwner, dashboardCooldown, PermissionsBitField } = require('./supabase/authMiddleware');
+const panelRouter = require('./supabase/panelRouter');
+const panelQueries = require('./supabase/panelQueries');
 const DISCORD_API = 'https://discord.com/api/v10';
 const botHeaders = { Authorization: `Bot ${process.env.DISCORD_TOKEN}` };
 
@@ -38,6 +40,27 @@ const PORT = process.env.PORT || process.env.DASHBOARD_API_PORT || 4000;
 // Express Middleware
 app.use(express.json());
 app.use(cors());
+
+// ============================================
+// [NEW] Global Bot-Wide Ban Gate (covers the ENTIRE dashboard, every route)
+// ============================================
+// الحظر من الـ Adminpanel المطلوب يغطي الداشبورد كامل + أوامر الشات معاً
+// (راجع commandhandler.js/slashCommandsHandler.js لجهة الشات). هذا الجزء
+// يغطي جهة الداشبورد: بوابة واحدة عامة قبل أي route، بدل ما نكرر الفحص
+// بكل route لحاله (وفيه أكثر من نقطة تسجّل attachDashboardUser بهذا
+// الملف نفسه). يعتمد على نفس كاش botState.js اللي يستخدمه البوت - مصدر
+// حقيقة واحد، بدون استعلام Supabase إضافي بكل طلب.
+const { isUserBotBanned } = require('./supabase/botState');
+app.use(async (req, res, next) => {
+    const token = req.headers['x-user-token'];
+    if (!token) return next(); // ما فيه هوية أصلاً - الرفض الطبيعي يصير لاحقاً بمكانه المعتاد
+
+    await attachDashboardUser(req, res, () => {});
+    if (req.dashboardUser?.discordId && isUserBotBanned(req.dashboardUser.discordId)) {
+        return res.status(403).json({ error: 'Your account has been banned from using OmniGuard.', banned: true });
+    }
+    next();
+});
 
 // ============================================
 // 1. Security Middleware (Authentication)
@@ -163,6 +186,67 @@ app.put('/api/guild/:guildId/nickname', attachDashboardUser, dashboardCooldown, 
 // لازم يُضاف dashboardCooldown لسلسلة الميدلويرات الخاصة فيه يدوياً - نفس
 // ما صار بالضبط بـ route الـ /nickname فوق.
 app.use('/api', attachDashboardUser, apiRouter);
+
+// ============================================
+// 3.5 [NEW] Admin Control Panel (Adminpanel.html) - Owner-Only Surface
+// ============================================
+// [SECURITY DESIGN - مهم تقرأه] نفس فلسفة كل صفحات الداشبورد الموجودة أصلاً:
+// ملف الـ HTML/JS نفسه "عام" تقنياً (Static Asset)، لكن فاضي وظيفياً بدون
+// أي بيانات - كل استدعاء API فعلي (verify/state/search/ban/actions...)
+// يمر عبر requirePanelOwner ويرجّع 404 لأي حد غيرك. هذا اضطراري تقنياً،
+// مو تهاون: توكن الهوية (X-User-Token) يُرسل فقط من JS بعد ما الصفحة تفتح
+// وتتحقق من جلسة Supabase بالمتصفح (نفس آلية dashboard.js بالضبط) - أول
+// GET خام للصفحة (فتح رابط بالمتصفح) ما يقدر يحمل هيدر مخصص أصلاً، فما
+// ينفع نحط requirePanelOwner على تقديم الملف نفسه (كان سيقفل حتى عليك أنت).
+//
+// الحماية الفعلية إذن هي: (1) مسار سري غير متوقَّع PANEL_SECRET_PATH -
+// محتاج تحدده بـ .env، ما تحزره أي دودة بحث أو زائر عشوائي، (2) الصفحة
+// فاضية تمامًا بدون أي بيانات حقيقية لين تنجح requirePanelOwner على كل
+// نداء API. أي حد غيرك يفتح الرابط (لو خمّنه) بيشوف صفحة فاضية ما تشتغل،
+// وكل استدعاء API يرجع 404 بالضبط.
+if (!process.env.PANEL_SECRET_PATH) {
+    console.error('[Panel Security] PANEL_SECRET_PATH is not set in .env - Adminpanel will NOT be reachable at all until you set it (e.g. PANEL_SECRET_PATH=/x7k9-ctrl-2891).');
+}
+const PANEL_SECRET_PATH = process.env.PANEL_SECRET_PATH || '/__panel_disabled__';
+const privatePanelFolder = path.join(__dirname, '..', 'private-panel');
+app.use(PANEL_SECRET_PATH, express.static(privatePanelFolder, { extensions: ['html'] }));
+
+// كل عمليات الأدمن الفعلية (بحث، حظر، إشعارات، حالة البوت...) محمية هنا -
+// هذا هو خط الدفاع الحقيقي، مو تقديم الملف فوق.
+app.use('/api/panel', attachDashboardUser, requirePanelOwner, panelRouter);
+
+// ============================================
+// 3.6 [NEW] Account Action Notice - endpoint عام لكل مستخدم داشبورد عادي
+// ============================================
+// مختلف تماماً عن /api/panel/* فوق: هذا لأي مستخدم مسجّل دخول عادي (مو
+// بس صاحب اللوحة) عشان يشوف الإشعار الفعّال المُوجّه له (أو العام/Global)
+// وقت ما يفتح داشبوردة هو - نفس البطاقة "Dashboard Preview" اللي تُبنى
+// بـ Adminpanel.html، لكن هنا الجهة المستقبِلة الفعلية.
+app.get('/api/account-notice', attachDashboardUser, async (req, res) => {
+    if (!req.dashboardUser?.discordId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    try {
+        const notice = await panelQueries.getActiveNoticeForUser(req.dashboardUser.discordId);
+        res.json(notice || null);
+    } catch (error) {
+        console.error('[API Error] Fetch Account Notice:', error.message);
+        res.status(500).json({ error: 'Failed to load account notice' });
+    }
+});
+
+app.post('/api/account-notice/:id/ack', attachDashboardUser, async (req, res) => {
+    if (!req.dashboardUser?.discordId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    try {
+        await panelQueries.acknowledgeNotice(req.params.id, req.dashboardUser.discordId);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('[API Error] Ack Account Notice:', error.message);
+        res.status(500).json({ error: 'Failed to acknowledge notice' });
+    }
+});
 
 // ============================================
 // 4. Static File Hosting
