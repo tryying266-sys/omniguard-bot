@@ -51,7 +51,21 @@ app.use(cors());
 // الملف نفسه). يعتمد على نفس كاش botState.js اللي يستخدمه البوت - مصدر
 // حقيقة واحد، بدون استعلام Supabase إضافي بكل طلب.
 const { isUserBotBanned } = require('./supabase/botState');
+// [FIX] استثناء صريح لمسارات account-notice (GET + POST /:id/ack) من بوابة
+// الحظر العامة. بدونه: المستخدم المحظور يضرب 403 على *كل* طلب - بما فيه
+// بالضبط الطلب اللي يجيب له إشعار "تم حظرك" (Adminpanel.js يسجله بجدول
+// panel_admin_actions بعد الحظر مباشرة)، فتنتج مفارقة: يُمنع من رؤية سبب
+// حظره. هذا الاستثناء لا يوسّع أي صلاحية فعلية - endpoint الحصول على
+// الإشعار ما يرجّع إلا إشعار المستخدم نفسه (getActiveNoticeForUser)، ولا
+// يفتح أي جزء ثاني من الداشبورد أو الـ API.
+const BAN_GATE_EXEMPT_PATHS = ['/api/account-notice'];
+function isBanGateExempt(path) {
+    return BAN_GATE_EXEMPT_PATHS.some(p => path === p || path.startsWith(`${p}/`));
+}
+
 app.use(async (req, res, next) => {
+    if (isBanGateExempt(req.path)) return next();
+
     const token = req.headers['x-user-token'];
     if (!token) return next(); // ما فيه هوية أصلاً - الرفض الطبيعي يصير لاحقاً بمكانه المعتاد
 
