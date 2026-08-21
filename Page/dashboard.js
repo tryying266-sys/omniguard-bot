@@ -230,8 +230,8 @@ const FEATURE_FLAG_PAGE_MAP = {
     'anti-alt.html': 'anti_alt',
     'autorespond.html': 'auto_respond',
     'category.html': 'ticket_category',
-    'autolog.html': 'ticket_auto_log',
-    'permissionspanel.html': 'ticket_panel',
+    'AutoLog.html': 'ticket_auto_log',
+    'Permissionspanel.html': 'ticket_panel',
     'custom-messages.html': 'custom_messages',
     'level.html': 'level_system',
     'commands.html': 'command_customization'
@@ -312,7 +312,8 @@ async function applyFeatureFlagVisibility() {
 const NOTICE_BADGE_ICONS = {
     alert: 'fa-triangle-exclamation',
     update: 'fa-arrow-up-right-dots',
-    note: 'fa-note-sticky'
+    note: 'fa-note-sticky',
+    ban: 'fa-gavel'
 };
 const NOTICE_BADGE_COLORS = {
     red: '#ff3344', yellow: '#faa61a', green: '#3ba55d',

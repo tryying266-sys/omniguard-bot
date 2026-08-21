@@ -483,6 +483,30 @@ async function dispatchAction() {
                 method: 'POST',
                 body: JSON.stringify({ targetUserId, reason: message, duration: duration || null })
             });
+
+            // [NEW] الحظر نفسه نجح - نسجل كمان Account Action Notice (نفس
+            // آلية alert/update/note) عشان يبان للمستخدم بالداشبورد (لو قدر
+            // يفتحها) ويبقى معروض لين يضغط "I Understand" (requiresAck).
+            // مستقل تماماً عن نجاح/فشل الحظر: لو فشل هذا النداء لأي سبب،
+            // ما نوهم الأدمن إن الحظر فشل - الحظر أصلاً نجح فعلياً.
+            try {
+                await panelFetch('/actions', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        scope,
+                        targetUserId,
+                        actionType: 'ban',
+                        badgeColor,
+                        title,
+                        message,
+                        deliveryChannel,
+                        requiresAck: true
+                    })
+                });
+            } catch (noticeErr) {
+                console.error('[Adminpanel] Ban succeeded but failed to record dashboard notice:', noticeErr.message);
+            }
+
             alert('User banned successfully.');
         } catch (err) {
             alert(`Failed to ban user: ${err.message}`);
