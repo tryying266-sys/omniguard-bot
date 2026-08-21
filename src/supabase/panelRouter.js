@@ -246,6 +246,47 @@ router.delete('/ban/:userId', async (req, res) => {
 });
 
 // ----------------------------------------------------------------------------
+// [NEW] Ban All Users (Global Ban) - فلاق واحد بـ panel_bot_state بدل صف
+// لكل مستخدم (راجع botState.js: isUserBotBanned يستثني السوبر أدمن تلقائياً
+// عشان ما يقفل نفسه بره).
+// ----------------------------------------------------------------------------
+router.post('/ban-all', async (req, res) => {
+    try {
+        const { reason, duration } = req.body;
+
+        let expiresAt = null;
+        if (duration) {
+            const parsed = parseDurationToExpiryDate(duration);
+            if (!parsed || parsed.error) {
+                return res.status(400).json({ error: 'Invalid duration format. Use e.g. 1s, 1m, 1h, 1d, 1w, 1mo, 1y' });
+            }
+            expiresAt = parsed;
+        }
+
+        const state = await panelQueries.setGlobalBan({
+            reason,
+            bannedBy: req.dashboardUser.discordId,
+            expiresAt
+        });
+
+        await botState.invalidateBotState();
+        res.json(state);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+router.delete('/ban-all', async (req, res) => {
+    try {
+        const state = await panelQueries.clearGlobalBan();
+        await botState.invalidateBotState();
+        res.json(state);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ----------------------------------------------------------------------------
 // Admin Actions (Alert / Update / Note) - "Account Action Notice"
 // ----------------------------------------------------------------------------
 router.post('/actions', async (req, res) => {

@@ -51,14 +51,13 @@ app.use(cors());
 // الملف نفسه). يعتمد على نفس كاش botState.js اللي يستخدمه البوت - مصدر
 // حقيقة واحد، بدون استعلام Supabase إضافي بكل طلب.
 const { isUserBotBanned } = require('./supabase/botState');
-// [FIX] استثناء صريح لمسارات account-notice (GET + POST /:id/ack) من بوابة
-// الحظر العامة. بدونه: المستخدم المحظور يضرب 403 على *كل* طلب - بما فيه
-// بالضبط الطلب اللي يجيب له إشعار "تم حظرك" (Adminpanel.js يسجله بجدول
-// panel_admin_actions بعد الحظر مباشرة)، فتنتج مفارقة: يُمنع من رؤية سبب
-// حظره. هذا الاستثناء لا يوسّع أي صلاحية فعلية - endpoint الحصول على
-// الإشعار ما يرجّع إلا إشعار المستخدم نفسه (getActiveNoticeForUser)، ولا
-// يفتح أي جزء ثاني من الداشبورد أو الـ API.
-const BAN_GATE_EXEMPT_PATHS = ['/api/account-notice'];
+// [FIX] استثناء صريح لمسارات account-notice (GET + POST /:id/ack) و
+// maintenance-status من بوابة الحظر العامة. بدونه: المستخدم المحظور
+// يضرب 403 على *كل* طلب - بما فيه بالضبط الطلب اللي يجيب له إشعار "تم
+// حظرك" أو رسالة الصيانة، فتنتج مفارقة: يُمنع من رؤية سبب حظره. هذا
+// الاستثناء لا يوسّع أي صلاحية فعلية - كلا الـ endpoint ترجّع بيانات
+// خاصة بصاحب الطلب نفسه أو عامة غير حساسة فقط.
+const BAN_GATE_EXEMPT_PATHS = ['/api/account-notice', '/api/maintenance-status'];
 function isBanGateExempt(path) {
     return BAN_GATE_EXEMPT_PATHS.some(p => path === p || path.startsWith(`${p}/`));
 }
@@ -259,6 +258,26 @@ app.post('/api/account-notice/:id/ack', attachDashboardUser, async (req, res) =>
     } catch (error) {
         console.error('[API Error] Ack Account Notice:', error.message);
         res.status(500).json({ error: 'Failed to acknowledge notice' });
+    }
+});
+
+// ============================================
+// [NEW] Public Maintenance Status - endpoint عام خفيف (بدون requirePanelOwner)
+// عشان dashboard.js يعرض banner ثابت لو maintenance_enabled=true. مستثنى
+// كمان من بوابة الحظر العامة (BAN_GATE_EXEMPT_PATHS تحت) - حتى المستخدم
+// المحظور له حق يعرف إن السبب صيانة عامة مو حظر شخصي، بدون ما يكشف أي
+// تفاصيل حساسة (full_shutdown/تفاصيل الحظر الجماعي غير مُرجعة هنا إطلاقاً).
+// ============================================
+app.get('/api/maintenance-status', async (req, res) => {
+    try {
+        const status = await panelQueries.getPublicMaintenanceStatus();
+        res.json({
+            maintenance_enabled: status.maintenance_enabled === true,
+            maintenance_message: status.maintenance_message || ''
+        });
+    } catch (error) {
+        console.error('[API Error] Fetch Maintenance Status:', error.message);
+        res.status(500).json({ error: 'Failed to load maintenance status' });
     }
 });
 

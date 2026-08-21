@@ -25,7 +25,12 @@ let cachedBotState = {
     fullShutdownEnabled: false,
     maintenanceEnabled: false,
     maintenanceMessage: 'OmniGuard is currently under scheduled maintenance. Please try again later.',
-    onlineStatus: 'online'
+    onlineStatus: 'online',
+    // [NEW] Ban All Users - فلاق واحد بدل صف لكل مستخدم بـ panel_user_bans
+    // (راجع isUserBotBanned تحت لمنطق الاستثناء + انتهاء الصلاحية).
+    globalBanEnabled: false,
+    globalBanReason: null,
+    globalBanExpires: null
 };
 
 // Set<string> - قائمة IDs المحظورين حالياً (بعد استبعاد المنتهية صلاحيتها)
@@ -48,11 +53,21 @@ async function refreshBotState() {
             .single();
 
         if (!stateErr && stateRow) {
+            // [NEW] الحظر الجماعي "فعّال" فقط لو enabled=true وما انتهت صلاحيته
+            // بعد (نفس فلسفة تصفية panel_user_bans تحت بـ at_expires) - نحسبها
+            // هنا مرة وحدة عشان isUserBotBanned تبقى فحص Set/boolean بسيط بدون
+            // مقارنة تواريخ بكل نداء.
+            const globalBanExpires = stateRow.global_ban_expires || null;
+            const globalBanNotExpired = !globalBanExpires || new Date(globalBanExpires) > new Date();
+
             cachedBotState = {
                 fullShutdownEnabled: stateRow.full_shutdown_enabled === true,
                 maintenanceEnabled: stateRow.maintenance_enabled === true,
                 maintenanceMessage: stateRow.maintenance_message || cachedBotState.maintenanceMessage,
-                onlineStatus: stateRow.online_status || 'online'
+                onlineStatus: stateRow.online_status || 'online',
+                globalBanEnabled: stateRow.global_ban_enabled === true && globalBanNotExpired,
+                globalBanReason: stateRow.global_ban_reason || null,
+                globalBanExpires
             };
         }
 
@@ -98,8 +113,22 @@ function getBotState() {
     return cachedBotState;
 }
 
+/**
+ * [FIX] الحين تفحص الحظر الفردي (panel_user_bans) وكمان الحظر الجماعي
+ * (panel_bot_state.global_ban_enabled) بنداء واحد - كل مكان بالبوت يستخدم
+ * هذي الدالة (commandhandler.js/slashCommandsHandler.js/apiServer.js)
+ * يستفيد من الحظر الجماعي تلقائياً بدون أي تعديل إضافي بتلك الملفات.
+ *
+ * [SAFETY] السوبر أدمن (SUPER_ADMIN_DISCORD_ID بـ .env) مستثنى صراحة من
+ * الحظر الجماعي - وإلا لو فعّله على نفسه بالغلط (أو بالحظر الفردي أيضاً
+ * بنفس المنطق)، يفقد كل وصول للداشبورد/البوت بما فيها Adminpanel نفسها
+ * اللي يقدر يلغي الحظر منها - قفل ذاتي بدون مخرج.
+ */
 function isUserBotBanned(discordId) {
-    return cachedBannedUserIds.has(discordId);
+    if (discordId && discordId === process.env.SUPER_ADMIN_DISCORD_ID) return false;
+    if (cachedBannedUserIds.has(discordId)) return true;
+    if (cachedBotState.globalBanEnabled) return true;
+    return false;
 }
 
 module.exports = {

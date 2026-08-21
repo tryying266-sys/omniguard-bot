@@ -148,6 +148,7 @@ async function initSupabaseSessionBridge() {
         initGlobalHeader(session);
         applyFeatureFlagVisibility(); // [NEW] Adminpanel Feature Flags enforcement
         renderAccountActionNotice(); // [NEW] Adminpanel Alert/Update/Note display
+        renderMaintenanceBanner(); // [NEW] Adminpanel Maintenance Mode banner
     } else {
         // [الحماية المركزية] إذا لم تكن في صفحة تسجيل الدخول ولا توجد جلسة، اخرج فوراً
         if (!window.location.pathname.includes('Login.html')) {
@@ -376,6 +377,51 @@ async function renderAccountActionNotice() {
         }
         overlay.remove();
     });
+}
+
+// ============================================================================
+// [NEW] Maintenance Mode Banner
+// ============================================================================
+// بخلاف Account Action Notice (مودال يحجب الشاشة، حدث لمرة وحدة يحتاج
+// Acknowledge) - وضع الصيانة حالة مستمرة، فبانر ثابت أعلى الصفحة أنسب:
+// يفضل ظاهر طول ما maintenance_enabled=true بدون ما يمنع التفاعل مع باقي
+// الصفحة، ويختفي تلقائياً (بمجرد تحديث الصفحة) لو الأدمن عطّله. الـ
+// endpoint عام (بدون requirePanelOwner) ومستثنى من بوابة الحظر بـ
+// apiServer.js - حتى المستخدم المحظور له حق يعرف السبب صيانة مو حظر.
+async function renderMaintenanceBanner() {
+    let status;
+    try {
+        const response = await fetch(`${window.location.origin}/api/maintenance-status`, { headers: getHeaders() });
+        if (!response.ok) {
+            console.error(`[OmniGuard Dashboard] maintenance-status returned ${response.status}`);
+            return;
+        }
+        status = await response.json();
+    } catch (err) {
+        console.error('[OmniGuard Dashboard] Failed to load maintenance status:', err.message);
+        return;
+    }
+
+    const existing = document.getElementById('omniguard_maintenance_banner');
+    if (!status?.maintenance_enabled) {
+        existing?.remove();
+        return;
+    }
+    if (existing) return; // بانر معروض أصلاً - ما نكرره
+
+    const banner = document.createElement('div');
+    banner.id = 'omniguard_maintenance_banner';
+    banner.style.cssText = `
+        position: sticky; top: 0; z-index: 9998; width: 100%;
+        background-color: #faa61a; color: #0a0a0c; font-family: 'Inter', sans-serif;
+        font-size: 13px; font-weight: 600; text-align: center;
+        padding: 10px 20px; display: flex; align-items: center; justify-content: center; gap: 8px;
+    `;
+    banner.innerHTML = `
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span>${escapeHtmlSafe(status.maintenance_message || 'OmniGuard is currently under scheduled maintenance.')}</span>
+    `;
+    document.body.prepend(banner);
 }
 
 function escapeHtmlSafe(str) {

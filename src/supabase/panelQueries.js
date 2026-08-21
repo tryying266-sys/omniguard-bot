@@ -40,6 +40,67 @@ async function updateBotState(updates, updatedByDiscordId) {
     return data;
 }
 
+/**
+ * [NEW] Ban All Users - فلاق واحد بـ panel_bot_state (نفس صف Singleton
+ * full_shutdown/maintenance) بدل صف منفصل لكل مستخدم. راجع botState.js:
+ * isUserBotBanned() للفحص الفعلي + استثناء السوبر أدمن.
+ */
+async function setGlobalBan({ reason, bannedBy, expiresAt = null }) {
+    const { data, error } = await supabase
+        .from('panel_bot_state')
+        .update({
+            global_ban_enabled: true,
+            global_ban_reason: reason || 'No reason provided',
+            global_ban_by: bannedBy,
+            global_ban_expires: expiresAt,
+            at_updated: new Date().toISOString()
+        })
+        .eq('id', 1)
+        .select()
+        .single();
+
+    if (error) throw new Error(`setGlobalBan failed: ${error.message}`);
+    return data;
+}
+
+async function clearGlobalBan() {
+    const { data, error } = await supabase
+        .from('panel_bot_state')
+        .update({
+            global_ban_enabled: false,
+            global_ban_reason: null,
+            global_ban_by: null,
+            global_ban_expires: null,
+            at_updated: new Date().toISOString()
+        })
+        .eq('id', 1)
+        .select()
+        .single();
+
+    if (error) throw new Error(`clearGlobalBan failed: ${error.message}`);
+    return data;
+}
+
+/**
+ * [NEW] نسخة عامة خفيفة من حالة البوت - تُستخدم من endpoint عام
+ * (/api/maintenance-status) تقدر أي صفحة داشبورد عادية تناديه (بدون
+ * requirePanelOwner). ترجّع بس حقول الصيانة - ما تكشف full_shutdown أو
+ * تفاصيل الحظر الجماعي (حساسة/داخلية) لغير السوبر أدمن.
+ */
+async function getPublicMaintenanceStatus() {
+    const { data, error } = await supabase
+        .from('panel_bot_state')
+        .select('maintenance_enabled, maintenance_message')
+        .eq('id', 1)
+        .single();
+
+    if (error) {
+        console.error('[PanelQueries] getPublicMaintenanceStatus failed:', error.message);
+        return { maintenance_enabled: false, maintenance_message: '' };
+    }
+    return data;
+}
+
 // ----------------------------------------------------------------------------
 // 2. Feature Flags
 // ----------------------------------------------------------------------------
@@ -303,6 +364,9 @@ async function getEffectiveFlagsForUser(discordId) {
 module.exports = {
     getBotState,
     updateBotState,
+    setGlobalBan,
+    clearGlobalBan,
+    getPublicMaintenanceStatus,
     getFeatureFlags,
     setFeatureFlags,
     getEffectiveFlagsForUser,

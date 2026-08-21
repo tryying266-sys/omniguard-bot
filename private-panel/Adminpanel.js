@@ -188,6 +188,35 @@ function renderTargetBar() {
     } else if (leaveBtn) {
         leaveBtn.remove();
     }
+
+    // [NEW] زر إلغاء الحظر الجماعي - يظهر فقط لو الهدف "All Users"، عشان
+    // يكون فيه طريقة يرجع الأدمن الحظر الجماعي لو فعّله (ما كانت موجودة
+    // إطلاقاً بالتصميم الأصلي - راجع dispatchAction/scope==='global' تحت).
+    let disableGlobalBanBtn = document.getElementById('target_bar_disable_global_ban');
+    if (currentTarget.type === 'all_users') {
+        if (!disableGlobalBanBtn) {
+            disableGlobalBanBtn = document.createElement('button');
+            disableGlobalBanBtn.type = 'button';
+            disableGlobalBanBtn.id = 'target_bar_disable_global_ban';
+            disableGlobalBanBtn.className = 'btn-action';
+            disableGlobalBanBtn.style.marginInlineEnd = '8px';
+            disableGlobalBanBtn.innerHTML = '<i class="fa-solid fa-unlock"></i> Disable Global Ban';
+            disableGlobalBanBtn.addEventListener('click', handleDisableGlobalBan);
+            bar.insertBefore(disableGlobalBanBtn, document.getElementById('target_bar_clear'));
+        }
+    } else if (disableGlobalBanBtn) {
+        disableGlobalBanBtn.remove();
+    }
+}
+
+async function handleDisableGlobalBan() {
+    if (!confirm('This will lift the global ban and restore bot/dashboard access for everyone. Continue?')) return;
+    try {
+        await panelFetch('/ban-all', { method: 'DELETE' });
+        alert('Global ban disabled successfully.');
+    } catch (err) {
+        alert(`Failed to disable global ban: ${err.message}`);
+    }
 }
 
 async function handleLeaveGuild() {
@@ -475,14 +504,20 @@ async function dispatchAction() {
             return;
         }
         try {
+            // [NEW] الحظر الجماعي الحين مدعوم فعلياً - فلاق واحد بـ
+            // panel_bot_state (راجع botState.js/panelRouter.js) بدل صف لكل
+            // مستخدم، والسوبر أدمن مستثنى تلقائياً فما يقفل نفسه بره.
             if (scope === 'global') {
-                alert('Bulk-banning ALL users is not supported from this action - ban users individually.');
-                return;
+                await panelFetch('/ban-all', {
+                    method: 'POST',
+                    body: JSON.stringify({ reason: message, duration: duration || null })
+                });
+            } else {
+                await panelFetch('/ban', {
+                    method: 'POST',
+                    body: JSON.stringify({ targetUserId, reason: message, duration: duration || null })
+                });
             }
-            await panelFetch('/ban', {
-                method: 'POST',
-                body: JSON.stringify({ targetUserId, reason: message, duration: duration || null })
-            });
 
             // [NEW] الحظر نفسه نجح - نسجل كمان Account Action Notice (نفس
             // آلية alert/update/note) عشان يبان للمستخدم بالداشبورد (لو قدر
@@ -507,9 +542,9 @@ async function dispatchAction() {
                 console.error('[Adminpanel] Ban succeeded but failed to record dashboard notice:', noticeErr.message);
             }
 
-            alert('User banned successfully.');
+            alert(scope === 'global' ? 'All users banned successfully.' : 'User banned successfully.');
         } catch (err) {
-            alert(`Failed to ban user: ${err.message}`);
+            alert(`Failed to ban: ${err.message}`);
         }
         return;
     }
