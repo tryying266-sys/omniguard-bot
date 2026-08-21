@@ -237,7 +237,30 @@ async function getActiveNoticeForUser(userId) {
     return globalScoped || null;
 }
 
+/**
+ * [FIX] كان يسجّل ack بس بغض النظر عن scope - صحيح لـ scope='global'
+ * (كل شخص يقفلها لحاله، تبقى نشطة للباقين لين ينتهي عمرها/يوقفها الأدمن
+ * يدوياً)، لكن غلط لـ scope='user' (إشعار مخصص لشخص واحد بالتعريف - ما
+ * فيه أي داعي لتتبع ack منفصل، ولازم يختفي نهائياً من أول ضغطة Understand/
+ * Dismiss، وإلا يرجع يبان بأي تحميل صفحة جديد للمستخدم نفسه لأنه يبقى
+ * active=true). الحل: نفحص الـ scope أول - لو 'user' نستدعي
+ * deactivateAdminAction() مباشرة (يخفيه نهائياً، هذا هو "مرة وحدة بس"
+ * المطلوب)، ولو 'global' نبقي السلوك القديم (تسجيل ack بس، يبقى نشط
+ * للباقين).
+ */
 async function acknowledgeNotice(actionId, userId) {
+    const { data: action, error: fetchError } = await supabase
+        .from('panel_admin_actions')
+        .select('scope')
+        .eq('id', actionId)
+        .maybeSingle();
+
+    if (fetchError) throw new Error(`acknowledgeNotice failed: ${fetchError.message}`);
+
+    if (action?.scope === 'user') {
+        return deactivateAdminAction(actionId);
+    }
+
     const { error } = await supabase
         .from('panel_action_acks')
         .upsert({ action_id: actionId, id_user: userId }, { onConflict: 'action_id,id_user' });
