@@ -131,6 +131,7 @@ let cachedUserToken = null;
 async function initSupabaseSessionBridge() {
     if (typeof supabase === 'undefined') {
         console.warn('[OmniGuard Dashboard] Supabase JS SDK not loaded.');
+        removePageGateOverlay(); // [NEW] بدون هذا، الطبقة تفضل عالقة للأبد على الصفحة
         return;
     }
 
@@ -146,13 +147,18 @@ async function initSupabaseSessionBridge() {
     if (session) {
         cachedUserToken = session.access_token;
         initGlobalHeader(session);
-        applyFeatureFlagVisibility(); // [NEW] Adminpanel Feature Flags enforcement
+        applyFeatureFlagVisibility(); // [NEW] Adminpanel Feature Flags enforcement (تُزيل الطبقة بنفسها لما تخلص)
         renderAccountActionNotice(); // [NEW] Adminpanel Alert/Update/Note display
         renderMaintenanceBanner(); // [NEW] Adminpanel Maintenance Mode banner
     } else {
         // [الحماية المركزية] إذا لم تكن في صفحة تسجيل الدخول ولا توجد جلسة، اخرج فوراً
         if (!window.location.pathname.includes('Login.html')) {
             window.location.href = 'Login.html';
+            // الطبقة تُبقى ظاهرة عمداً - بنفس منطق تحويل الصفحات المحظورة فوق
+        } else {
+            // [NEW] إحنا أصلاً بصفحة Login.html - ما فيه أي تحويل صاير، فلازم
+            // نزيل الطبقة وإلا تفضل تغطي صفحة تسجيل الدخول نفسها للأبد
+            removePageGateOverlay();
         }
     }
 
@@ -238,6 +244,35 @@ const FEATURE_FLAG_PAGE_MAP = {
     'commands.html': 'command_customization'
 };
 
+// ============================================================================
+// [NEW] Page Gate Overlay - يمنع "Flash of Unauthorized Content"
+// ============================================================================
+// المشكلة: الـ HTML يترسم فوراً (روابط الشريط الجانبي + محتوى الصفحة كامل)
+// قبل ما applyFeatureFlagVisibility() تخلص نداء الشبكة اللي يحدد شنو مسموح
+// - فيبان فلاش من المحتوى المحظور لجزء من الثانية (أوضح كل ما الشبكة أبطأ،
+// زي بعد فترة سكون بالجوال). الحل: طبقة تغطية كاملة تظهر فوراً وقت تحميل
+// السكربت (نفس أسلوب injectFallbackStyles/markClean تحت - تشتغل قبل حتى
+// DOMContentLoaded)، وما تُزال إلا بعد ما يتأكد الفحص إن الصفحة مسموحة.
+// لو الصفحة محظورة وصار تحويل (window.location.href)، الطبقة تُبقى
+// ظاهرة عمداً (ما تُزال) - الصفحة الجديدة تحقن طبقتها الخاصة فوراً عند
+// تحميلها، فما يصير أي فلاش أثناء الانتقال نفسه.
+function injectPageGateOverlay() {
+    if (document.getElementById('omniguard_page_gate')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'omniguard_page_gate';
+    overlay.style.cssText = `
+        position: fixed; inset: 0; z-index: 99999; background-color: #0a0a0c;
+        display: flex; align-items: center; justify-content: center; gap: 10px;
+        font-family: 'Inter', sans-serif; color: #8e9297; font-size: 13px;
+    `;
+    overlay.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="font-size:18px;"></i> Loading...`;
+    (document.body || document.documentElement).appendChild(overlay);
+}
+
+function removePageGateOverlay() {
+    document.getElementById('omniguard_page_gate')?.remove();
+}
+
 async function applyFeatureFlagVisibility() {
     let flags;
     try {
@@ -245,12 +280,14 @@ async function applyFeatureFlagVisibility() {
         if (!response.ok) {
             const body = await response.text().catch(() => '');
             console.error(`[OmniGuard Dashboard] feature-flags/effective returned ${response.status}: ${body}`);
+            removePageGateOverlay(); // [NEW] فشل الفحص - نفضّل نعرض الصفحة عادي بدل تعليق المستخدم على شاشة تحميل أبدية
             return;
         }
         flags = await response.json();
         console.log('[OmniGuard Dashboard] Effective feature flags:', flags);
     } catch (err) {
         console.error('[OmniGuard Dashboard] Failed to load feature flags:', err.message);
+        removePageGateOverlay(); // [NEW] نفس المنطق - خطأ شبكة ما يعلّق المستخدم للأبد
         return;
     }
 
@@ -291,6 +328,9 @@ async function applyFeatureFlagVisibility() {
         if (firstAvailablePage) {
             const [pageKey] = firstAvailablePage;
             window.location.href = pageKey.replace('.html', '');
+            // [NEW] الطبقة تُبقى ظاهرة عمداً هنا - الانتقال بيصير خلال ملي
+            // ثانية، والصفحة الجديدة تحقن طبقتها الخاصة فوراً عند تحميلها،
+            // فما يصير أي فلاش للمحتوى المحظور أثناء الانتقال نفسه.
         } else {
             document.body.innerHTML = `
                 <div style="display:flex; align-items:center; justify-content:center; height:100vh; font-family:'Inter',sans-serif; color:#8e9297; text-align:center; padding:20px;">
@@ -299,9 +339,14 @@ async function applyFeatureFlagVisibility() {
                         <p>Your dashboard access has been restricted. Contact the administrator.</p>
                     </div>
                 </div>`;
+            // الطبقة انمسحت أصلاً مع كل document.body.innerHTML فوق - لا حاجة لإزالتها يدوياً
         }
         return;
     }
+
+    // [NEW] الصفحة مسموحة - نكشف المحتوى الحين (المسار الطبيعي الوحيد اللي
+    // يوصل هنا بدون return مبكر أعلاه)
+    removePageGateOverlay();
 }
 
 // ============================================================================
@@ -1439,6 +1484,7 @@ function showNotification(msg, type) {
 // حتى قبل ما يطلق حدث DOMContentLoaded.
 injectFallbackStyles();
 markClean();
+injectPageGateOverlay(); // [NEW] يمنع فلاش المحتوى المحظور - يُزال لاحقاً بعد applyFeatureFlagVisibility()
 
 document.addEventListener('DOMContentLoaded', () => {
     // استدعاء إضافي احترازي (مثلاً لو صفحة مستقبلية حطت السكربت بالـ
