@@ -198,6 +198,24 @@ async function unbanUser(userId) {
     return true;
 }
 
+/**
+ * [NEW - Logs] كل الحظورات الفردية الحالية (نشطة فعلياً - ما فيه عمود
+ * active بهذا الجدول، الحذف هو الإزالة الفعلية عبر unbanUser). تُستخدم
+ * من endpoint /logs الموحّد بـ Adminpanel.
+ */
+async function listAllBans() {
+    const { data, error } = await supabase
+        .from('panel_user_bans')
+        .select('*')
+        .order('at_created', { ascending: false });
+
+    if (error) {
+        console.error('[PanelQueries] listAllBans failed:', error.message);
+        return [];
+    }
+    return data || [];
+}
+
 // ----------------------------------------------------------------------------
 // 4. Admin Actions (Alert / Update / Note - "Account Action Notice")
 // ----------------------------------------------------------------------------
@@ -234,19 +252,41 @@ async function markDmFailed(actionId) {
     if (error) console.error('[PanelQueries] markDmFailed failed:', error.message);
 }
 
-async function listDmFailures() {
-    const { data, error } = await supabase
+/**
+ * [REPLACED listDmFailures] - Logs الآن تعرض كل الإشعارات (مو بس اللي فشل
+ * الـ DM فيها) مع حالة تسليم كل قناة على حدة:
+ *   - dashboard: دايماً "delivered" منطقياً طالما delivery_channel تشملها
+ *     (قراءة سحب Pull-based، ما فيها "فشل" فعلي بمعنى شبكي - راجع Adminpanel.js
+ *     لعرض هذا بوضوح للأدمن).
+ *   - dm: يعتمد على dm_delivery_failed (لو القناة تشمل dm/both أصلاً).
+ * acked_count يُحسب بنداء منفصل لجدول panel_action_acks ويُدمج هنا بدل
+ * join مباشر (Supabase JS ما يدعم COUNT مجمّع بسهولة بنفس الاستعلام).
+ */
+async function listAllActions({ limit = 100 } = {}) {
+    const { data: actions, error } = await supabase
         .from('panel_admin_actions')
         .select('*')
-        .eq('dm_delivery_failed', true)
-        .eq('active', true)
-        .order('at_created', { ascending: false });
+        .order('at_created', { ascending: false })
+        .limit(limit);
 
     if (error) {
-        console.error('[PanelQueries] listDmFailures failed:', error.message);
+        console.error('[PanelQueries] listAllActions failed:', error.message);
         return [];
     }
-    return data || [];
+    if (!actions || actions.length === 0) return [];
+
+    const actionIds = actions.map(a => a.id);
+    const { data: acks } = await supabase
+        .from('panel_action_acks')
+        .select('action_id')
+        .in('action_id', actionIds);
+
+    const ackCounts = {};
+    (acks || []).forEach(a => {
+        ackCounts[a.action_id] = (ackCounts[a.action_id] || 0) + 1;
+    });
+
+    return actions.map(a => ({ ...a, acked_count: ackCounts[a.id] || 0 }));
 }
 
 async function deactivateAdminAction(actionId) {
@@ -373,9 +413,10 @@ module.exports = {
     getUserBan,
     banUser,
     unbanUser,
+    listAllBans,
     createAdminAction,
     markDmFailed,
-    listDmFailures,
+    listAllActions,
     deactivateAdminAction,
     getActiveNoticeForUser,
     acknowledgeNotice

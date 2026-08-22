@@ -26,11 +26,30 @@ function getHeaders() {
     return headers;
 }
 
+/**
+ * [NEW] لو التوكن انتهى/صار غير صالح أثناء الجلسة (مو بس أول تحميل)، السيرفر
+ * يرجّع 401 - بدون هذا الفحص، المستخدم يفضل واقف بالصفحة يشوف أخطاء صامتة
+ * بالكونسول فقط، بدون ما يوعى إن جلسته انتهت. أي 401 يفرض تسجيل خروج فوري
+ * + تحويل لصفحة تسجيل الدخول - نفس المطلوب بالضبط ("لازم ينعاد للصفحة
+ * Login.html").
+ */
+async function forceLogoutExpiredSession() {
+    console.warn('[Adminpanel] Session expired or invalid - signing out.');
+    try { await supabaseClient?.auth.signOut(); } catch (_) { /* لا يهم لو فشل - بنحوّل بأي حال */ }
+    if (!window.location.pathname.includes('Login.html')) {
+        window.location.href = '/Login.html';
+    }
+}
+
 async function panelFetch(path, options = {}) {
     const response = await fetch(`${PANEL_API_BASE}${path}`, {
         ...options,
         headers: { ...getHeaders(), ...(options.headers || {}) }
     });
+    if (response.status === 401) {
+        forceLogoutExpiredSession();
+        throw new Error('Session expired - redirecting to login');
+    }
     // 404 هنا يعني "أنت مو صاحب اللوحة" - نفس فلسفة الحماية، ما نكشف السبب بالتفصيل
     if (response.status === 404) throw new Error('Not Found');
     if (!response.ok) {
@@ -214,6 +233,7 @@ async function handleDisableGlobalBan() {
     try {
         await panelFetch('/ban-all', { method: 'DELETE' });
         alert('Global ban disabled successfully.');
+        loadLogs();
     } catch (err) {
         alert(`Failed to disable global ban: ${err.message}`);
     }
@@ -543,6 +563,7 @@ async function dispatchAction() {
             }
 
             alert(scope === 'global' ? 'All users banned successfully.' : 'User banned successfully.');
+            loadLogs();
         } catch (err) {
             alert(`Failed to ban: ${err.message}`);
         }
@@ -564,36 +585,139 @@ async function dispatchAction() {
             })
         });
         alert('Notice dispatched successfully.');
-        loadDmFailures();
+        loadLogs();
     } catch (err) {
         alert(`Failed to dispatch notice: ${err.message}`);
     }
 }
 
 // ============================================================================
-// DM Delivery Failures
+// [NEW] Logs - يستبدل DM Delivery Failures القديمة بالكامل. يعرض ثلاث
+// فئات بنفس القائمة: حظر جماعي نشط (لو موجود) بأعلى القائمة، ثم الحظورات
+// الفردية، ثم كل الإشعارات المُرسلة (Alert/Update/Note/Ban) مع حالة تسليم
+// كل قناة (Dashboard/DM) وزر Undo لكل صف يستخدم endpoints الحذف الموجودة
+// أصلاً (DELETE /ban/:id, /ban-all, /actions/:id).
 // ============================================================================
-async function loadDmFailures() {
-    const container = document.getElementById('dm_failures_container');
+const ACTION_TYPE_ICONS = { alert: 'fa-triangle-exclamation', update: 'fa-arrow-up-right-dots', note: 'fa-note-sticky', ban: 'fa-gavel' };
+
+function statusPillHtml(status) {
+    const label = status === 'delivered' ? 'Delivered' : status === 'failed' ? 'Failed' : 'N/A';
+    return `<span class="log-status-pill status-${status}">${label}</span>`;
+}
+
+function logRowHtml({ typeClass, iconClass, iconColor, avatarUrl, title, meta, statusPills = '', undoBtnHtml = '' }) {
+    const avatar = avatarUrl
+        ? `<img class="log-row-avatar" src="${avatarUrl}" alt="">`
+        : `<span class="log-row-avatar" style="display:flex; align-items:center; justify-content:center;"><i class="fa-solid ${iconClass}" style="color:${iconColor};"></i></span>`;
+    return `
+        <div class="log-row ${typeClass}">
+            <div class="log-row-main">
+                ${avatar}
+                <div class="log-row-info">
+                    <span class="log-row-title">${title}</span>
+                    <span class="log-row-meta">${meta}</span>
+                </div>
+            </div>
+            <div class="log-row-actions">
+                ${statusPills}
+                ${undoBtnHtml}
+            </div>
+        </div>
+    `;
+}
+
+async function loadLogs() {
+    const container = document.getElementById('logs_container');
+    let data;
     try {
-        const failures = await panelFetch('/dm-failures');
-        if (!failures.length) {
-            container.innerHTML = '<div class="search-empty-state">No failed DM deliveries.</div>';
-            return;
-        }
-        container.innerHTML = '';
-        failures.forEach(f => {
-            const row = document.createElement('div');
-            row.className = 'dm-failure-row';
-            row.innerHTML = `
-                <span><i class="fa-solid fa-triangle-exclamation" style="color: var(--accent-amber);"></i>
-                    ${escapeHtml(f.title)} — target: ${f.target_user_id || 'Global'}</span>
-                <span class="meta">${new Date(f.at_created).toLocaleString()}</span>
-            `;
-            container.appendChild(row);
-        });
+        data = await panelFetch('/logs');
     } catch (err) {
-        console.error('[Adminpanel] Failed to load DM failures:', err.message);
+        console.error('[Adminpanel] Failed to load logs:', err.message);
+        container.innerHTML = '<div class="search-empty-state">Failed to load logs.</div>';
+        return;
+    }
+
+    const { bans = [], globalBan, actions = [] } = data;
+    const rows = [];
+
+    // 1) الحظر الجماعي - أعلى القائمة دايماً لو نشط (أهم حالة، يخص الكل)
+    if (globalBan?.enabled) {
+        const who = globalBan.bannedByUser?.displayName || globalBan.banned_by || 'Unknown';
+        rows.push(logRowHtml({
+            typeClass: 'log-type-global-ban',
+            iconClass: 'fa-gavel',
+            iconColor: 'var(--accent-red)',
+            title: `Global Ban Active - ALL Users`,
+            meta: `${escapeHtml(globalBan.reason || 'No reason provided')} · by ${escapeHtml(who)}${globalBan.at_expires ? ` · expires ${new Date(globalBan.at_expires).toLocaleString()}` : ' · permanent'}`,
+            undoBtnHtml: `<button type="button" class="log-undo-btn" data-undo="global-ban"><i class="fa-solid fa-unlock"></i> Disable</button>`
+        }));
+    }
+
+    // 2) الحظورات الفردية
+    bans.forEach(b => {
+        const who = b.user?.displayName || b.id_user;
+        const by = b.bannedByUser?.displayName || b.banned_by;
+        rows.push(logRowHtml({
+            typeClass: 'log-type-ban',
+            iconClass: 'fa-gavel',
+            iconColor: 'var(--accent-red)',
+            avatarUrl: b.user?.avatarUrl,
+            title: `Banned: ${escapeHtml(who)} (${b.id_user})`,
+            meta: `${escapeHtml(b.reason || 'No reason provided')} · by ${escapeHtml(by)}${b.at_expires ? ` · expires ${new Date(b.at_expires).toLocaleString()}` : ' · permanent'}`,
+            undoBtnHtml: `<button type="button" class="log-undo-btn" data-undo="ban" data-user-id="${b.id_user}"><i class="fa-solid fa-unlock"></i> Unban</button>`
+        }));
+    });
+
+    // 3) كل الإشعارات (Alert/Update/Note/Ban notice) - تشمل غير النشطة كمان (تاريخ)
+    actions.forEach(a => {
+        const icon = ACTION_TYPE_ICONS[a.action_type] || 'fa-circle-info';
+        const target = a.scope === 'global' ? 'All Users' : (a.targetUser?.displayName || a.target_user_id || 'Unknown');
+        const statusPills = statusPillHtml(a.delivery_status.dashboard) + statusPillHtml(a.delivery_status.dm);
+        rows.push(logRowHtml({
+            typeClass: '',
+            iconClass: icon,
+            iconColor: 'var(--accent-blue)',
+            avatarUrl: a.targetUser?.avatarUrl,
+            title: `${escapeHtml(a.title)} — ${escapeHtml(target)}`,
+            meta: `${a.action_type.toUpperCase()} · ${new Date(a.at_created).toLocaleString()}${!a.active ? ' · <em>inactive</em>' : (a.scope === 'global' ? ` · ${a.acked_count} acknowledged` : '')}`,
+            statusPills,
+            undoBtnHtml: a.active ? `<button type="button" class="log-undo-btn" data-undo="action" data-action-id="${a.id}"><i class="fa-solid fa-eye-slash"></i> Deactivate</button>` : ''
+        }));
+    });
+
+    if (rows.length === 0) {
+        container.innerHTML = '<div class="search-empty-state">No logs yet.</div>';
+        return;
+    }
+
+    container.innerHTML = rows.join('');
+
+    // أزرار Undo - تفويض حدث واحد بدل مستمع لكل زر (القائمة تُعاد بناؤها كل تحديث)
+    container.querySelectorAll('[data-undo]').forEach(btn => {
+        btn.addEventListener('click', handleLogUndo);
+    });
+}
+
+async function handleLogUndo(e) {
+    const btn = e.currentTarget;
+    const type = btn.dataset.undo;
+    btn.disabled = true;
+
+    try {
+        if (type === 'global-ban') {
+            if (!confirm('Disable the global ban and restore access for everyone?')) { btn.disabled = false; return; }
+            await panelFetch('/ban-all', { method: 'DELETE' });
+        } else if (type === 'ban') {
+            if (!confirm(`Unban user ${btn.dataset.userId}?`)) { btn.disabled = false; return; }
+            await panelFetch(`/ban/${btn.dataset.userId}`, { method: 'DELETE' });
+        } else if (type === 'action') {
+            if (!confirm('Deactivate this notice? It will stop being shown to its recipient(s).')) { btn.disabled = false; return; }
+            await panelFetch(`/actions/${btn.dataset.actionId}`, { method: 'DELETE' });
+        }
+        await loadLogs();
+    } catch (err) {
+        alert(`Failed to undo: ${err.message}`);
+        btn.disabled = false;
     }
 }
 
@@ -608,11 +732,13 @@ async function bootPanel() {
         initActionCardWatchers();
         renderDispatchAvailability();
 
-        await Promise.all([loadBotState(), loadFeatureFlags(), loadDmFailures()]);
+        await Promise.all([loadBotState(), loadFeatureFlags(), loadLogs()]);
         markClean();
     } catch (err) {
         console.error('[Adminpanel] Boot failed:', err.message);
     }
+
+    document.getElementById('logs_refresh_btn')?.addEventListener('click', loadLogs);
 
     document.getElementById('panel_save_btn').addEventListener('click', async () => {
         setSaveButtonState('state-dirty', { text: 'Saving...', disabled: true });

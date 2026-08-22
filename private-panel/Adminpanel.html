@@ -160,9 +160,22 @@
         .preview-footer { display: flex; justify-content: flex-end; margin-top: 4px; }
         .preview-btn { background-color: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
 
-        /* DM Failures list */
-        .dm-failure-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; background-color: var(--bg-tertiary); border: 1px solid var(--accent-amber); border-radius: 8px; font-size: 12px; }
-        .dm-failure-row span.meta { color: var(--text-secondary); }
+        /* [NEW] Logs list */
+        .log-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; font-size: 12px; flex-wrap: wrap; }
+        .log-row.log-type-ban { border-color: var(--accent-red); }
+        .log-row.log-type-global-ban { border-color: var(--accent-red); background-color: rgba(255, 51, 68, 0.08); }
+        .log-row-main { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+        .log-row-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background-color: var(--bg-primary); }
+        .log-row-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .log-row-title { font-weight: 600; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .log-row-meta { color: var(--text-secondary); font-size: 11px; }
+        .log-status-pill { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 3px 8px; border-radius: 10px; }
+        .log-status-pill.status-delivered { background-color: rgba(59, 165, 93, 0.15); color: var(--accent-green); }
+        .log-status-pill.status-failed { background-color: rgba(255, 51, 68, 0.15); color: var(--accent-red); }
+        .log-status-pill.status-not_attempted { background-color: rgba(142, 146, 151, 0.15); color: var(--text-secondary); }
+        .log-row-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .log-undo-btn { background: none; border: 1px solid var(--border-color); color: var(--text-secondary); padding: 5px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; }
+        .log-undo-btn:hover { border-color: var(--accent-red); color: var(--accent-red); }
 
         /* Buttons & Actions */
         .btn-action { background-color: var(--bg-tertiary); border: 1px solid var(--border-color); color: var(--text-primary); padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
@@ -420,16 +433,21 @@
                     </div>
                 </div>
 
-                <!-- 5. DM Delivery Failures -->
+                <!-- 5. [NEW] Logs - يستبدل DM Delivery Failures القديمة: يعرض
+                     الحظر الفردي/الجماعي وكل الإشعارات المُرسلة مع حالة
+                     التسليم (Dashboard/DM) وأزرار Undo لكل صف -->
                 <div class="settings-card full-width">
                     <div class="card-header-group">
                         <div class="card-header-left">
-                            <i class="fa-solid fa-envelope-circle-check card-header-icon"></i>
-                            <h2 class="card-header-title">DM Delivery Failures</h2>
+                            <i class="fa-solid fa-list-check card-header-icon"></i>
+                            <h2 class="card-header-title">Logs</h2>
                         </div>
+                        <button type="button" class="btn-action" id="logs_refresh_btn">
+                            <i class="fa-solid fa-rotate"></i> Refresh
+                        </button>
                     </div>
-                    <div id="dm_failures_container" style="display:flex; flex-direction:column; gap:8px;">
-                        <div class="search-empty-state">No failed DM deliveries.</div>
+                    <div id="logs_container" style="display:flex; flex-direction:column; gap:8px;">
+                        <div class="search-empty-state">Loading logs...</div>
                     </div>
                 </div>
 

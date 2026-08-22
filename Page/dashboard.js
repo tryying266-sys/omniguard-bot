@@ -146,10 +146,16 @@ async function initSupabaseSessionBridge() {
     
     if (session) {
         cachedUserToken = session.access_token;
+
+        // [NEW] فحص الصيانة أولاً - لو محجوب (وما فيه bypass)، نوقف هنا
+        // ونعرض شاشة الحجب الكاملة، بدون ما نضيّع نداءات شبكة على باقي
+        // الدوال (السيرفر بيرفضها أصلاً أثناء الصيانة).
+        const blocked = await checkMaintenanceAndMaybeBlock();
+        if (blocked) return;
+
         initGlobalHeader(session);
         applyFeatureFlagVisibility(); // [NEW] Adminpanel Feature Flags enforcement (تُزيل الطبقة بنفسها لما تخلص)
         renderAccountActionNotice(); // [NEW] Adminpanel Alert/Update/Note display
-        renderMaintenanceBanner(); // [NEW] Adminpanel Maintenance Mode banner
     } else {
         // [الحماية المركزية] إذا لم تكن في صفحة تسجيل الدخول ولا توجد جلسة، اخرج فوراً
         if (!window.location.pathname.includes('Login.html')) {
@@ -276,7 +282,7 @@ function removePageGateOverlay() {
 async function applyFeatureFlagVisibility() {
     let flags;
     try {
-        const response = await fetch(`${window.location.origin}/api/feature-flags/effective`, { headers: getHeaders() });
+        const response = await apiFetch(`${window.location.origin}/api/feature-flags/effective`);
         if (!response.ok) {
             const body = await response.text().catch(() => '');
             console.error(`[OmniGuard Dashboard] feature-flags/effective returned ${response.status}: ${body}`);
@@ -369,7 +375,7 @@ const NOTICE_BADGE_COLORS = {
 async function renderAccountActionNotice() {
     let notice;
     try {
-        const response = await fetch(`${window.location.origin}/api/account-notice`, { headers: getHeaders() });
+        const response = await apiFetch(`${window.location.origin}/api/account-notice`);
         if (!response.ok) {
             console.error(`[OmniGuard Dashboard] account-notice returned ${response.status}`);
             return;
@@ -413,9 +419,8 @@ async function renderAccountActionNotice() {
 
     document.getElementById('omniguard_notice_ack_btn').addEventListener('click', async () => {
         try {
-            await fetch(`${window.location.origin}/api/account-notice/${notice.id}/ack`, {
-                method: 'POST',
-                headers: getHeaders()
+            await apiFetch(`${window.location.origin}/api/account-notice/${notice.id}/ack`, {
+                method: 'POST'
             });
         } catch (err) {
             console.error('[OmniGuard Dashboard] Failed to acknowledge notice:', err.message);
@@ -425,48 +430,50 @@ async function renderAccountActionNotice() {
 }
 
 // ============================================================================
-// [NEW] Maintenance Mode Banner
+// [NEW] Maintenance Mode - شاشة حجب كاملة (مو بانر)
 // ============================================================================
-// بخلاف Account Action Notice (مودال يحجب الشاشة، حدث لمرة وحدة يحتاج
-// Acknowledge) - وضع الصيانة حالة مستمرة، فبانر ثابت أعلى الصفحة أنسب:
-// يفضل ظاهر طول ما maintenance_enabled=true بدون ما يمنع التفاعل مع باقي
-// الصفحة، ويختفي تلقائياً (بمجرد تحديث الصفحة) لو الأدمن عطّله. الـ
-// endpoint عام (بدون requirePanelOwner) ومستثنى من بوابة الحظر بـ
-// apiServer.js - حتى المستخدم المحظور له حق يعرف السبب صيانة مو حظر.
-async function renderMaintenanceBanner() {
+// [مهم] الحماية الفعلية صارت بالسيرفر (apiServer.js: البوابة الموحّدة
+// ترفض كل طلبات API لأي مستخدم غير السوبر أدمن أثناء الصيانة، بغض النظر
+// عن الواجهة) - هذا الجزء بس العرض البصري المطابق: شاشة تغطي كامل الصفحة،
+// بدون أي طريقة إغلاق، بمنتصف الشاشة صورة/أيقونة + رسالة الصيانة. حتى لو
+// المستخدم فتح رابط مباشر لصفحة داخلية، الطلبات كلها بترجع مرفوضة من
+// السيرفر فعلياً - هذي الشاشة بس توضح له السبب بدل ما يشوف صفحة فاضية.
+//
+// [bypass] السوبر أدمن مستثنى بالكامل (السيرفر يرجّع bypass:true له) -
+// ما تُعرض له هالشاشة إطلاقاً، يقدر يكمل يستخدم الداشبورد العادي أو
+// يروح لـ Adminpanel يوقف الصيانة.
+async function checkMaintenanceAndMaybeBlock() {
     let status;
     try {
-        const response = await fetch(`${window.location.origin}/api/maintenance-status`, { headers: getHeaders() });
-        if (!response.ok) {
-            console.error(`[OmniGuard Dashboard] maintenance-status returned ${response.status}`);
-            return;
-        }
+        const response = await apiFetch(`${window.location.origin}/api/maintenance-status`);
+        if (!response.ok) return false; // فشل الفحص - نفضّل ما نحجب أحد بالغلط بسبب خطأ شبكة عابر
         status = await response.json();
     } catch (err) {
         console.error('[OmniGuard Dashboard] Failed to load maintenance status:', err.message);
-        return;
+        return false;
     }
 
-    const existing = document.getElementById('omniguard_maintenance_banner');
-    if (!status?.maintenance_enabled) {
-        existing?.remove();
-        return;
-    }
-    if (existing) return; // بانر معروض أصلاً - ما نكرره
+    if (!status?.maintenance_enabled || status.bypass) return false;
 
-    const banner = document.createElement('div');
-    banner.id = 'omniguard_maintenance_banner';
-    banner.style.cssText = `
-        position: sticky; top: 0; z-index: 9998; width: 100%;
-        background-color: #faa61a; color: #0a0a0c; font-family: 'Inter', sans-serif;
-        font-size: 13px; font-weight: 600; text-align: center;
-        padding: 10px 20px; display: flex; align-items: center; justify-content: center; gap: 8px;
+    removePageGateOverlay(); // نستبدلها بشاشة الحجب مباشرة، ما نحتاجها الاثنين معاً
+
+    const overlay = document.createElement('div');
+    overlay.id = 'omniguard_maintenance_block';
+    overlay.style.cssText = `
+        position: fixed; inset: 0; z-index: 100000; background-color: #0a0a0c;
+        display: flex; align-items: center; justify-content: center; padding: 24px;
+        font-family: 'Inter', sans-serif; text-align: center;
     `;
-    banner.innerHTML = `
-        <i class="fa-solid fa-triangle-exclamation"></i>
-        <span>${escapeHtmlSafe(status.maintenance_message || 'OmniGuard is currently under scheduled maintenance.')}</span>
+    overlay.innerHTML = `
+        <div style="max-width: 480px;">
+            <i class="fa-solid fa-screwdriver-wrench" style="color:#faa61a; font-size:72px; margin-bottom:24px; display:block;"></i>
+            <div style="font-weight:700; font-size:22px; color:#ffffff; margin-bottom:12px;">Under Maintenance</div>
+            <div style="font-size:15px; color:#8e9297; line-height:1.7; white-space:pre-wrap;">${escapeHtmlSafe(status.maintenance_message || 'OmniGuard is currently under scheduled maintenance. Please check back later.')}</div>
+        </div>
     `;
-    document.body.prepend(banner);
+    document.body.innerHTML = '';
+    document.body.appendChild(overlay);
+    return true;
 }
 
 function escapeHtmlSafe(str) {
@@ -488,6 +495,30 @@ function getHeaders() {
     }
 
     return headers;
+}
+
+/**
+ * [NEW] لو التوكن انتهى/صار غير صالح أثناء الجلسة (مو بس أول تحميل - مثلاً
+ * بعد ما الجوال ينام لفترة طويلة وترجع تفتح الصفحة)، السيرفر يرجّع 401.
+ * بدون هذا الفحص المركزي، المستخدم يفضل واقف بالصفحة يشوف بيانات فاضية/
+ * أخطاء صامتة بالكونسول بس، بدون ما يوعى إن جلسته انتهت. أي طلب API
+ * (باستثناء نداءات ديسكورد المباشرة اللي تستخدم توكن ديسكورد مختلف تماماً،
+ * راجع loadUserGuildsIntoSelector) يمر من هنا، وأي 401 يفرض تسجيل خروج
+ * فوري + تحويل لـ Login.html - نفس المطلوب بالضبط.
+ */
+async function apiFetch(url, options = {}) {
+    const response = await fetch(url, { ...options, headers: { ...getHeaders(), ...(options.headers || {}) } });
+    if (response.status === 401) {
+        console.warn('[OmniGuard Dashboard] Session expired or invalid - signing out.');
+        try { await supabaseClient?.auth.signOut(); } catch (_) { /* لا يهم لو فشل - بنحوّل بأي حال */ }
+        localStorage.removeItem('selected_guild_id');
+        sessionStorage.removeItem('discord_access_token');
+        if (!window.location.pathname.includes('Login.html')) {
+            window.location.href = 'Login.html';
+        }
+        throw new Error('Unauthorized - redirecting to login');
+    }
+    return response;
 }
 
 // خريطة المسارات للـ API بناءً على الصفحة الحالية
@@ -517,7 +548,7 @@ async function fetchGuildStructure() {
     if (!guildId) return;
 
     try {
-        const response = await fetch(`${API_BASE}/guild/${guildId}/guild_structure_cache`, { headers: getHeaders() });
+        const response = await apiFetch(`${API_BASE}/guild/${guildId}/guild_structure_cache`);
         const data = await response.json();
 
         guildStructure.roles = (response.ok && Array.isArray(data?.roles)) ? data.roles : [];
@@ -828,7 +859,7 @@ async function loadPageSettings() {
 
         const results = await Promise.all(tables.map(async (table) => {
             try {
-                const response = await fetch(`${API_BASE}/guild/${guildId}/${table}`, { headers: getHeaders() });
+                const response = await apiFetch(`${API_BASE}/guild/${guildId}/${table}`);
                 const data = await response.json();
                 return { table, ok: response.ok, data };
             } catch (err) {
@@ -870,9 +901,8 @@ async function savePageSettings() {
         const results = await Promise.all(tables.map(async (table) => {
             const payload = payloadsByTable[table];
             try {
-                const response = await fetch(`${API_BASE}/guild/${guildId}/${table}`, {
+                const response = await apiFetch(`${API_BASE}/guild/${guildId}/${table}`, {
                     method: 'PUT',
-                    headers: getHeaders(),
                     body: JSON.stringify(payload)
                 });
 
@@ -899,9 +929,8 @@ async function savePageSettings() {
             // حالة الزر لو فشل.
             const guildResult = results.find(r => r.table === 'setting_guild');
             if (guildResult && guildResult.payload.updates.nickname_server) {
-                fetch(`${API_BASE}/guild/${guildId}/nickname`, {
+                apiFetch(`${API_BASE}/guild/${guildId}/nickname`, {
                     method: 'PUT',
-                    headers: getHeaders(),
                     body: JSON.stringify({ nickname: guildResult.payload.updates.nickname_server })
                 }).catch(() => {});
             }
@@ -1035,7 +1064,7 @@ async function fetchAntiAltLogs() {
     if (!logGrid) return; // الصفحة ما فيها قسم سجلات (مثال: انسحب من التصميم)
 
     try {
-        const response = await fetch(`${API_BASE}/guild/${guildId}/alt-anti/logs`, { headers: getHeaders() });
+        const response = await apiFetch(`${API_BASE}/guild/${guildId}/alt-anti/logs`);
         const logs = await response.json();
         logGrid.innerHTML = '';
 
@@ -1073,9 +1102,8 @@ async function ensureStaffRegistration() {
     if (!guildId) return;
 
     try {
-        const res = await fetch(`${API_BASE}/guild/${guildId}/staff/self-register`, {
-            method: 'POST',
-            headers: getHeaders()
+        const res = await apiFetch(`${API_BASE}/guild/${guildId}/staff/self-register`, {
+            method: 'POST'
         });
         if (!res.ok) {
             const body = await res.json().catch(() => ({}));
@@ -1270,7 +1298,7 @@ async function loadUserGuildsIntoSelector(token) {
     try {
         const [guilds, botGuildsRes] = await Promise.all([
             fetchDiscordGuildsCached(token),
-            fetch(`${API_BASE}/bot/guilds`, { headers: getHeaders() })
+            apiFetch(`${API_BASE}/bot/guilds`)
         ]);
 
         if (!Array.isArray(guilds)) return;

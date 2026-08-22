@@ -42,35 +42,48 @@ app.use(express.json());
 app.use(cors());
 
 // ============================================
-// [NEW] Global Bot-Wide Ban Gate (covers the ENTIRE dashboard, every route)
+// [NEW] Global Access Gate - يغطي الداشبورد كامل: حظر فردي/جماعي + وضع
+// الصيانة، ببوابة واحدة موحّدة قبل أي route (بدل تكرار الفحص بكل route).
 // ============================================
-// الحظر من الـ Adminpanel المطلوب يغطي الداشبورد كامل + أوامر الشات معاً
-// (راجع commandhandler.js/slashCommandsHandler.js لجهة الشات). هذا الجزء
-// يغطي جهة الداشبورد: بوابة واحدة عامة قبل أي route، بدل ما نكرر الفحص
-// بكل route لحاله (وفيه أكثر من نقطة تسجّل attachDashboardUser بهذا
-// الملف نفسه). يعتمد على نفس كاش botState.js اللي يستخدمه البوت - مصدر
-// حقيقة واحد، بدون استعلام Supabase إضافي بكل طلب.
-const { isUserBotBanned } = require('./supabase/botState');
-// [FIX] استثناء صريح لمسارات account-notice (GET + POST /:id/ack) و
-// maintenance-status من بوابة الحظر العامة. بدونه: المستخدم المحظور
-// يضرب 403 على *كل* طلب - بما فيه بالضبط الطلب اللي يجيب له إشعار "تم
-// حظرك" أو رسالة الصيانة، فتنتج مفارقة: يُمنع من رؤية سبب حظره. هذا
-// الاستثناء لا يوسّع أي صلاحية فعلية - كلا الـ endpoint ترجّع بيانات
-// خاصة بصاحب الطلب نفسه أو عامة غير حساسة فقط.
-const BAN_GATE_EXEMPT_PATHS = ['/api/account-notice', '/api/maintenance-status'];
-function isBanGateExempt(path) {
-    return BAN_GATE_EXEMPT_PATHS.some(p => path === p || path.startsWith(`${p}/`));
+// [مهم - SERVER-SIDE ENFORCEMENT] الحظر السابق كان موجود، لكن الصيانة
+// كانت client-side بس (بانر بالواجهة) - يعني أي حد يقدر يتجاوزها بسهولة
+// (تعطيل JS، نداء الـ API مباشرة، إلخ). الحين: أثناء الصيانة، أي طلب API
+// من أي مستخدم غير السوبر أدمن يُرفض هنا مباشرة بغض النظر عن الواجهة -
+// حماية فعلية على مستوى السيرفر، مو مجرد إخفاء بصري.
+//
+// السوبر أدمن مستثنى بالكامل من الحظر والصيانة معاً (نفس استثناء
+// isUserBotBanned لكن هنا عالمي على كل الـ routes، عشان يقدر يوصل
+// لـ Adminpanel نفسها ويوقف الصيانة/الحظر الجماعي - وإلا يقفل نفسه بره).
+const { isUserBotBanned, getBotState } = require('./supabase/botState');
+
+// استثناء صريح لمسارات account-notice (GET + POST /:id/ack) و
+// maintenance-status من البوابة العامة. بدونه: المستخدم المحظور/بوضع
+// الصيانة يضرب رفض على *كل* طلب - بما فيه بالضبط الطلب اللي يجيب له
+// إشعار "تم حظرك" أو رسالة الصيانة، فتنتج مفارقة: يُمنع من رؤية سبب
+// المنع. هذا الاستثناء لا يوسّع أي صلاحية فعلية - كلا الـ endpoint ترجّع
+// بيانات خاصة بصاحب الطلب نفسه أو عامة غير حساسة فقط.
+const ACCESS_GATE_EXEMPT_PATHS = ['/api/account-notice', '/api/maintenance-status'];
+function isAccessGateExempt(path) {
+    return ACCESS_GATE_EXEMPT_PATHS.some(p => path === p || path.startsWith(`${p}/`));
 }
 
 app.use(async (req, res, next) => {
-    if (isBanGateExempt(req.path)) return next();
+    if (isAccessGateExempt(req.path)) return next();
 
     const token = req.headers['x-user-token'];
     if (!token) return next(); // ما فيه هوية أصلاً - الرفض الطبيعي يصير لاحقاً بمكانه المعتاد
 
     await attachDashboardUser(req, res, () => {});
-    if (req.dashboardUser?.discordId && isUserBotBanned(req.dashboardUser.discordId)) {
-        return res.status(403).json({ error: 'Your account has been banned from using OmniGuard.', banned: true });
+    const discordId = req.dashboardUser?.discordId;
+    const isSuperAdmin = discordId && discordId === process.env.SUPER_ADMIN_DISCORD_ID;
+
+    if (!isSuperAdmin && discordId) {
+        if (isUserBotBanned(discordId)) {
+            return res.status(403).json({ error: 'Your account has been banned from using OmniGuard.', banned: true });
+        }
+        if (getBotState().maintenanceEnabled) {
+            return res.status(503).json({ error: 'OmniGuard is currently under scheduled maintenance.', maintenance: true });
+        }
     }
     next();
 });
@@ -263,17 +276,23 @@ app.post('/api/account-notice/:id/ack', attachDashboardUser, async (req, res) =>
 
 // ============================================
 // [NEW] Public Maintenance Status - endpoint عام خفيف (بدون requirePanelOwner)
-// عشان dashboard.js يعرض banner ثابت لو maintenance_enabled=true. مستثنى
-// كمان من بوابة الحظر العامة (BAN_GATE_EXEMPT_PATHS تحت) - حتى المستخدم
-// المحظور له حق يعرف إن السبب صيانة عامة مو حظر شخصي، بدون ما يكشف أي
-// تفاصيل حساسة (full_shutdown/تفاصيل الحظر الجماعي غير مُرجعة هنا إطلاقاً).
+// عشان dashboard.js يعرض شاشة حجب كاملة لو maintenance_enabled=true. مستثنى
+// كمان من البوابة العامة (ACCESS_GATE_EXEMPT_PATHS فوق) - حتى المستخدم
+// المحظور/بوضع الصيانة له حق يعرف السبب، بدون ما يكشف أي تفاصيل حساسة
+// (full_shutdown/تفاصيل الحظر الجماعي غير مُرجعة هنا إطلاقاً).
+// [NEW] attachDashboardUser هنا (اختياري - ما يرفض الطلب لو فشل) عشان
+// نحسب bypass: هل هذا بالضبط السوبر أدمن؟ الفرونت يحتاجها يقرر يحجب
+// نفسه أو لا - المقارنة الفعلية بـ SUPER_ADMIN_DISCORD_ID تصير هنا فقط
+// (سيرفر)، ما تُكشف القيمة نفسها للعميل إطلاقاً.
 // ============================================
-app.get('/api/maintenance-status', async (req, res) => {
+app.get('/api/maintenance-status', attachDashboardUser, async (req, res) => {
     try {
         const status = await panelQueries.getPublicMaintenanceStatus();
+        const isSuperAdmin = !!(req.dashboardUser?.discordId && req.dashboardUser.discordId === process.env.SUPER_ADMIN_DISCORD_ID);
         res.json({
             maintenance_enabled: status.maintenance_enabled === true,
-            maintenance_message: status.maintenance_message || ''
+            maintenance_message: status.maintenance_message || '',
+            bypass: isSuperAdmin
         });
     } catch (error) {
         console.error('[API Error] Fetch Maintenance Status:', error.message);

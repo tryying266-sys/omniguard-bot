@@ -343,10 +343,86 @@ router.delete('/actions/:id', async (req, res) => {
     }
 });
 
-router.get('/dm-failures', async (req, res) => {
+// ----------------------------------------------------------------------------
+// [NEW] Logs - يستبدل /dm-failures القديمة (كانت تعرض فشل الـ DM بس).
+// يجمع: الحظر الفردي + حالة الحظر الجماعي + كل الإشعارات (Alert/Update/
+// Note/Ban) مع حالة تسليم كل قناة، بهوية Discord محلولة (اسم + صورة) من
+// كاش البوت لو متوفرة - نفس أسلوب /search فوق. كل صف يحمل معلومات كافية
+// لأزرار Undo بالواجهة (تستخدم endpoints الحذف الموجودة أصلاً: DELETE
+// /ban/:userId, DELETE /ban-all, DELETE /actions/:id - ما احتجنا endpoints
+// جديدة للتراجع، موجودة فعلاً).
+// ----------------------------------------------------------------------------
+function resolveDiscordIdentity(client, id) {
+    if (!id) return null;
+    const user = client?.users?.cache?.get(id);
+    if (!user) return { id, username: null, displayName: id, avatarUrl: null };
+    return {
+        id,
+        username: user.username,
+        displayName: user.globalName || user.username,
+        avatarUrl: user.displayAvatarURL({ size: 64 })
+    };
+}
+
+router.get('/logs', async (req, res) => {
     try {
-        const failures = await panelQueries.listDmFailures();
-        res.json(failures);
+        const client = require('../index');
+        const canResolve = client?.isReady && client.isReady();
+
+        const [bans, botState_, actions] = await Promise.all([
+            panelQueries.listAllBans(),
+            panelQueries.getBotState(),
+            panelQueries.listAllActions({ limit: 100 })
+        ]);
+
+        const individualBans = bans.map(b => ({
+            id_user: b.id_user,
+            user: canResolve ? resolveDiscordIdentity(client, b.id_user) : null,
+            reason: b.reason,
+            banned_by: b.banned_by,
+            bannedByUser: canResolve ? resolveDiscordIdentity(client, b.banned_by) : null,
+            at_created: b.at_created,
+            at_expires: b.at_expires
+        }));
+
+        const globalBan = botState_?.global_ban_enabled ? {
+            enabled: true,
+            reason: botState_.global_ban_reason,
+            banned_by: botState_.global_ban_by,
+            bannedByUser: canResolve ? resolveDiscordIdentity(client, botState_.global_ban_by) : null,
+            at_expires: botState_.global_ban_expires,
+            at_updated: botState_.at_updated
+        } : { enabled: false };
+
+        const actionLogs = actions.map(a => {
+            const dmAttempted = a.delivery_channel === 'dm' || a.delivery_channel === 'both';
+            const dashboardAttempted = a.delivery_channel === 'dashboard' || a.delivery_channel === 'both';
+            return {
+                id: a.id,
+                scope: a.scope,
+                target_user_id: a.target_user_id,
+                targetUser: (canResolve && a.target_user_id) ? resolveDiscordIdentity(client, a.target_user_id) : null,
+                action_type: a.action_type,
+                badge_color: a.badge_color,
+                title: a.title,
+                message: a.message,
+                delivery_channel: a.delivery_channel,
+                requires_ack: a.requires_ack,
+                active: a.active,
+                acked_count: a.acked_count,
+                created_by: a.created_by,
+                at_created: a.at_created,
+                // [NEW] حالة تسليم واضحة لكل قناة - dashboard دايماً "delivered"
+                // منطقياً طالما مُختارة (قراءة سحب، ما فيها فشل شبكي حقيقي)،
+                // dm تعتمد فعلياً على dm_delivery_failed.
+                delivery_status: {
+                    dashboard: dashboardAttempted ? 'delivered' : 'not_attempted',
+                    dm: !dmAttempted ? 'not_attempted' : (a.dm_delivery_failed ? 'failed' : 'delivered')
+                }
+            };
+        });
+
+        res.json({ bans: individualBans, globalBan, actions: actionLogs });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
