@@ -243,8 +243,8 @@ const FEATURE_FLAG_PAGE_MAP = {
     'anti-alt.html': 'anti_alt',
     'autorespond.html': 'auto_respond',
     'category.html': 'ticket_category',
-    'AutoLog.html': 'ticket_auto_log',
-    'Permissionspanel.html': 'ticket_panel',
+    'autolog.html': 'ticket_auto_log', // [FIX] كانت 'AutoLog.html' - ما تطابق أبداً لأن hrefKey دايماً lowercase، فالرابط والفئة ما ينحظروا أبداً
+    'permissionspanel.html': 'ticket_panel', // [FIX] نفس المشكلة - كانت 'Permissionspanel.html'
     'custom-messages.html': 'custom_messages',
     'level.html': 'level_system',
     'commands.html': 'command_customization'
@@ -1601,6 +1601,12 @@ markClean();
 // تغطي دايماً من أول لحظة، وتطبيق الكاش يصير فقط بعد التأكد من جهوزية
 // الـ DOM (whenDomReady - انتظار بسيط جداً، تحليل HTML بس، مو شبكة).
 injectPageGateOverlay();
+
+// [NEW] يفك القفل المبكر اللي حطه سكربت <head> (لو موجود بالصفحة) فور ما
+// طبقة Loading تصير جاهزة - يضمن إن المستخدم ما يشوف أي محتوى خام إطلاقاً
+// حتى بأول تسجيل دخول (قبل ما يكون فيه كاش بعد)، لأن القفل يغطي الصفحة
+// من أول لحظة تحليل HTML، وهذا السطر يزيله بمجرد ما البديل (Loading) جاهز.
+document.getElementById('omniguard_pregate')?.remove();
 
 whenDomReady(() => {
     applyCachedFeatureFlagsSync();
