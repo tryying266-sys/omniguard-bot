@@ -370,17 +370,35 @@ function applyFlagsRedirectLogic(flags) {
 }
 
 /**
- * [NEW] يُستدعى فوراً وقت تحميل السكربت (قبل حتى الجلسة/الشبكة) - لو فيه
- * كاش من تنقل سابق بنفس الجلسة، نطبّقه متزامناً (بدون await) فتختفي
- * الروابط المحظورة أو يصير التحويل بنفس اللحظة اللي تُنفَّذ فيها هالدالة -
- * ما يصير أي فلاش ولا أي تأخير محسوس. يرجّع true لو فيه كاش اتطبّق.
+ * [FIX] لو فيه كاش من تنقل سابق بنفس الجلسة، نطبّقه متزامناً - يفترض إن
+ * الـ DOM (روابط الشريط الجانبي) جاهز وقت الاستدعاء (يُستدعى الحين من
+ * whenDomReady تحت، مو فوراً وقت تحميل السكربت - قد يكون السكربت بمكان
+ * مختلف عن آخر <body> بصفحات معينة، فما نضمن جهوزية DOM لحظة تنفيذ
+ * السكربت نفسه). يرجّع true لو فيه كاش اتطبّق (وقتها يزيل الطبقة بنفسه
+ * لو النتيجة "مسموح" - الطبقة صارت تُحقن دايماً بغض النظر عن الكاش، راجع
+ * أسفل الملف).
  */
 function applyCachedFeatureFlagsSync() {
     const cached = readCachedFlags();
     if (!cached) return false;
     applyFlagsHideLogic(cached);
-    applyFlagsRedirectLogic(cached); // لو حوّلت، تحصل بنفس الـ tick - ولا فرصة فلاش
+    const result = applyFlagsRedirectLogic(cached);
+    if (result === 'allowed') removePageGateOverlay();
     return true;
+}
+
+/**
+ * [NEW] يشغّل callback فوراً لو الـ DOM جاهز أصلاً (السكربت آخر الصفحة،
+ * الحالة الشائعة)، وإلا ينتظر DOMContentLoaded (سكربت بمكان مبكر زي
+ * <head> ببعض الصفحات). فرق بسيط جداً (parsing HTML، ما فيه شبكة) - مو
+ * انتظار شبكي زي قبل.
+ */
+function whenDomReady(callback) {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', callback, { once: true });
+    } else {
+        callback();
+    }
 }
 
 async function applyFeatureFlagVisibility() {
@@ -1572,13 +1590,23 @@ function showNotification(msg, type) {
 injectFallbackStyles();
 markClean();
 
-// [NEW] لو فيه كاش فلاگات من تنقل سابق بنفس الجلسة، نطبّقه فوراً بدون أي
-// طبقة تحميل - هذا يلغي "بطء كل تنقل" اللي كان يصير سابقاً. الطبقة تظهر
-// فقط لو ما فيه كاش بعد (أول تحميل بهالتاب بعد تسجيل الدخول) - حالة نادرة
-// (مرة وحدة بالجلسة)، مو كل تنقل.
-if (!applyCachedFeatureFlagsSync()) {
-    injectPageGateOverlay();
-}
+// [FIX] الطبقة الحين تُحقن دايماً وفوراً بغض النظر عن الكاش أو مكان
+// السكربت بالصفحة (injectPageGateOverlay أصلاً تلحق بـ documentElement لو
+// body لسه ما وُجد - آمنة تُستدعى بأي وقت). السبب: لو السكربت مو آخر شي
+// قبل </body> ببعض الصفحات (ما نملك رؤية على كل ملفات HTML الفعلية)،
+// روابط الشريط الجانبي قد ما تكون موجودة بالـ DOM لحظة وصولنا هنا - فلو
+// تجاوزنا الطبقة بناءً على وجود كاش بس (بدون التأكد إن الإخفاء نجح
+// فعلياً)، المحتوى الخام يبان لين يخلص الفحص الشبكي الحقيقي (ثواني) -
+// هذا بالضبط سبب "تبين الصفحات المخفية لثواني ثم تختفي". الحل: الطبقة
+// تغطي دايماً من أول لحظة، وتطبيق الكاش يصير فقط بعد التأكد من جهوزية
+// الـ DOM (whenDomReady - انتظار بسيط جداً، تحليل HTML بس، مو شبكة).
+injectPageGateOverlay();
+
+whenDomReady(() => {
+    applyCachedFeatureFlagsSync();
+    // لو ما فيه كاش، الدالة ترجع false والطبقة تفضل ظاهرة - applyFeatureFlagVisibility()
+    // (الفحص الشبكي الحقيقي، يُستدعى لاحقاً من initSupabaseSessionBridge) هو اللي يزيلها.
+});
 
 document.addEventListener('DOMContentLoaded', () => {
     // استدعاء إضافي احترازي (مثلاً لو صفحة مستقبلية حطت السكربت بالـ
