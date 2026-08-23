@@ -279,6 +279,110 @@ function removePageGateOverlay() {
     document.getElementById('omniguard_page_gate')?.remove();
 }
 
+// ============================================================================
+// [NEW] Feature Flags Session Cache - يحل "بطء التحميل بكل تنقل"
+// ============================================================================
+// المشكلة اللي حلّها page-gate overlay (فلاش المحتوى المحظور) صار لها ثمن:
+// كل صفحة تنتظر رد شبكة قبل ما تبين، حتى لو الفلاگات نفسها ما تغيّرت من
+// الصفحة اللي قبلها بنفس الجلسة. الحل: نحفظ آخر نتيجة فحص بـ sessionStorage
+// (يفضل موجود طول ما التاب مفتوح)، ونطبّقها فوراً بدون انتظار شبكة بأي
+// تنقل جديد - فقط أول تحميل بالجلسة (ما فيه كاش بعد) يحتاج ينتظر. بعدها
+// نعيد التحقق من السيرفر بالخلفية بصمت ونحدّث الكاش لو تغيّر شي (نادر).
+//
+// [ملاحظة أمان] هذا الفحص طبقة واجهة بس (إخفاء روابط) - الحماية الحقيقية
+// على البيانات نفسها موجودة أصلاً عبر requireDiscordPermission بجهة
+// السيرفر (ملفات ثانية). كاش متأخر لحظياً أسوأ حالة: رابط يبان/يختفي
+// بتأخير بسيط - مو تسريب بيانات فعلي.
+const FEATURE_FLAGS_CACHE_KEY = 'omniguard_cached_feature_flags';
+
+function readCachedFlags() {
+    try {
+        const raw = sessionStorage.getItem(FEATURE_FLAGS_CACHE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+        return null;
+    }
+}
+
+function writeCachedFlags(flags) {
+    try {
+        sessionStorage.setItem(FEATURE_FLAGS_CACHE_KEY, JSON.stringify(flags));
+    } catch (_) {
+        // sessionStorage ممتلئ/غير متاح - نتجاهل، التحقق الشبكي يبقى يشتغل عادي
+    }
+}
+
+/** يخفي روابط الشريط الجانبي (+ عناوين الفئات الفاضية) حسب الفلاگات المُعطاة. */
+function applyFlagsHideLogic(flags) {
+    document.querySelectorAll('.menu-item a[href]').forEach(link => {
+        const hrefKey = link.getAttribute('href').split('/').pop().toLowerCase() + '.html';
+        const flagKey = FEATURE_FLAG_PAGE_MAP[hrefKey];
+        if (flagKey && flags[flagKey] === false) {
+            const li = link.closest('.menu-item');
+            if (li) li.style.display = 'none';
+        } else {
+            // [NEW] لازم نرجعها تبان صراحة - لو الكاش كان يخفيها وصار عندنا
+            // نتيجة أحدث تسمح بها، بدون هذا كانت تفضل مخفية للأبد بهالتاب
+            const li = link.closest('.menu-item');
+            if (li) li.style.display = '';
+        }
+    });
+
+    document.querySelectorAll('.category-container').forEach(header => {
+        const list = header.nextElementSibling;
+        if (!list || !list.classList.contains('menu-list')) return;
+        const items = Array.from(list.querySelectorAll('.menu-item'));
+        const allHidden = items.length > 0 && items.every(li => li.style.display === 'none');
+        header.style.display = allHidden ? 'none' : '';
+        list.style.display = allHidden ? 'none' : '';
+    });
+}
+
+/**
+ * يقرر هل الصفحة الحالية محظورة حسب الفلاگات المُعطاة، ويسوي التحويل لو
+ * لازم. يرجّع 'allowed' | 'redirected' | 'locked_out'.
+ */
+function applyFlagsRedirectLogic(flags) {
+    const currentPageKey = getPageKey();
+    const currentFlagKey = FEATURE_FLAG_PAGE_MAP[currentPageKey];
+    if (!currentFlagKey || flags[currentFlagKey] !== false) return 'allowed';
+
+    // [FIX] لو "Home" نفسها مقفولة، لا نروح لها - كان يسبب حلقة تحميل لا
+    // نهائية. بدلها نلقى أول صفحة متاحة فعلياً من الخريطة ونروح لها؛ ولو
+    // ما فيه ولا صفحة متاحة إطلاقاً، نوقف بدون أي تحويل.
+    const firstAvailablePage = Object.entries(FEATURE_FLAG_PAGE_MAP)
+        .find(([pageKey, flagKey]) => pageKey !== currentPageKey && flags[flagKey] !== false);
+
+    if (firstAvailablePage) {
+        const [pageKey] = firstAvailablePage;
+        window.location.href = pageKey.replace('.html', '');
+        return 'redirected';
+    }
+
+    document.body.innerHTML = `
+        <div style="display:flex; align-items:center; justify-content:center; height:100vh; font-family:'Inter',sans-serif; color:#8e9297; text-align:center; padding:20px;">
+            <div>
+                <h2 style="color:#ffffff; margin-bottom:8px;">No Pages Available</h2>
+                <p>Your dashboard access has been restricted. Contact the administrator.</p>
+            </div>
+        </div>`;
+    return 'locked_out';
+}
+
+/**
+ * [NEW] يُستدعى فوراً وقت تحميل السكربت (قبل حتى الجلسة/الشبكة) - لو فيه
+ * كاش من تنقل سابق بنفس الجلسة، نطبّقه متزامناً (بدون await) فتختفي
+ * الروابط المحظورة أو يصير التحويل بنفس اللحظة اللي تُنفَّذ فيها هالدالة -
+ * ما يصير أي فلاش ولا أي تأخير محسوس. يرجّع true لو فيه كاش اتطبّق.
+ */
+function applyCachedFeatureFlagsSync() {
+    const cached = readCachedFlags();
+    if (!cached) return false;
+    applyFlagsHideLogic(cached);
+    applyFlagsRedirectLogic(cached); // لو حوّلت، تحصل بنفس الـ tick - ولا فرصة فلاش
+    return true;
+}
+
 async function applyFeatureFlagVisibility() {
     let flags;
     try {
@@ -286,73 +390,28 @@ async function applyFeatureFlagVisibility() {
         if (!response.ok) {
             const body = await response.text().catch(() => '');
             console.error(`[OmniGuard Dashboard] feature-flags/effective returned ${response.status}: ${body}`);
-            removePageGateOverlay(); // [NEW] فشل الفحص - نفضّل نعرض الصفحة عادي بدل تعليق المستخدم على شاشة تحميل أبدية
+            removePageGateOverlay(); // فشل الفحص - نفضّل نعرض الصفحة عادي بدل تعليق المستخدم على شاشة تحميل أبدية
             return;
         }
         flags = await response.json();
         console.log('[OmniGuard Dashboard] Effective feature flags:', flags);
     } catch (err) {
         console.error('[OmniGuard Dashboard] Failed to load feature flags:', err.message);
-        removePageGateOverlay(); // [NEW] نفس المنطق - خطأ شبكة ما يعلّق المستخدم للأبد
+        removePageGateOverlay(); // نفس المنطق - خطأ شبكة ما يعلّق المستخدم للأبد
         return;
     }
 
-    // 1) إخفاء أي رابط بالشريط الجانبي مقفول لهذا المستخدم
-    document.querySelectorAll('.menu-item a[href]').forEach(link => {
-        const hrefKey = link.getAttribute('href').split('/').pop().toLowerCase() + '.html';
-        const flagKey = FEATURE_FLAG_PAGE_MAP[hrefKey];
-        if (flagKey && flags[flagKey] === false) {
-            const li = link.closest('.menu-item');
-            if (li) li.style.display = 'none';
-        }
-    });
+    writeCachedFlags(flags); // [NEW] يحدّث الكاش لأي تنقل جاي بنفس الجلسة
 
-    // [NEW] إخفاء عنوان الفئة (Category Header) لو كل روابطها تحتها اتخفت
-    document.querySelectorAll('.category-container').forEach(header => {
-        const list = header.nextElementSibling;
-        if (!list || !list.classList.contains('menu-list')) return;
-        const items = Array.from(list.querySelectorAll('.menu-item'));
-        const allHidden = items.length > 0 && items.every(li => li.style.display === 'none');
-        if (allHidden) {
-            header.style.display = 'none';
-            list.style.display = 'none';
-        }
-    });
+    applyFlagsHideLogic(flags);
+    const result = applyFlagsRedirectLogic(flags);
 
-    // 2) منع الوصول المباشر بالرابط للصفحة الحالية لو هي نفسها مقفولة
-    const currentPageKey = getPageKey();
-    const currentFlagKey = FEATURE_FLAG_PAGE_MAP[currentPageKey];
-    if (currentFlagKey && flags[currentFlagKey] === false) {
-        // [FIX] لو "Home" نفسها مقفولة، لا نروح لها - كان يسبب حلقة تحميل
-        // لا نهائية (index يفحص، يشوفها مقفولة، يرجع لـ index، يفحص من
-        // جديد... إلخ). بدلها نلقى أول صفحة متاحة فعلياً من الخريطة ونروح
-        // لها؛ ولو ما فيه ولا صفحة متاحة إطلاقاً، نوقف بدون أي تحويل (نعرض
-        // رسالة بدل حلقة تحميل).
-        const firstAvailablePage = Object.entries(FEATURE_FLAG_PAGE_MAP)
-            .find(([pageKey, flagKey]) => pageKey !== currentPageKey && flags[flagKey] !== false);
-
-        if (firstAvailablePage) {
-            const [pageKey] = firstAvailablePage;
-            window.location.href = pageKey.replace('.html', '');
-            // [NEW] الطبقة تُبقى ظاهرة عمداً هنا - الانتقال بيصير خلال ملي
-            // ثانية، والصفحة الجديدة تحقن طبقتها الخاصة فوراً عند تحميلها،
-            // فما يصير أي فلاش للمحتوى المحظور أثناء الانتقال نفسه.
-        } else {
-            document.body.innerHTML = `
-                <div style="display:flex; align-items:center; justify-content:center; height:100vh; font-family:'Inter',sans-serif; color:#8e9297; text-align:center; padding:20px;">
-                    <div>
-                        <h2 style="color:#ffffff; margin-bottom:8px;">No Pages Available</h2>
-                        <p>Your dashboard access has been restricted. Contact the administrator.</p>
-                    </div>
-                </div>`;
-            // الطبقة انمسحت أصلاً مع كل document.body.innerHTML فوق - لا حاجة لإزالتها يدوياً
-        }
-        return;
+    if (result === 'allowed') {
+        // الصفحة مسموحة - نكشف المحتوى (لو فيه طبقة تحميل لسه، حالة أول
+        // تحميل بالجلسة بدون كاش سابق)
+        removePageGateOverlay();
     }
-
-    // [NEW] الصفحة مسموحة - نكشف المحتوى الحين (المسار الطبيعي الوحيد اللي
-    // يوصل هنا بدون return مبكر أعلاه)
-    removePageGateOverlay();
+    // 'redirected' أو 'locked_out': ما نزيل الطبقة عمداً - راجع applyFlagsRedirectLogic
 }
 
 // ============================================================================
@@ -1512,7 +1571,14 @@ function showNotification(msg, type) {
 // حتى قبل ما يطلق حدث DOMContentLoaded.
 injectFallbackStyles();
 markClean();
-injectPageGateOverlay(); // [NEW] يمنع فلاش المحتوى المحظور - يُزال لاحقاً بعد applyFeatureFlagVisibility()
+
+// [NEW] لو فيه كاش فلاگات من تنقل سابق بنفس الجلسة، نطبّقه فوراً بدون أي
+// طبقة تحميل - هذا يلغي "بطء كل تنقل" اللي كان يصير سابقاً. الطبقة تظهر
+// فقط لو ما فيه كاش بعد (أول تحميل بهالتاب بعد تسجيل الدخول) - حالة نادرة
+// (مرة وحدة بالجلسة)، مو كل تنقل.
+if (!applyCachedFeatureFlagsSync()) {
+    injectPageGateOverlay();
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     // استدعاء إضافي احترازي (مثلاً لو صفحة مستقبلية حطت السكربت بالـ
