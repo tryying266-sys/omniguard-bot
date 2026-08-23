@@ -56,7 +56,9 @@
                 }
             }
             if (hiddenSelectors.length > 0) {
-                document.write('<style>' + hiddenSelectors.join(',') + '{display:none !important}</style>');
+                var styleEl = document.createElement('style');
+                styleEl.textContent = hiddenSelectors.join(',') + '{display:none !important}';
+                document.head.appendChild(styleEl);
             }
         } catch (e) {
             // أي خطأ هنا (JSON تالف، sessionStorage غير متاح بمتصفحات خاصة...)
