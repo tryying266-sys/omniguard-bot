@@ -4,6 +4,67 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="dashboard-guild-id" content="REPLACE_WITH_YOUR_GUILD_ID">
+    <!-- [NEW] Early Feature-Flags Gate - يقرأ نفس الكاش اللي يكتبه dashboard.js
+         (sessionStorage) ويحقن CSS يخفي الروابط المحظورة *قبل* ما يوجد
+         الشريط الجانبي أصلاً بالـ DOM، وقبل أي رسم (paint) للصفحة. هذا يقفل
+         آخر فجوة كانت متبقية: حتى لو dashboard.js نفسه آخر شي بالصفحة
+         (زي هنا)، المتصفح ممكن يرسم إطار وحد قبل ما ينفّذ أي سكربت بآخر
+         body - هذا السكربت يشتغل بأول head، قبل حتى بداية تحليل body.
+         [مهم] لازم يُنسخ بنفس الشكل بالضبط لكل صفحات الداشبورد (نفس المكان:
+         أول head، بعد meta viewport مباشرة) - ثابت وعام، ما يحتاج أي تعديل
+         خاص بكل صفحة. لو خريطة FEATURE_FLAG_PAGE_MAP بـ dashboard.js تغيّرت
+         مستقبلاً، لازم تُحدَّث هنا يدوياً بنفس القيم بكل نسخة. -->
+    <script>
+    (function() {
+        try {
+            var cacheRaw = sessionStorage.getItem('omniguard_cached_feature_flags');
+            if (!cacheRaw) return; // ما فيه كاش بعد (أول تحميل بالجلسة) - dashboard.js يتكفّل بالطبقة المعتادة
+            var flags = JSON.parse(cacheRaw);
+
+            // نفس خريطة الصفحات <-> flag_key بالضبط زي dashboard.js
+            var FEATURE_FLAG_PAGE_MAP = {
+                'search.html': 'search', 'index.html': 'home', 'general-settings.html': 'general_settings',
+                'welcome-leave.html': 'welcome', 'role-management.html': 'role_management', 'auto-mod.html': 'auto_mod',
+                'anti-alt.html': 'anti_alt', 'autorespond.html': 'auto_respond', 'category.html': 'ticket_category',
+                'AutoLog.html': 'ticket_auto_log', 'Permissionspanel.html': 'ticket_panel',
+                'custom-messages.html': 'custom_messages', 'level.html': 'level_system', 'commands.html': 'command_customization'
+            };
+
+            var path = window.location.pathname.split('/').pop().toLowerCase();
+            if (!path) path = 'index.html';
+            if (path.indexOf('.') === -1) path += '.html';
+            var currentFlagKey = FEATURE_FLAG_PAGE_MAP[path];
+
+            // 1) الصفحة الحالية نفسها محظورة؟ نحوّل فوراً - قبل حتى ما يبدأ أي رسم للصفحة إطلاقاً
+            if (currentFlagKey && flags[currentFlagKey] === false) {
+                var target = null;
+                for (var key in FEATURE_FLAG_PAGE_MAP) {
+                    if (key === path) continue;
+                    if (flags[FEATURE_FLAG_PAGE_MAP[key]] !== false) { target = key; break; }
+                }
+                if (target) window.location.replace(target.replace('.html', ''));
+                return;
+            }
+
+            // 2) إخفاء روابط الشريط الجانبي المحظورة عبر CSS - قبل ما توجد بالـ DOM أصلاً.
+            // [i] بنهاية كل selector = مطابقة بدون حساسية لحالة الأحرف (CSS
+            // Selectors L4) - يتجنب أي فرق كتابة بين href الفعلي بالـ HTML
+            // وقيمة المفتاح هنا (زي "AutoRespond" مقابل "autorespond").
+            var hiddenSelectors = [];
+            for (var pageKey in FEATURE_FLAG_PAGE_MAP) {
+                if (flags[FEATURE_FLAG_PAGE_MAP[pageKey]] === false) {
+                    hiddenSelectors.push('a[href="' + pageKey.replace('.html', '') + '" i]');
+                }
+            }
+            if (hiddenSelectors.length > 0) {
+                document.write('<style>' + hiddenSelectors.join(',') + '{display:none !important}</style>');
+            }
+        } catch (e) {
+            // أي خطأ هنا (JSON تالف، sessionStorage غير متاح بمتصفحات خاصة...)
+            // - نتجاهل بصمت، dashboard.js لاحقاً يتكفّل بنفس الشي بالطريقة العادية
+        }
+    })();
+    </script>
     <title>OmniGuard - Permissions & Roles</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
