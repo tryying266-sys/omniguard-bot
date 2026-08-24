@@ -153,8 +153,16 @@ async function initSupabaseSessionBridge() {
         const blocked = await checkMaintenanceAndMaybeBlock();
         if (blocked) return;
 
+        // [FIX - Race Condition] كانت initGlobalHeader() (تجيب سيرفراتك من ديسكورد) و
+        // applyFeatureFlagVisibility() تشتغلان بالتوازي - لو الصفحة الحالية طلعت محظورة،
+        // applyFeatureFlagVisibility تسوي تحويل كامل بمنتصف تحميل initGlobalHeader() فينقطع،
+        // وتوصل الصفحة الجديدة بقائمة سيرفرات فاضية ("No Servers Found"). الحل: ننتظر
+        // النتيجة أولاً (وناخذ قرار التحويل لو لازم) *قبل* ما نبدأ initGlobalHeader() -
+        // فلو صار تحويل/قفل، ما يكون فيه طلب شغال يتقطع أصلاً.
+        const leavingPage = await applyFeatureFlagVisibility(); // [NEW] Adminpanel Feature Flags enforcement
+        if (leavingPage) return; // الصفحة بطريقها تتحول أو استُبدل محتواها بالكامل - لا داعي نكمل
+
         initGlobalHeader(session);
-        applyFeatureFlagVisibility(); // [NEW] Adminpanel Feature Flags enforcement (تُزيل الطبقة بنفسها لما تخلص)
         renderAccountActionNotice(); // [NEW] Adminpanel Alert/Update/Note display
     } else {
         // [الحماية المركزية] إذا لم تكن في صفحة تسجيل الدخول ولا توجد جلسة، اخرج فوراً
@@ -409,14 +417,14 @@ async function applyFeatureFlagVisibility() {
             const body = await response.text().catch(() => '');
             console.error(`[OmniGuard Dashboard] feature-flags/effective returned ${response.status}: ${body}`);
             removePageGateOverlay(); // فشل الفحص - نفضّل نعرض الصفحة عادي بدل تعليق المستخدم على شاشة تحميل أبدية
-            return;
+            return false; // [FIX] ما فيه تحويل صاير - المستدعي يكمّل تحميل باقي الصفحة عادي
         }
         flags = await response.json();
         console.log('[OmniGuard Dashboard] Effective feature flags:', flags);
     } catch (err) {
         console.error('[OmniGuard Dashboard] Failed to load feature flags:', err.message);
         removePageGateOverlay(); // نفس المنطق - خطأ شبكة ما يعلّق المستخدم للأبد
-        return;
+        return false; // [FIX] راجع التعليق فوق
     }
 
     writeCachedFlags(flags); // [NEW] يحدّث الكاش لأي تنقل جاي بنفس الجلسة
@@ -430,6 +438,15 @@ async function applyFeatureFlagVisibility() {
         removePageGateOverlay();
     }
     // 'redirected' أو 'locked_out': ما نزيل الطبقة عمداً - راجع applyFlagsRedirectLogic
+
+    // [FIX - "No Servers Found" Race Condition] كانت initGlobalHeader() (اللي تجيب
+    // سيرفراتك من ديسكورد عبر loadUserGuildsIntoSelector) تُستدعى بالتوازي مع هالدالة
+    // بدون أي انتظار لبعض. لو النتيجة هنا 'redirected' أو 'locked_out'، الصفحة الحالية
+    // بطريقها تتحول/استُبدل محتواها بالكامل، فأي طلب شبكة شغال بالخلفية (جلب السيرفرات)
+    // ينقطع بمنتصفه - النتيجة: الصفحة الجديدة توصل بقائمة سيرفرات فاضية ("No Servers
+    // Found") حتى لو كانت محفوظة قبل. نرجّع true هنا عشان المستدعي (initSupabaseSessionBridge)
+    // يعرف يوقف *قبل* ما يبدأ initGlobalHeader() أصلاً - بدل ما يبدأه ثم ينقطع.
+    return result !== 'allowed';
 }
 
 // ============================================================================
