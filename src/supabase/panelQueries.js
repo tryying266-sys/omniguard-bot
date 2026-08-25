@@ -401,6 +401,94 @@ async function getEffectiveFlagsForUser(discordId) {
     return map;
 }
 
+/**
+ * [NEW - Conflict Resolution] يرجّع كل الصفوف الفردية (scope='user') الموجودة
+ * فعلياً لمجموعة flag_keys محددة - تُستخدم قبل أي حفظ "Global" عشان نعرف
+ * مسبقاً أي مستخدمين عندهم تخصيص شخصي على بالضبط الفلاقات اللي المشرف
+ * بصدد تغييرها (مو الـ15 كلهم، بس اللي فعلاً تغيّرت - الفلترة تصير بالمستدعي
+ * عبر flagKeys). الوجود المجرد لصف = تخصيص فردي فعّال بغض النظر عن قيمته.
+ */
+async function getFeatureFlagOverrides(flagKeys) {
+    if (!Array.isArray(flagKeys) || flagKeys.length === 0) return [];
+
+    const { data, error } = await supabase
+        .from('panel_feature_flags')
+        .select('target_user_id, flag_key')
+        .eq('scope', 'user')
+        .in('flag_key', flagKeys);
+
+    if (error) {
+        console.error('[PanelQueries] getFeatureFlagOverrides failed:', error.message);
+        return [];
+    }
+    return data || [];
+}
+
+/**
+ * [NEW - Conflict Resolution] "تطبيق على الكل" النهائي - يحذف التخصيصات
+ * الفردية لمستخدمين محددين، بس على الفلاقات المحددة (اللي فعلاً تغيّرت
+ * بالحفظ الحالي) - حذف حقيقي (Permanent Override)، مو مجرد إخفاء مؤقت،
+ * فما يرجعوا يطغون على القيمة العامة الجديدة مستقبلاً.
+ */
+async function deleteFeatureFlagOverrides(flagKeys, userIds) {
+    if (!Array.isArray(flagKeys) || flagKeys.length === 0) return true;
+    if (!Array.isArray(userIds) || userIds.length === 0) return true;
+
+    const { error } = await supabase
+        .from('panel_feature_flags')
+        .delete()
+        .eq('scope', 'user')
+        .in('flag_key', flagKeys)
+        .in('target_user_id', userIds);
+
+    if (error) throw new Error(`deleteFeatureFlagOverrides failed: ${error.message}`);
+    return true;
+}
+
+/**
+ * [NEW - Conflict Resolution] كل الإشعارات الفردية الفعّالة حالياً (scope='user',
+ * active=true) - تُستخدم قبل أي إرسال إشعار "Global" جديد عشان نعرف مسبقاً
+ * أي مستخدمين عندهم إشعار فردي فعّال حالياً بيتفوّق عليه دايماً (راجع
+ * getActiveNoticeForUser: الفردي يطغى على العام دايماً)، بغض النظر عن نوع
+ * أو محتوى الإشعار الجديد - أي إشعار Global جديد يتجاهله هالمستخدم لين
+ * يُحل التعارض صراحة.
+ */
+async function listActiveIndividualActions() {
+    const { data, error } = await supabase
+        .from('panel_admin_actions')
+        .select('id, target_user_id, action_type, title, at_created')
+        .eq('scope', 'user')
+        .eq('active', true);
+
+    if (error) {
+        console.error('[PanelQueries] listActiveIndividualActions failed:', error.message);
+        return [];
+    }
+    return data || [];
+}
+
+/**
+ * [NEW - Conflict Resolution] "تطبيق على الكل" النهائي للإشعارات - يعطّل
+ * (Permanent - نفس آلية deactivateAdminAction الموجودة، active=false) كل
+ * إشعار فردي فعّال لمستخدمين محددين دفعة وحدة، عشان getActiveNoticeForUser
+ * ما يلقى لهم أي إشعار فردي بعدها فتفوز الإشعار العام الجديد - نهائي، ما
+ * يرجع الفردي القديم حتى لو المستخدم سوّى Acknowledge على العام الجديد.
+ */
+async function deactivateActiveIndividualActionsForUsers(userIds) {
+    if (!Array.isArray(userIds) || userIds.length === 0) return [];
+
+    const { data, error } = await supabase
+        .from('panel_admin_actions')
+        .update({ active: false, at_updated: new Date().toISOString() })
+        .eq('scope', 'user')
+        .eq('active', true)
+        .in('target_user_id', userIds)
+        .select();
+
+    if (error) throw new Error(`deactivateActiveIndividualActionsForUsers failed: ${error.message}`);
+    return data || [];
+}
+
 module.exports = {
     getBotState,
     updateBotState,
@@ -409,6 +497,8 @@ module.exports = {
     getPublicMaintenanceStatus,
     getFeatureFlags,
     setFeatureFlags,
+    getFeatureFlagOverrides,
+    deleteFeatureFlagOverrides,
     getEffectiveFlagsForUser,
     getUserBan,
     banUser,
@@ -418,6 +508,8 @@ module.exports = {
     markDmFailed,
     listAllActions,
     deactivateAdminAction,
+    listActiveIndividualActions,
+    deactivateActiveIndividualActionsForUsers,
     getActiveNoticeForUser,
     acknowledgeNotice
 };

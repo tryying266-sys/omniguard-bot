@@ -123,15 +123,60 @@ router.get('/feature-flags', async (req, res) => {
 
 router.put('/feature-flags', async (req, res) => {
     try {
-        const { scope, target_user_id, flags } = req.body;
+        const { scope, target_user_id, flags, overrideUserIds } = req.body;
         if (!scope || !flags || typeof flags !== 'object') {
             return res.status(400).json({ error: 'scope and flags are required' });
         }
         if (scope === 'user' && !target_user_id) {
             return res.status(400).json({ error: 'target_user_id is required when scope=user' });
         }
+
+        // [NEW - Conflict Resolution] "تطبيق على الكل": المشرف اختار صراحة إن
+        // التغيير العام يطغى على تخصيصات فردية موجودة لبعض المستخدمين على
+        // بالضبط الفلاقات المُرسلة هنا (flags) - نحذفها أولاً (نهائياً) قبل
+        // الكتابة العامة، عشان ما يفضلوا يطغون على القيمة الجديدة بعدها.
+        // scope==='user' ما له علاقة بهالمنطق أصلاً (تعديل شخص واحد بالتعريف).
+        if (scope === 'global' && Array.isArray(overrideUserIds) && overrideUserIds.length > 0) {
+            await panelQueries.deleteFeatureFlagOverrides(Object.keys(flags), overrideUserIds);
+        }
+
         const updated = await panelQueries.setFeatureFlags(scope, target_user_id || null, flags);
         res.json(updated);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ----------------------------------------------------------------------------
+// [NEW - Conflict Resolution] فحص تعارض قبل حفظ Global: أي مستخدمين عندهم
+// تخصيص فردي فعلاً على بالضبط الفلاقات اللي المشرف بصدد تغييرها (يُمرَّرها
+// الفرونت بعد ما يقارن الحالة الجديدة بالقديمة - راجع Adminpanel.js). ما
+// يمس أي بيانات، قراءة بس - الفرونت يقرر بعدها يعرض نافذة اختيار أو لا.
+// ----------------------------------------------------------------------------
+router.get('/feature-flags/conflicts', async (req, res) => {
+    try {
+        const flagKeys = String(req.query.flagKeys || '').split(',').map(k => k.trim()).filter(Boolean);
+        if (flagKeys.length === 0) return res.json({ conflicts: [] });
+
+        const overrides = await panelQueries.getFeatureFlagOverrides(flagKeys);
+
+        // تجميع حسب المستخدم: { userId: ['auto_mod', 'anti_alt', ...] }
+        const byUser = {};
+        overrides.forEach(row => {
+            if (!byUser[row.target_user_id]) byUser[row.target_user_id] = [];
+            byUser[row.target_user_id].push(row.flag_key);
+        });
+
+        const client = require('../index');
+        const canResolve = client?.isReady && client.isReady();
+
+        const conflicts = Object.entries(byUser).map(([userId, keys]) => ({
+            userId,
+            user: canResolve ? resolveDiscordIdentity(client, userId) : { id: userId, username: null, displayName: userId, avatarUrl: null },
+            flagKeys: keys
+        }));
+
+        res.json({ conflicts });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -293,7 +338,7 @@ router.post('/actions', async (req, res) => {
     try {
         const {
             scope, targetUserId, actionType, badgeColor,
-            title, message, deliveryChannel, requiresAck
+            title, message, deliveryChannel, requiresAck, overrideUserIds
         } = req.body;
 
         if (!scope || !actionType || !title || !message) {
@@ -315,6 +360,20 @@ router.post('/actions', async (req, res) => {
             createdBy: req.dashboardUser.discordId
         });
 
+        // [NEW - Conflict Resolution] "تطبيق على الكل": المشرف اختار صراحة إن
+        // هالإشعار العام الجديد يطغى على أي إشعار فردي فعّال حالياً لمستخدمين
+        // محددين - نعطّل إشعاراتهم الفردية نهائياً (Permanent - راجع تعليق
+        // deactivateActiveIndividualActionsForUsers) عشان getActiveNoticeForUser
+        // يرجع يعرض لهم هالإشعار العام الجديد بدل ما يتجاهلونه. مستقل عن نجاح/
+        // فشل إرسال الإشعار نفسه (اللي أصلاً نجح فوق هذا السطر).
+        if (scope === 'global' && Array.isArray(overrideUserIds) && overrideUserIds.length > 0) {
+            try {
+                await panelQueries.deactivateActiveIndividualActionsForUsers(overrideUserIds);
+            } catch (overrideErr) {
+                console.error('[Panel] Failed to override individual notices:', overrideErr.message);
+            }
+        }
+
         // إرسال الـ DM لو مطلوب (dm أو both) ولو الهدف مستخدم محدد (مو Global بالكامل)
         if ((deliveryChannel === 'dm' || deliveryChannel === 'both') && targetUserId) {
             try {
@@ -329,6 +388,33 @@ router.post('/actions', async (req, res) => {
         }
 
         res.json(action);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ----------------------------------------------------------------------------
+// [NEW - Conflict Resolution] فحص تعارض قبل إرسال إشعار Global: أي مستخدمين
+// عندهم إشعار فردي فعّال حالياً (يطغى دايماً على أي Global جديد - راجع
+// getActiveNoticeForUser). قراءة بس، الفرونت يقرر بعدها يعرض نافذة اختيار.
+// ----------------------------------------------------------------------------
+router.get('/actions/active-individual', async (req, res) => {
+    try {
+        const activeActions = await panelQueries.listActiveIndividualActions();
+
+        const client = require('../index');
+        const canResolve = client?.isReady && client.isReady();
+
+        const conflicts = activeActions.map(a => ({
+            userId: a.target_user_id,
+            user: canResolve ? resolveDiscordIdentity(client, a.target_user_id) : { id: a.target_user_id, username: null, displayName: a.target_user_id, avatarUrl: null },
+            actionId: a.id,
+            actionType: a.action_type,
+            title: a.title,
+            at_created: a.at_created
+        }));
+
+        res.json({ conflicts });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

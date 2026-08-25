@@ -195,6 +195,30 @@
         .save-btn.state-dirty:hover { background-color: var(--accent-red-hover); }
         .save-btn.state-saved { background-color: var(--accent-green); color: var(--text-primary); cursor: default; }
         .save-btn.state-error { background-color: var(--accent-red); color: var(--text-primary); }
+
+        /* [NEW - Conflict Resolution] نافذة تعارض "Global vs تخصيص فردي" -
+           تظهر قبل حفظ الفلاقات أو إرسال إشعار Global لو فيه مستخدمين متأثرين. */
+        .conflict-modal-overlay { display: none; position: fixed; inset: 0; z-index: 100; background-color: rgba(0, 0, 0, 0.65); align-items: center; justify-content: center; padding: 20px; }
+        .conflict-modal { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 28px; max-width: 520px; width: 100%; max-height: 85vh; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5); }
+        .conflict-modal-header { display: flex; align-items: center; gap: 12px; }
+        .conflict-modal-icon { color: var(--accent-amber); font-size: 22px; flex-shrink: 0; }
+        .conflict-modal-heading { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+        .conflict-modal-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+        .conflict-modal-list { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; max-height: 240px; padding-right: 4px; }
+        .conflict-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; }
+        .conflict-row-avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; flex-shrink: 0; background-color: var(--bg-primary); }
+        .conflict-row-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .conflict-row-name { font-size: 12px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .conflict-row-id { font-weight: 400; color: var(--text-secondary); font-size: 11px; }
+        .conflict-row-detail { font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .conflict-modal-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+        .conflict-modal-btn { width: 100%; padding: 12px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--border-color); transition: all 0.2s; }
+        .conflict-modal-btn-exclude { background-color: var(--bg-tertiary); color: var(--text-primary); }
+        .conflict-modal-btn-exclude:hover { border-color: var(--accent-green); color: var(--accent-green); }
+        .conflict-modal-btn-apply-all { background-color: rgba(255, 51, 68, 0.1); color: var(--accent-red); border-color: rgba(255, 51, 68, 0.35); }
+        .conflict-modal-btn-apply-all:hover { background-color: var(--accent-red); color: var(--text-primary); }
+        .conflict-modal-btn-cancel { background: none; border: none; color: var(--text-secondary); font-size: 12px; cursor: pointer; text-align: center; padding: 4px; }
+        .conflict-modal-btn-cancel:hover { color: var(--text-primary); }
     </style>
 </head>
 <body>
@@ -460,6 +484,29 @@
             </div>
         </div>
     </main>
+
+    <!-- [NEW - Conflict Resolution] نافذة اختيار عامة - تظهر قبل حفظ الفلاقات
+         أو إرسال إشعار Global لو فيه مستخدمين عندهم تخصيص فردي متأثر.
+         مخفية افتراضياً (display:none) - Adminpanel.js يعبّيها ويظهرها وقت الحاجة. -->
+    <div id="conflict_modal_overlay" class="conflict-modal-overlay">
+        <div class="conflict-modal">
+            <div class="conflict-modal-header">
+                <i class="fa-solid fa-triangle-exclamation conflict-modal-icon"></i>
+                <span class="conflict-modal-heading" id="conflict_modal_heading">Some users have their own setting</span>
+            </div>
+            <p class="conflict-modal-desc" id="conflict_modal_description"></p>
+            <div class="conflict-modal-list" id="conflict_modal_list"></div>
+            <div class="conflict-modal-actions">
+                <button type="button" class="conflict-modal-btn conflict-modal-btn-exclude" id="conflict_modal_exclude_btn">
+                    <i class="fa-solid fa-user-shield"></i> Exclude These Users
+                </button>
+                <button type="button" class="conflict-modal-btn conflict-modal-btn-apply-all" id="conflict_modal_apply_all_btn">
+                    <i class="fa-solid fa-globe"></i> Apply to Everyone
+                </button>
+                <button type="button" class="conflict-modal-btn-cancel" id="conflict_modal_cancel_btn">Cancel</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Supabase JS SDK - required by Adminpanel.js's session bridge (same as other dashboard pages) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

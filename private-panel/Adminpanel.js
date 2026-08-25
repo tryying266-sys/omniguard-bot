@@ -335,6 +335,59 @@ function escapeHtml(str) {
 }
 
 // ============================================================================
+// [NEW - Conflict Resolution] نافذة اختيار عامة تُستخدم قبل أي حفظ/إرسال
+// "Global" يتعارض مع تخصيصات فردية موجودة فعلاً (فلاقات أو إشعارات) -
+// المشرف يختار: "استثنِ المتأثرين" (يبقوا على تخصيصهم الفردي كما هو، بدون
+// أي تغيير - نفس السلوك الافتراضي الحالي)، أو "طبّق على الكل" (يُلغى
+// تخصيصهم الفردي نهائياً فيتبعوا القيمة العامة الجديدة). ترجع Promise تُحل
+// بـ 'exclude' | 'apply_all' | null (null = المشرف ألغى/أغلق النافذة -
+// المستدعي ما ينفذ أي حفظ).
+// ============================================================================
+function showConflictModal({ heading, description, entries, applyAllLabel, excludeLabel }) {
+    return new Promise(resolve => {
+        const overlay = document.getElementById('conflict_modal_overlay');
+        const headingEl = document.getElementById('conflict_modal_heading');
+        const descEl = document.getElementById('conflict_modal_description');
+        const listEl = document.getElementById('conflict_modal_list');
+        const excludeBtn = document.getElementById('conflict_modal_exclude_btn');
+        const applyAllBtn = document.getElementById('conflict_modal_apply_all_btn');
+        const cancelBtn = document.getElementById('conflict_modal_cancel_btn');
+
+        headingEl.textContent = heading;
+        descEl.textContent = description;
+        excludeBtn.innerHTML = `<i class="fa-solid fa-user-shield"></i> ${escapeHtml(excludeLabel)}`;
+        applyAllBtn.innerHTML = `<i class="fa-solid fa-globe"></i> ${escapeHtml(applyAllLabel)}`;
+
+        listEl.innerHTML = entries.map(e => `
+            <div class="conflict-row">
+                ${e.avatarUrl
+                    ? `<img class="conflict-row-avatar" src="${e.avatarUrl}" alt="">`
+                    : `<span class="conflict-row-avatar" style="display:flex;align-items:center;justify-content:center;"><i class="fa-solid fa-user"></i></span>`}
+                <div class="conflict-row-info">
+                    <span class="conflict-row-name">${escapeHtml(e.displayName)} <span class="conflict-row-id">(${escapeHtml(e.id)})</span></span>
+                    <span class="conflict-row-detail">${escapeHtml(e.detail)}</span>
+                </div>
+            </div>
+        `).join('');
+
+        function cleanup() {
+            overlay.style.display = 'none';
+            excludeBtn.onclick = null;
+            applyAllBtn.onclick = null;
+            cancelBtn.onclick = null;
+            overlay.onclick = null;
+        }
+
+        excludeBtn.onclick = () => { cleanup(); resolve('exclude'); };
+        applyAllBtn.onclick = () => { cleanup(); resolve('apply_all'); };
+        cancelBtn.onclick = () => { cleanup(); resolve(null); };
+        overlay.onclick = (e) => { if (e.target === overlay) { cleanup(); resolve(null); } };
+
+        overlay.style.display = 'flex';
+    });
+}
+
+// ============================================================================
 // Bot State & Maintenance
 // ============================================================================
 async function loadBotState() {
@@ -402,6 +455,20 @@ function renderFeatureFlagsGrid() {
     });
 }
 
+// [NEW - Conflict Resolution] آخر حالة معروفة/محفوظة فعلياً للفلاقات (تُحدَّث
+// بعد كل تحميل ناجح وبعد كل حفظ ناجح) - أساس مقارنة "وش تغيّر فعلياً" وقت
+// الحفظ، بدل إرسال الـ15 فلاق دفعة وحدة وفحص تعارض عليهم كلهم بدون داعي.
+let featureFlagsBaseline = {};
+
+function captureFeatureFlagsBaseline() {
+    const snapshot = {};
+    FEATURE_FLAGS.forEach(flag => {
+        const el = document.getElementById(`flag_${flag.key}`);
+        if (el) snapshot[flag.key] = el.checked;
+    });
+    featureFlagsBaseline = snapshot;
+}
+
 function renderFeatureFlagsScope() {
     const hint = document.getElementById('flags_scope_hint');
     if (currentTarget?.type === 'user') {
@@ -422,6 +489,7 @@ async function loadFeatureFlags() {
             const el = document.getElementById(`flag_${flag.key}`);
             if (el) el.checked = flagMap[flag.key] !== false;
         });
+        captureFeatureFlagsBaseline(); // [NEW] أساس المقارنة الجديد بعد كل تحميل ناجح
     } catch (err) {
         console.error('[Adminpanel] Failed to load feature flags:', err.message);
     }
@@ -430,14 +498,65 @@ async function loadFeatureFlags() {
 async function saveFeatureFlags() {
     const scope = currentTarget?.type === 'user' ? 'user' : 'global';
     const target_user_id = currentTarget?.type === 'user' ? currentTarget.id : null;
-    const flags = {};
+
+    const currentState = {};
     FEATURE_FLAGS.forEach(flag => {
-        flags[flag.key] = document.getElementById(`flag_${flag.key}`).checked;
+        currentState[flag.key] = document.getElementById(`flag_${flag.key}`).checked;
     });
-    return panelFetch('/feature-flags', {
+
+    // [NEW - Diff Check] نرسل بس الفلاقات اللي فعلاً تغيّرت عن آخر حالة معروفة
+    // (featureFlagsBaseline)، بدل الـ15 كلهم كل مرة - يقلل حمل الشبكة، والأهم:
+    // يخلي فحص التعارض تحت يشتغل بس على اللي يستاهل فعلاً، بدون إزعاج المشرف
+    // بتنبيهات لفلاقات ما لمسها أصلاً بهالحفظة.
+    const changedFlags = {};
+    Object.keys(currentState).forEach(key => {
+        if (currentState[key] !== featureFlagsBaseline[key]) changedFlags[key] = currentState[key];
+    });
+
+    if (Object.keys(changedFlags).length === 0) {
+        return null; // ما فيه شي تغيّر فعلياً - صفر نداءات شبكة
+    }
+
+    let overrideUserIds = [];
+
+    // [NEW - Conflict Resolution] الفحص يصير بس لحفظ Global - تعديل شخص واحد
+    // بالتعريف (scope='user') هو نفسه التخصيص الفردي، ما له علاقة بمفهوم
+    // "يطغى على الكل".
+    if (scope === 'global') {
+        try {
+            const { conflicts } = await panelFetch(`/feature-flags/conflicts?flagKeys=${Object.keys(changedFlags).join(',')}`);
+            if (conflicts && conflicts.length > 0) {
+                const choice = await showConflictModal({
+                    heading: 'Some users have their own setting',
+                    description: `${conflicts.length} user(s) have an individual override on the flag(s) you're changing - they currently ignore the global default for these specific flags. Choose how to proceed.`,
+                    entries: conflicts.map(c => ({
+                        avatarUrl: c.user?.avatarUrl,
+                        displayName: c.user?.displayName || c.userId,
+                        id: c.userId,
+                        detail: c.flagKeys.map(k => (FEATURE_FLAGS.find(f => f.key === k)?.label || k)).join(', ')
+                    })),
+                    excludeLabel: 'Exclude These Users (keep their setting)',
+                    applyAllLabel: 'Apply to Everyone (remove their custom setting)'
+                });
+
+                if (choice === null) return null; // المشرف ألغى - ما نحفظ شي إطلاقاً
+                if (choice === 'apply_all') overrideUserIds = conflicts.map(c => c.userId);
+                // choice === 'exclude' -> overrideUserIds تبقى [] (نفس السلوك الافتراضي الآمن الحالي)
+            }
+        } catch (err) {
+            console.error('[Adminpanel] Feature flag conflict check failed:', err.message);
+            // فشل الفحص الإضافي نفسه (مو تعارض فعلي) - نكمل الحفظ العادي بدل
+            // ما نعلّق المشرف بسبب خطأ بخطوة تحقق ثانوية
+        }
+    }
+
+    const result = await panelFetch('/feature-flags', {
         method: 'PUT',
-        body: JSON.stringify({ scope, target_user_id, flags })
+        body: JSON.stringify({ scope, target_user_id, flags: changedFlags, overrideUserIds })
     });
+
+    captureFeatureFlagsBaseline(); // [NEW] الحفظ نجح - نحدّث الأساس لمقارنة الحفظة القادمة
+    return result;
 }
 
 // ============================================================================
@@ -570,6 +689,36 @@ async function dispatchAction() {
         return;
     }
 
+    // [NEW - Conflict Resolution] الفحص يصير بس لإشعار Global جديد - إشعار
+    // مباشر لمستخدم محدد (scope='user') ما له علاقة بمفهوم "يطغى على الكل".
+    let overrideUserIds = [];
+    if (scope === 'global') {
+        try {
+            const { conflicts } = await panelFetch('/actions/active-individual');
+            if (conflicts && conflicts.length > 0) {
+                const choice = await showConflictModal({
+                    heading: 'Some users have an active individual notice',
+                    description: `${conflicts.length} user(s) currently have their own active notice, which always takes priority over a new global one for them. Choose how to proceed.`,
+                    entries: conflicts.map(c => ({
+                        avatarUrl: c.user?.avatarUrl,
+                        displayName: c.user?.displayName || c.userId,
+                        id: c.userId,
+                        detail: `${c.actionType.toUpperCase()}: "${c.title}"`
+                    })),
+                    excludeLabel: 'Exclude These Users (keep their notice)',
+                    applyAllLabel: 'Apply to Everyone (dismiss their notice)'
+                });
+
+                if (choice === null) return; // المشرف ألغى - ما نرسل شي إطلاقاً
+                if (choice === 'apply_all') overrideUserIds = conflicts.map(c => c.userId);
+                // choice === 'exclude' -> overrideUserIds تبقى [] (نفس السلوك الافتراضي الحالي - الفردي يبقى يطغى)
+            }
+        } catch (err) {
+            console.error('[Adminpanel] Action conflict check failed:', err.message);
+            // فشل الفحص الإضافي نفسه - نكمل الإرسال العادي بدل ما نعلّق المشرف
+        }
+    }
+
     try {
         await panelFetch('/actions', {
             method: 'POST',
@@ -581,7 +730,8 @@ async function dispatchAction() {
                 title,
                 message,
                 deliveryChannel,
-                requiresAck: actionType === 'alert'
+                requiresAck: actionType === 'alert',
+                overrideUserIds
             })
         });
         alert('Notice dispatched successfully.');
